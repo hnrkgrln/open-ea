@@ -1,0 +1,229 @@
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  /* Soft Light Mode */
+  --background: #f8f9fa;
+  --foreground: #212529;
+  --card: #ffffff;
+  --card-foreground: #212529;
+  --popover: #ffffff;
+  --popover-foreground: #212529;
+  --primary: #343a40;
+  --primary-foreground: #f8f9fa;
+  --secondary: #e9ecef;
+  --secondary-foreground: #212529;
+  --muted: #f1f3f5;
+  --muted-foreground: #6c757d;
+  --accent: #dee2e6;
+  --accent-foreground: #212529;
+  --destructive: #fa5252;
+  --destructive-foreground: #ffffff;
+  --border: #e9ecef;
+  --input: #ced4da;
+  --ring: #adb5bd;
+  --radius: 0.6rem;
+
+  /* Lifecycle Colors */
+  --lc-planning: #e7f5ff;
+  --lc-planning-text: #1971c2;
+  --lc-deployment: #f3f0ff;
+  --lc-deployment-text: #6741d9;
+  --lc-maintenance: #ebfbee;
+  --lc-maintenance-text: #2b8a3e;
+  --lc-sunset: #fff4e6;
+  --lc-sunset-text: #e67700;
+  --lc-decommissioned: #fff5f5;
+  --lc-decommissioned-text: #c92a2a;
+}
+
+[data-theme='dark'] {
+  --background: #1a1b1e;
+  --foreground: #ced4da;
+  --card: #25262b;
+  --card-foreground: #dee2e6;
+  --popover: #25262b;
+  --popover-foreground: #dee2e6;
+  --primary: #dee2e6;
+  --primary-foreground: #1a1b1e;
+  --secondary: #2c2e33;
+  --secondary-foreground: #f8f9fa;
+  --muted: #2c2e33;
+  --muted-foreground: #909296;
+  --accent: #373a40;
+  --accent-foreground: #f8f9fa;
+  --destructive: #c92a2a;
+  --destructive-foreground: #ffffff;
+  --border: #373a40;
+  --input: #373a40;
+  --ring: #5c5f66;
+
+  /* Dark Lifecycle Colors */
+  --lc-planning: #1864ab;
+  --lc-planning-text: #d0ebff;
+  --lc-deployment: #5f3dc4;
+  --lc-deployment-text: #e5dbff;
+  --lc-maintenance: #2b8a3e;
+  --lc-maintenance-text: #d3f9d8;
+  --lc-sunset: #d9480f;
+  --lc-sunset-text: #fff4e6;
+  --lc-decommissioned: #c92a2a;
+  --lc-decommissioned-text: #ffe3e3;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s, color 0.3s;
+  overflow: hidden; /* Main handles scrolling */
+}
+
+.header {
+  height: 4rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2rem;
+  background: var(--card);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.main-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  width: 100%;
+  max-width: 2400px; /* Ultra-wide for EA Tools */
+  margin: 0 auto;
+}
+
+.main-full {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+.nav {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.nav-link {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  text-decoration: none;
+  transition: color 0.2s;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: var(--foreground);
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 1.5rem;
+  transition: background-color 0.3s, border-color 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); /* Balanced card size */
+  gap: 1.5rem;
+}
+
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  height: 2.5rem;
+  padding: 0 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+button.primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border: none;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--input);
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+.field {
+  margin-bottom: 1rem;
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+/* Badge styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-planning { background: var(--lc-planning); color: var(--lc-planning-text); }
+.badge-deployment { background: var(--lc-deployment); color: var(--lc-deployment-text); }
+.badge-maintenance { background: var(--lc-maintenance); color: var(--lc-maintenance-text); }
+.badge-sunset { background: var(--lc-sunset); color: var(--lc-sunset-text); }
+.badge-decommissioned { background: var(--lc-decommissioned); color: var(--lc-decommissioned-text); }
+
+/* Search specific styles */
+.search-item:hover {
+  background: var(--accent);
+}

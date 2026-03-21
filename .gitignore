@@ -1,0 +1,22 @@
+# Node
+node_modules/
+dist/
+build/
+.npm
+*.log
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

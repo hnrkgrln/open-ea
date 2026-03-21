@@ -1,0 +1,83 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Application {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  owner       String?
+  lifecycle   String?  @default("Planning")
+  metadata    String?  // JSON string for dynamic fields in SQLite
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  capabilities Capability[]
+  sourceOf     Integration[] @relation("sourceApp")
+  targetOf     Integration[] @relation("targetApp")
+}
+
+model Capability {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  parentId    String?
+  parent      Capability? @relation("CapabilityParent", fields: [parentId], references: [id])
+  children    Capability[] @relation("CapabilityParent")
+  
+  applications Application[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Integration {
+  id           String   @id @default(uuid())
+  name         String?
+  sourceAppId  String
+  targetAppId  String
+  type         String?  // e.g. API, Batch, Messaging
+  protocol     String?  // e.g. HTTPS, SFTP
+  dataFormat   String?  // e.g. JSON, XML, CSV
+  
+  sourceApp    Application @relation("sourceApp", fields: [sourceAppId], references: [id], onDelete: Cascade)
+  targetApp    Application @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)
+  
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model MetadataDefinition {
+  id         String   @id @default(uuid())
+  entityType String   // e.g. "Application"
+  fieldName  String
+  fieldType  String   // e.g. "string", "number", "date", "boolean"
+  label      String
+  required   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Picklist {
+  id      String           @id @default(uuid())
+  name    String           @unique // e.g. "lifecycle", "owner", "app_type"
+  label   String
+  options PicklistOption[]
+}
+
+model PicklistOption {
+  id         String   @id @default(uuid())
+  value      String
+  label      String
+  color      String?
+  order      Int      @default(0)
+  picklistId String
+  picklist   Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+}
