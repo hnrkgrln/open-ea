@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map } from 'lucide-react';
+import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
@@ -35,6 +35,7 @@ interface Capability {
   description?: string;
   parentId?: string | null;
   children?: Capability[];
+  applications?: { id: string }[];
 }
 
 interface Integration {
@@ -51,6 +52,7 @@ interface Integration {
 const AppContent = () => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('inventory');
   const [editingApp, setEditingApp] = useState<Application | null>(null);
+  const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
   const queryClient = useQueryClient();
 
   const handleRefresh = useCallback(() => {
@@ -106,7 +108,7 @@ const AppContent = () => {
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <ThemeToggle />
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <UnifiedSearch onSelectApp={(app) => setEditingApp(app)} />
+            <UnifiedSearch onSelectApp={(app) => setEditingApp(app)} onSelectCapability={(cap) => setEditingCapability(cap)} />
             <NewAppDialog onSuccess={handleRefresh} />
           </div>
         </div>
@@ -117,10 +119,14 @@ const AppContent = () => {
           <InventoryView apps={apps || []} onRefresh={handleRefresh} />
         </div>
         <div style={{ display: activeTab === 'capabilities' ? 'block' : 'none' }}>
-          <CapabilitiesView />
+          <CapabilitiesView onRefresh={handleRefresh} />
         </div>
         <div style={{ display: activeTab === 'diagrams' ? 'block' : 'none', height: '100%' }}>
-          <DiagramsView apps={apps || []} onEditApp={(app) => setEditingApp(app)} />
+          <DiagramsView 
+            apps={apps || []} 
+            onEditApp={(app) => setEditingApp(app)} 
+            onEditCapability={(cap) => setEditingCapability(cap)}
+          />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
           <PicklistsView />
@@ -134,6 +140,18 @@ const AppContent = () => {
           open={!!editingApp}
           onOpenChange={(open) => {
             if (!open) setEditingApp(null);
+          }}
+          onSuccess={handleRefresh}
+        />
+      )}
+
+      {/* Global Edit Capability Dialog for Diagram Clicks */}
+      {editingCapability && (
+        <EditCapabilityDialog
+          capability={editingCapability}
+          open={!!editingCapability}
+          onOpenChange={(open) => {
+            if (!open) setEditingCapability(null);
           }}
           onSuccess={handleRefresh}
         />
@@ -390,19 +408,37 @@ const CapabilityNode = ({ node, onRefresh }: { node: Capability, onRefresh: () =
   );
 };
 
-const CapabilitiesView = () => {
-  const queryClient = useQueryClient();
-  const { data: capabilities, isLoading } = useQuery({
+const CapabilitiesView = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { data: flatCapabilities, isLoading } = useQuery<Capability[]>({
     queryKey: ['capabilities'],
     queryFn: async () => {
       const res = await fetch('/api/capabilities');
-      return res.json() as Promise<Capability[]>;
+      return res.json();
     }
   });
 
-  const handleRefresh = () => {
-    queryClient.invalidateQueries({ queryKey: ['capabilities'] });
-  };
+  const capabilityTree = useMemo(() => {
+    if (!flatCapabilities) return [];
+    
+    const map = new Map<string, Capability>();
+    const roots: Capability[] = [];
+
+    // First pass: Initialize map with cloned objects to avoid mutation
+    flatCapabilities.forEach(cap => {
+      map.set(cap.id, { ...cap, children: [] });
+    });
+
+    // Second pass: Build hierarchy
+    map.forEach(cap => {
+      if (cap.parentId && map.has(cap.parentId)) {
+        map.get(cap.parentId)!.children!.push(cap);
+      } else {
+        roots.push(cap);
+      }
+    });
+
+    return roots;
+  }, [flatCapabilities]);
 
   if (isLoading) return <div>Loading capabilities...</div>;
 
@@ -413,19 +449,19 @@ const CapabilitiesView = () => {
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Business Capabilities</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Define and map the core functions of your enterprise.</p>
         </div>
-        <EditCapabilityDialog onSuccess={handleRefresh} />
+        <EditCapabilityDialog onSuccess={onRefresh} />
       </div>
       
       <div style={{ marginLeft: '-1.5rem' }}>
-        {capabilities?.map(cap => (
-          <CapabilityNode key={cap.id} node={cap} onRefresh={handleRefresh} />
+        {capabilityTree.map(cap => (
+          <CapabilityNode key={cap.id} node={cap} onRefresh={onRefresh} />
         ))}
       </div>
     </div>
   );
 };
 
-const DiagramsView = ({ apps, onEditApp }: { apps: Application[], onEditApp: (app: Application) => void }) => {
+const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application[], onEditApp: (app: Application) => void, onEditCapability: (cap: any) => void }) => {
   const [filters, setFilters] = useState({
     search: '',
     owner: '',
@@ -469,7 +505,6 @@ const DiagramsView = ({ apps, onEditApp }: { apps: Application[], onEditApp: (ap
         </div>
         
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          {/* Mode Switcher */}
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button 
               onClick={() => setMode('network')}
@@ -489,7 +524,7 @@ const DiagramsView = ({ apps, onEditApp }: { apps: Application[], onEditApp: (ap
                 boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
               }}
             >
-              <Map size={16} style={{ marginRight: '0.5rem' }} /> Landscape
+              <MapIcon size={16} style={{ marginRight: '0.5rem' }} /> Landscape
             </button>
           </div>
 
@@ -549,7 +584,7 @@ const DiagramsView = ({ apps, onEditApp }: { apps: Application[], onEditApp: (ap
       )}
 
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <ApplicationDiagram onNodeClick={onEditApp} appsOverride={filteredApps} mode={mode} />
+        <ApplicationDiagram onNodeClick={onEditApp} onCapabilityClick={onEditCapability} appsOverride={filteredApps} mode={mode} />
       </div>
     </div>
   );

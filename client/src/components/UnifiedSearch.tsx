@@ -5,9 +5,10 @@ import { LifecycleBadge } from './LifecycleBadge';
 
 interface Props {
   onSelectApp: (app: any) => void;
+  onSelectCapability: (cap: any) => void;
 }
 
-export const UnifiedSearch = ({ onSelectApp }: Props) => {
+export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQ] = useState('');
   const [results, setResults] = useState<any>(null);
@@ -76,9 +77,9 @@ export const UnifiedSearch = ({ onSelectApp }: Props) => {
               placeholder="Search applications, capabilities, relations..."
               value={query}
               onChange={(e) => setQ(e.target.value)}
-              style={{ border: 'none', padding: 0, margin: 0, fontSize: '1rem', background: 'transparent', outline: 'none', color: 'var(--foreground)' }}
+              style={{ border: 'none', padding: 0, margin: 0, fontSize: '1rem', background: 'transparent', outline: 'none', color: 'var(--foreground)', width: '100%' }}
             />
-            <div style={{ fontSize: '0.75rem', background: 'var(--muted)', padding: '0.2rem 0.4rem', borderRadius: '4px', color: 'var(--muted-foreground)' }}>
+            <div style={{ fontSize: '0.75rem', background: 'var(--muted)', padding: '0.2rem 0.4rem', borderRadius: '4px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
               ESC
             </div>
           </div>
@@ -115,7 +116,8 @@ export const UnifiedSearch = ({ onSelectApp }: Props) => {
                     {results.capabilities.map((cap: any) => (
                       <div 
                         key={cap.id} 
-                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                        onClick={() => { onSelectCapability(cap); setOpen(false); }}
+                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
                         className="search-item"
                       >
                         <Boxes size={16} />
@@ -131,7 +133,8 @@ export const UnifiedSearch = ({ onSelectApp }: Props) => {
                     {results.relations.map((rel: any) => (
                       <div 
                         key={rel.id} 
-                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
+                        onClick={() => { onSelectApp(rel.sourceApp); setOpen(false); }}
+                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
                         className="search-item"
                       >
                         <Network size={16} />

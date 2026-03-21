@@ -94,16 +94,10 @@ server.delete('/applications/:id', {
 });
 
 // Capabilities API
-server.get('/capabilities', async (request) => {
-  const { flat } = request.query as { flat?: string };
-  
-  if (flat === 'true') {
-    return prisma.capability.findMany();
-  }
-
+server.get('/capabilities', async () => {
   return prisma.capability.findMany({
-    include: { children: true },
-    where: { parentId: null },
+    include: { applications: true },
+    orderBy: { name: 'asc' }
   });
 });
 
@@ -113,13 +107,19 @@ server.post('/capabilities', {
       name: z.string(),
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),
+      applicationIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request) => {
-  const data = request.body;
+  const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
   return prisma.capability.create({
-    data,
+    data: {
+      ...data,
+      applications: applicationIds ? {
+        connect: applicationIds.map(id => ({ id }))
+      } : undefined
+    },
   });
 });
 
@@ -132,15 +132,21 @@ server.put('/capabilities/:id', {
       name: z.string().optional(),
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),
+      applicationIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request) => {
   const { id } = request.params;
-  const data = request.body;
+  const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
   return prisma.capability.update({
     where: { id },
-    data,
+    data: {
+      ...data,
+      applications: applicationIds ? {
+        set: applicationIds.map(id => ({ id }))
+      } : undefined
+    },
   });
 });
 

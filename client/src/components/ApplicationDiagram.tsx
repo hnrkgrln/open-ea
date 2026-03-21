@@ -11,6 +11,14 @@ interface Application {
   capabilities?: { id: string; name: string }[];
 }
 
+interface Capability {
+  id: string;
+  name: string;
+  description?: string;
+  parentId?: string | null;
+  applications?: { id: string }[];
+}
+
 interface Integration {
   id: string;
   sourceAppId: string;
@@ -21,11 +29,12 @@ interface Integration {
 
 interface Props {
   onNodeClick?: (app: Application) => void;
+  onCapabilityClick?: (cap: Capability) => void;
   appsOverride?: Application[];
   mode?: 'network' | 'landscape';
 }
 
-export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network' }: Props) => {
+export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network' }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<Graph | null>(null);
 
@@ -48,6 +57,14 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
     }
   });
 
+  const { data: capabilities } = useQuery({
+    queryKey: ['capabilities'],
+    queryFn: async () => {
+      const res = await fetch('/api/capabilities?flat=true');
+      return res.json() as Promise<Capability[]>;
+    }
+  });
+
   // 1. Initialize Graph with restricted editing
   useEffect(() => {
     if (!containerRef.current || graphRef.current) return;
@@ -67,7 +84,6 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
       },
       interacting: {
         nodeMovable: (view) => {
-          // Only nodes with the 'parent' data attribute are movable
           return view.cell.getData()?.parent === true;
         },
         edgeMovable: false,
@@ -95,7 +111,6 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
     const graph = graphRef.current;
     if (!graph || !apps || !integrations) return;
 
-    // Force a clean state before redrawing
     graph.clearCells();
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -119,7 +134,7 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
           width: 140,
           height: 50,
           label: app.name,
-          data: { parent: false }, // Application nodes are NOT movable in network mode either for stability
+          data: { parent: false, type: 'app', originalId: app.id },
           attrs: {
             body: { fill: nodeBg, stroke: 'var(--border)', strokeWidth: 1, rx: 8, ry: 8, cursor: 'pointer' },
             label: { fontSize: 12, fill: textColor, cursor: 'pointer', fontWeight: 500 },
@@ -146,6 +161,7 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
         }
       });
     } else {
+      // Landscape View
       const caps = new Map<string, { name: string; apps: Application[] }>();
       apps.forEach(app => {
         if (app.capabilities && app.capabilities.length > 0) {
@@ -173,10 +189,10 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
           height: groupHeight,
           label: data.name,
           zIndex: 1,
-          data: { parent: true }, // Containers ARE movable
+          data: { parent: true, type: 'capability', originalId: id },
           attrs: {
-            body: { fill: groupBg, stroke: 'var(--border)', strokeWidth: 2, rx: 12, ry: 12 },
-            label: { refY: 20, fontSize: 14, fontWeight: 700, fill: textColor },
+            body: { fill: groupBg, stroke: 'var(--border)', strokeWidth: 2, rx: 12, ry: 12, cursor: 'pointer' },
+            label: { refY: 20, fontSize: 14, fontWeight: 700, fill: textColor, cursor: 'pointer' },
           },
         });
 
@@ -189,7 +205,7 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
             height: appHeight,
             label: app.name,
             zIndex: 10,
-            data: { parent: false }, // Inner apps are NOT movable
+            data: { parent: false, type: 'app', originalId: app.id },
             attrs: {
               body: { fill: nodeBg, stroke: 'var(--border)', strokeWidth: 1, rx: 6, ry: 6, cursor: 'pointer' },
               label: { fontSize: 12, fill: textColor, cursor: 'pointer' },
@@ -207,7 +223,6 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
     }
 
     if (apps.length > 0) {
-      // Small timeout to let DOM/AntV finish layout before centering
       const timer = setTimeout(() => {
         graph.centerContent();
       }, 100);
@@ -215,25 +230,27 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
     }
   }, [apps, integrations, mode]);
 
-  // 3. Robust Click Handling
+  // 3. Click Handling
   useEffect(() => {
     const graph = graphRef.current;
     if (!graph) return;
 
     const handleClick = ({ node }: any) => {
-      const cellId = node.id;
-      // Extract original app ID (stripping capability prefix if in landscape)
-      const id = cellId.includes('-') && !cellId.startsWith('cap-') 
-        ? cellId.split('-')[1] 
-        : cellId;
-      
-      const app = apps?.find(a => a.id === id);
-      if (app && onNodeClick) onNodeClick(app);
+      const data = node.getData();
+      if (!data) return;
+
+      if (data.type === 'app') {
+        const app = apps?.find(a => a.id === data.originalId);
+        if (app && onNodeClick) onNodeClick(app);
+      } else if (data.type === 'capability') {
+        const cap = capabilities?.find(c => c.id === data.originalId);
+        if (cap && onCapabilityClick) onCapabilityClick(cap);
+      }
     };
 
     graph.off('node:click');
     graph.on('node:click', handleClick);
-  }, [apps, onNodeClick]);
+  }, [apps, capabilities, onNodeClick, onCapabilityClick]);
 
   // 4. Cleanup & Visibility Handling
   useEffect(() => {
@@ -260,7 +277,7 @@ export const ApplicationDiagram = ({ onNodeClick, appsOverride, mode = 'network'
         border: '1px solid var(--border)',
         opacity: 0.8
       }}>
-        {mode === 'network' ? 'Network View (Locked)' : 'Landscape View (Drag Containers)'} • Ctrl + Scroll to zoom
+        {mode === 'network' ? 'Network View (Locked)' : 'Landscape View (Click Capability or App)'} • Ctrl + Scroll to zoom
       </div>
     </div>
   );
