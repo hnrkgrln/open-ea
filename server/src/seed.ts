@@ -61,6 +61,22 @@ async function main() {
     }
   });
 
+  const appTypePicklist = await prisma.picklist.create({
+    data: {
+      name: 'application_type',
+      label: 'Application Type',
+      options: {
+        create: [
+          { value: 'On-premise', label: 'On-premise', order: 1 },
+          { value: 'SaaS', label: 'SaaS', order: 2 },
+          { value: 'PaaS', label: 'PaaS', order: 3 },
+          { value: 'Mobile App', label: 'Mobile App', order: 4 },
+          { value: 'Desktop App', label: 'Desktop App', order: 5 },
+        ]
+      }
+    }
+  });
+
   // Create Capabilities
   const cap1 = await prisma.capability.create({
     data: {
@@ -90,6 +106,7 @@ async function main() {
       description: 'Core CRM application.',
       owner: 'Sales Operations',
       lifecycle: 'Maintenance',
+      type: 'SaaS',
       capabilities: { connect: [{ id: cap1.id }] },
     },
   });
@@ -100,6 +117,7 @@ async function main() {
       description: 'Enterprise ERP system.',
       owner: 'Finance',
       lifecycle: 'Maintenance',
+      type: 'On-premise',
       capabilities: { connect: [{ id: cap2.id }] },
     },
   });
@@ -110,6 +128,7 @@ async function main() {
       description: 'Time management for employees.',
       owner: 'HR',
       lifecycle: 'Maintenance',
+      type: 'SaaS',
       capabilities: { connect: [{ id: cap3.id }] },
     },
   });
@@ -120,6 +139,7 @@ async function main() {
       description: 'HR and Payroll system.',
       owner: 'HR',
       lifecycle: 'Maintenance',
+      type: 'On-premise',
       capabilities: { connect: [{ id: cap3.id }] },
     },
   });

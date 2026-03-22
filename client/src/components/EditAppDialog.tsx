@@ -19,6 +19,7 @@ interface Props {
     description: string;
     owner: string;
     lifecycle: string;
+    type: string;
     capabilities?: { id: string }[];
   };
   onSuccess: () => void;
@@ -73,6 +74,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
+  const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   const relationTypeOptions = picklists?.find(p => p.name === 'relation_type')?.options || [];
 
   const toggleCapability = (id: string) => {
@@ -115,11 +117,11 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
       description: formData.get('description') as string,
       owner: formData.get('owner') as string,
       lifecycle: formData.get('lifecycle') as string,
+      type: formData.get('type') as string,
       capabilityIds: selectedCapIds,
     };
 
     try {
-      // 1. Update Application
       const res = await fetch(`/api/applications/${app.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -127,10 +129,8 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
       });
 
       if (res.ok) {
-        // 2. Handle Relations
         await Promise.all(relations.map(rel => {
           if (rel.id) {
-            // Update existing
             return fetch(`/api/integrations/${rel.id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
@@ -141,7 +141,6 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
               }),
             });
           } else if (rel.targetId) {
-            // Create new
             return fetch('/api/integrations', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -233,12 +232,19 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
               <label className="label">Description</label>
               <textarea name="description" key={`desc-${app.id}`} rows={2} defaultValue={app.description} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div className="field">
                 <label className="label">Owner</label>
                 <select name="owner" key={`owner-${app.id}`} defaultValue={app.owner}>
                   <option value="">Select owner...</option>
                   {ownerOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Type</label>
+                <select name="type" key={`type-${app.id}`} defaultValue={app.type}>
+                  <option value="">Select type...</option>
+                  {appTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div className="field">
@@ -309,6 +315,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
                     value={rel.targetId} 
                     onChange={(e) => updateRelation(index, 'targetId', e.target.value)}
                     style={{ marginTop: 0 }}
+                    disabled={!!rel.id}
                   >
                     <option value="">Target...</option>
                     {apps.map(a => (
@@ -319,6 +326,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
                     value={rel.type} 
                     onChange={(e) => updateRelation(index, 'type', e.target.value)}
                     style={{ marginTop: 0 }}
+                    disabled={!!rel.id}
                   >
                     {relationTypeOptions.map((opt: any) => (
                       <option key={opt.id} value={opt.value}>{opt.label}</option>

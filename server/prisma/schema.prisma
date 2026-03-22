@@ -16,6 +16,7 @@ model Application {
   description String?
   owner       String?
   lifecycle   String?  @default("Planning")
+  type        String?
   metadata    String?  // JSON string for dynamic fields in SQLite
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

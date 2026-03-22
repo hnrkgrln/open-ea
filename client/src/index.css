@@ -227,3 +227,34 @@ input, select, textarea {
 .search-item:hover {
   background: var(--accent);
 }
+
+/* React Flow Theming */
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.react-flow__node {
+  border-radius: var(--radius);
+}
+
+.react-flow__controls {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.react-flow__controls-button {
+  background: var(--card);
+  color: var(--foreground);
+  border-bottom: 1px solid var(--border);
+}
+
+.react-flow__controls-button:hover {
+  background: var(--secondary);
+}
+
+.react-flow__attribution {
+  display: none;
+}

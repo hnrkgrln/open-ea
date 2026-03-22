@@ -43,6 +43,7 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
+  const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   const relationTypeOptions = picklists?.find(p => p.name === 'relation_type')?.options || [];
 
   const addRelation = () => {
@@ -74,6 +75,7 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
       description: formData.get('description') as string,
       owner: formData.get('owner') as string,
       lifecycle: formData.get('lifecycle') as string,
+      type: formData.get('type') as string,
       capabilityIds: selectedCapIds,
     };
 
@@ -155,12 +157,19 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
               <label className="label">Description</label>
               <textarea name="description" rows={2} placeholder="What does this app do?" />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div className="field">
                 <label className="label">Owner</label>
                 <select name="owner">
                   <option value="">Select owner...</option>
                   {ownerOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label">Type</label>
+                <select name="type">
+                  <option value="">Select type...</option>
+                  {appTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div className="field">
