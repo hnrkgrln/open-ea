@@ -315,6 +315,63 @@ server.delete('/picklist-options/:id', {
   });
 });
 
+// Metadata Definitions API
+server.get('/metadata-definitions', async () => {
+  return prisma.metadataDefinition.findMany({
+    orderBy: { createdAt: 'asc' }
+  });
+});
+
+server.post('/metadata-definitions', {
+  schema: {
+    body: z.object({
+      entityType: z.string(),
+      fieldName: z.string(),
+      fieldType: z.string(),
+      label: z.string(),
+      required: z.boolean().optional(),
+      min: z.number().optional(),
+      max: z.number().optional(),
+      scaleType: z.string().optional(),
+    }),
+  },
+}, async (request) => {
+  return prisma.metadataDefinition.create({
+    data: request.body,
+  });
+});
+
+server.put('/metadata-definitions/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      entityType: z.string().optional(),
+      fieldName: z.string().optional(),
+      fieldType: z.string().optional(),
+      label: z.string().optional(),
+      required: z.boolean().optional(),
+      min: z.number().optional(),
+      max: z.number().optional(),
+      scaleType: z.string().optional(),
+    }),
+  },
+}, async (request) => {
+  return prisma.metadataDefinition.update({
+    where: { id: request.params.id },
+    data: request.body,
+  });
+});
+
+server.delete('/metadata-definitions/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+  },
+}, async (request) => {
+  return prisma.metadataDefinition.delete({
+    where: { id: request.params.id },
+  });
+});
+
 const start = async () => {
   try {
     await server.listen({ port: 3001, host: '0.0.0.0' });

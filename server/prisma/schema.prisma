@@ -59,9 +59,12 @@ model MetadataDefinition {
   id         String   @id @default(uuid())
   entityType String   // e.g. "Application"
   fieldName  String
-  fieldType  String   // e.g. "string", "number", "date", "boolean"
+  fieldType  String   // e.g. "string", "number", "date", "boolean", "range"
   label      String
   required   Boolean  @default(false)
+  min        Int?     @default(0)
+  max        Int?     @default(100)
+  scaleType  String?  // e.g. "good-bad", "bad-good", "low-high", "neutral"
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }

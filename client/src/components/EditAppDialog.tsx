@@ -20,6 +20,7 @@ interface Props {
     owner: string;
     lifecycle: string;
     type: string;
+    metadata?: string;
     capabilities?: { id: string }[];
   };
   onSuccess: () => void;
@@ -27,6 +28,21 @@ interface Props {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }
+
+const getScaleGradient = (scaleType: string) => {
+  switch (scaleType) {
+    case 'good-bad':
+      return 'linear-gradient(to right, #2b8a3e, #fab005, #c92a2a)';
+    case 'bad-good':
+      return 'linear-gradient(to right, #c92a2a, #fab005, #2b8a3e)';
+    case 'low-high':
+      return 'linear-gradient(to right, #e7f5ff, #1864ab)';
+    case 'importance':
+      return 'linear-gradient(to right, #f1f3f5, #5f3dc4)';
+    default:
+      return 'linear-gradient(to right, var(--accent), var(--primary))';
+  }
+};
 
 export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, onOpenChange }: Props) => {
   const [internalOpen, setInternalOpen] = useState(false);
@@ -38,15 +54,29 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
   const [apps, setApps] = useState<Application[]>([]);
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [picklists, setPicklists] = useState<any[]>([]);
+  const [metaDefs, setMetaDefs] = useState<any[]>([]);
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
   const [relations, setRelations] = useState<{ id?: string, targetId: string; type: string; name: string }[]>([]);
+  const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (open) {
+      // Initialize core fields
       if (app.capabilities) {
         setSelectedCapIds(app.capabilities.map(c => c.id));
       } else {
         setSelectedCapIds([]);
+      }
+
+      // Initialize dynamic fields
+      try {
+        if (app.metadata) {
+          setDynamicValues(JSON.parse(app.metadata));
+        } else {
+          setDynamicValues({});
+        }
+      } catch (e) {
+        setDynamicValues({});
       }
 
       fetch('/api/applications')
@@ -61,6 +91,10 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
         .then(res => res.json())
         .then(data => setPicklists(data));
 
+      fetch('/api/metadata-definitions')
+        .then(res => res.json())
+        .then(data => setMetaDefs(data));
+
       fetch('/api/integrations')
         .then(res => res.json())
         .then(data => {
@@ -70,7 +104,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
           setRelations(existing);
         });
     }
-  }, [open, app.id, app.capabilities]);
+  }, [open, app.id, app.capabilities, app.metadata]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -118,6 +152,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
       owner: formData.get('owner') as string,
       lifecycle: formData.get('lifecycle') as string,
       type: formData.get('type') as string,
+      metadata: JSON.stringify(dynamicValues),
       capabilityIds: selectedCapIds,
     };
 
@@ -196,7 +231,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
         </Dialog.Trigger>
       )}
       <Dialog.Portal>
-        <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50 }} />
+        <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
         <Dialog.Content style={{ 
           position: 'fixed', 
           top: '50%', 
@@ -210,7 +245,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
           color: 'var(--card-foreground)',
           padding: '1.5rem',
           borderRadius: 'var(--radius)',
-          zIndex: 100,
+          zIndex: 150,
           border: '1px solid var(--border)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -256,6 +291,59 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
                 </select>
               </div>
             </div>
+
+            {/* Dynamic Meta-model Fields */}
+            {metaDefs.length > 0 && (
+              <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Custom Information</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  {metaDefs.map(def => (
+                    <div key={def.id} className="field">
+                      <label className="label">{def.label}</label>
+                      {def.fieldType === 'textarea' ? (
+                        <textarea 
+                          rows={2}
+                          value={dynamicValues[def.fieldName] || ''}
+                          onChange={(e) => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})}
+                        />
+                      ) : def.fieldType === 'boolean' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                          <input 
+                            type="checkbox" 
+                            style={{ width: 'auto', marginTop: 0 }}
+                            checked={dynamicValues[def.fieldName] || false}
+                            onChange={(e) => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.checked})}
+                          />
+                          <span style={{ fontSize: '0.875rem' }}>Yes</span>
+                        </div>
+                      ) : def.fieldType === 'range' ? (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input 
+                              type="range" 
+                              min={def.min ?? 0} 
+                              max={def.max ?? 100}
+                              style={{ 
+                                background: getScaleGradient(def.scaleType),
+                              }}
+                              value={dynamicValues[def.fieldName] ?? def.min ?? 0}
+                              onChange={(e) => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})}
+                            />
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600, minWidth: '2.5rem' }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <input 
+                          type={def.fieldType}
+                          value={dynamicValues[def.fieldName] || ''}
+                          onChange={(e) => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
               <label className="label">Business Capabilities</label>

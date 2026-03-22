@@ -19,6 +19,8 @@ interface Application {
   description: string;
   owner: string;
   lifecycle: string;
+  type: string;
+  metadata?: string;
   capabilities?: { id: string; name: string }[];
 }
 
@@ -38,18 +40,28 @@ interface Integration {
   type?: string;
 }
 
+interface MetadataDefinition {
+  id: string;
+  fieldName: string;
+  fieldType: string;
+  label: string;
+  min: number;
+  max: number;
+  scaleType: string;
+}
+
 interface Props {
   onNodeClick?: (app: Application) => void;
   onCapabilityClick?: (cap: Capability) => void;
   appsOverride?: Application[];
   mode?: 'network' | 'landscape';
+  activeOverlay?: string | null; // fieldName of the range field to visualize
 }
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  dagreGraph.setGraph({ rankdir: 'LR', nodesep: 80, ranksep: 200 }); // Left-to-Right layout
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  dagreGraph.setGraph({ rankdir: 'TB', nodesep: 150, ranksep: 200 });
 
   nodes.forEach((node) => {
     dagreGraph.setNode(node.id, { width: 200, height: 70 });
@@ -92,7 +104,47 @@ const getLifecycleColor = (lifecycle: string, isDark: boolean) => {
   return { bg: colors[lc] || colors.planning, text: textColors[lc] || textColors.planning };
 };
 
-export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network' }: Props) => {
+// Helper to interpolate colors for gradients
+const interpolateColor = (color1: string, color2: string, factor: number) => {
+  const r1 = parseInt(color1.substring(1, 3), 16);
+  const g1 = parseInt(color1.substring(3, 5), 16);
+  const b1 = parseInt(color1.substring(5, 7), 16);
+
+  const r2 = parseInt(color2.substring(1, 3), 16);
+  const g2 = parseInt(color2.substring(3, 5), 16);
+  const b2 = parseInt(color2.substring(5, 7), 16);
+
+  const r = Math.round(r1 + factor * (r2 - r1));
+  const g = Math.round(g1 + factor * (g2 - g1));
+  const b = Math.round(b1 + factor * (b2 - b1));
+
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
+
+const getOverlayColor = (value: number, def: MetadataDefinition, isDark: boolean) => {
+  const min = def.min ?? 0;
+  const max = def.max ?? 100;
+  const range = max - min;
+  const normalized = range === 0 ? 0.5 : (value - min) / range;
+
+  let colors = ['#2b8a3e', '#fab005', '#c92a2a']; // good-bad default
+  if (def.scaleType === 'bad-good') colors = ['#c92a2a', '#fab005', '#2b8a3e'];
+  if (def.scaleType === 'low-high') colors = ['#e7f5ff', '#1864ab'];
+  if (def.scaleType === 'importance') colors = ['#f1f3f5', '#5f3dc4'];
+  if (def.scaleType === 'neutral') colors = ['#dee2e6', '#343a40'];
+
+  let bg = '';
+  if (colors.length === 3) {
+    if (normalized < 0.5) bg = interpolateColor(colors[0], colors[1], normalized * 2);
+    else bg = interpolateColor(colors[1], colors[2], (normalized - 0.5) * 2);
+  } else {
+    bg = interpolateColor(colors[0], colors[1], normalized);
+  }
+
+  return { bg, text: isDark ? '#ffffff' : '#000000' };
+};
+
+export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -123,18 +175,36 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     }
   });
 
+  const { data: metaDefs } = useQuery<MetadataDefinition[]>({
+    queryKey: ['metadata-definitions'],
+    queryFn: async () => {
+      const res = await fetch('/api/metadata-definitions');
+      return res.json();
+    }
+  });
+
   useEffect(() => {
-    if (!apps || !integrations || !allCapabilities) return;
+    if (!apps || !integrations || !allCapabilities || !metaDefs) return;
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const borderColor = 'var(--border)';
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
     const textColor = 'var(--foreground)';
 
+    const activeDef = metaDefs.find(d => d.fieldName === activeOverlay);
+
     if (mode === 'network') {
-      // --- Integrations View ---
       const networkNodes: Node[] = apps.map((app) => {
-        const colors = getLifecycleColor(app.lifecycle, isDark);
+        let colors = getLifecycleColor(app.lifecycle, isDark);
+        
+        if (activeOverlay && activeDef) {
+          try {
+            const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            const val = meta[activeOverlay] ?? activeDef.min;
+            colors = getOverlayColor(Number(val), activeDef, isDark);
+          } catch (e) {}
+        }
+
         return {
           id: app.id,
           data: { label: app.name, type: 'app', original: app },
@@ -162,35 +232,40 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           source: i.sourceAppId,
           target: i.targetAppId,
           label: i.name || i.type,
-          labelStyle: { fill: textColor, fontSize: 11, fontWeight: 600 },
+          type: 'default',
+          labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 },
           labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
-          labelBgPadding: [6, 4],
+          labelBgPadding: [4, 2],
           labelBgBorderRadius: 4,
           style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd', width: 20, height: 20 },
+          markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
         }));
 
       const layoutedNodes = getLayoutedElements(networkNodes, networkEdges);
       setNodes(layoutedNodes);
       setEdges(networkEdges);
     } else {
-      // --- Landscape View ---
       const landscapeNodes: Node[] = [];
       const capsMap = new Map<string, Capability>();
       allCapabilities.forEach(c => capsMap.set(c.id, c));
 
-      // Map apps to their deepest capability
-      const appsByCap = new Map<string, Application[]>();
+      const appToCapMap = new Map<string, string>();
       apps.forEach(app => {
         if (!app.capabilities || app.capabilities.length === 0) return;
         let deepestCap = app.capabilities[0];
         app.capabilities.forEach(cap => {
-          if (allCapabilities.some(c => c.id === cap.id && c.parentId === deepestCap.id)) {
-            deepestCap = cap;
-          }
+          if (allCapabilities.some(c => c.id === cap.id && c.parentId === deepestCap.id)) deepestCap = cap;
         });
-        if (!appsByCap.has(deepestCap.id)) appsByCap.set(deepestCap.id, []);
-        appsByCap.get(deepestCap.id)!.push(app);
+        appToCapMap.set(app.id, deepestCap.id);
+      });
+
+      const appsByCap = new Map<string, Application[]>();
+      apps.forEach(app => {
+        const assignedCapId = appToCapMap.get(app.id);
+        if (assignedCapId) {
+          if (!appsByCap.has(assignedCapId)) appsByCap.set(assignedCapId, []);
+          appsByCap.get(assignedCapId)!.push(app);
+        }
       });
 
       let currentRootX = 0;
@@ -200,26 +275,65 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         const cap = capsMap.get(capId)!;
         const children = allCapabilities.filter(c => c.parentId === capId);
         const associatedApps = appsByCap.get(capId) || [];
-
         const appHeight = 50;
-        const appWidth = 200;
+        const appWidth = 240;
         const padding = 20;
-        const titleHeight = 40;
+        const titleHeight = 50;
 
-        let totalChildWidth = 0;
-        let maxChildHeight = 0;
+        let totalHeight = titleHeight;
+        let maxWidth = 300;
+
         const childLayouts: any[] = [];
-
         children.forEach(child => {
           const layout = renderCap(child.id, `cap-${capId}`, depth + 1);
           childLayouts.push({ id: child.id, ...layout });
-          totalChildWidth += layout.width + 20;
-          maxChildHeight = Math.max(maxChildHeight, layout.height);
+          maxWidth = Math.max(maxWidth, layout.width + (padding * 2));
         });
 
-        const appsHeight = associatedApps.length > 0 ? (associatedApps.length * (appHeight + 10)) + padding : 0;
-        const nodeWidth = Math.max(totalChildWidth + (padding * 2), appWidth + (padding * 2), 300);
-        const nodeHeight = titleHeight + Math.max(maxChildHeight, appsHeight) + padding;
+        let currentYOffset = titleHeight;
+        children.forEach((child, i) => {
+          const nodeIdx = landscapeNodes.findIndex(n => n.id === `cap-${child.id}`);
+          if (nodeIdx !== -1) {
+            landscapeNodes[nodeIdx].position = { x: padding, y: currentYOffset };
+            currentYOffset += childLayouts[i].height + 15;
+          }
+        });
+
+        if (children.length > 0) totalHeight = currentYOffset;
+
+        associatedApps.forEach((app, i) => {
+          let colors = getLifecycleColor(app.lifecycle, isDark);
+          if (activeOverlay && activeDef) {
+            try {
+              const meta = app.metadata ? JSON.parse(app.metadata) : {};
+              const val = meta[activeOverlay] ?? activeDef.min;
+              colors = getOverlayColor(Number(val), activeDef, isDark);
+            } catch (e) {}
+          }
+
+          landscapeNodes.push({
+            id: `app-${capId}-${app.id}`,
+            parentNode: `cap-${capId}`,
+            data: { label: app.name, type: 'app', original: app },
+            position: { x: padding, y: totalHeight + (i * (appHeight + 10)) },
+            style: {
+              background: colors.bg,
+              color: colors.text,
+              border: `1px solid ${isDark ? 'transparent' : borderColor}`,
+              borderRadius: '8px',
+              width: maxWidth - (padding * 2),
+              height: appHeight,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '13px',
+              fontWeight: 600,
+              zIndex: 100
+            }
+          });
+        });
+
+        const finalHeight = totalHeight + (associatedApps.length * (appHeight + 10)) + padding;
 
         landscapeNodes.push({
           id: `cap-${capId}`,
@@ -227,50 +341,17 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           position: { x: depth === 0 ? currentRootX : 0, y: 0 },
           parentNode: parentId,
           style: {
-            background: depth === 0 ? groupBg : 'rgba(0,0,0,0.05)',
+            background: depth === 0 ? groupBg : 'rgba(0,0,0,0.03)',
             border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? '#373a40' : '#dee2e6'}`,
-            width: nodeWidth,
-            height: nodeHeight,
+            width: maxWidth,
+            height: finalHeight,
             borderRadius: depth === 0 ? '16px' : '8px',
             pointerEvents: 'all',
             zIndex: depth,
           }
         });
 
-        let offsetX = padding;
-        children.forEach((child, i) => {
-          const nodeIdx = landscapeNodes.findIndex(n => n.id === `cap-${child.id}`);
-          if (nodeIdx !== -1) {
-            landscapeNodes[nodeIdx].position = { x: offsetX, y: titleHeight };
-            offsetX += childLayouts[i].width + 20;
-          }
-        });
-
-        associatedApps.forEach((app, i) => {
-          const colors = getLifecycleColor(app.lifecycle, isDark);
-          landscapeNodes.push({
-            id: `app-${capId}-${app.id}`,
-            parentNode: `cap-${capId}`,
-            data: { label: app.name, type: 'app', original: app },
-            position: { x: nodeWidth - appWidth - padding, y: titleHeight + (i * (appHeight + 10)) },
-            style: {
-              background: colors.bg,
-              color: colors.text,
-              border: `1px solid ${isDark ? 'transparent' : borderColor}`,
-              borderRadius: '6px',
-              width: appWidth,
-              height: appHeight,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              fontWeight: 600,
-              zIndex: 100
-            }
-          });
-        });
-
-        return { width: nodeWidth, height: nodeHeight };
+        return { width: maxWidth, height: finalHeight };
       };
 
       const roots = allCapabilities.filter(c => !c.parentId);
@@ -282,7 +363,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       setNodes(landscapeNodes);
       setEdges([]);
     }
-  }, [apps, integrations, allCapabilities, mode]);
+  }, [apps, integrations, allCapabilities, metaDefs, mode, activeOverlay]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') {
@@ -296,7 +377,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
-        key={mode} // Force fresh mount on mode change to clear parent/child state artifacts
+        key={`${mode}-${activeOverlay}`}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -323,8 +404,9 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           color: 'var(--foreground)',
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
         }}>
-          <strong>{mode === 'network' ? 'Integrations' : 'Landscape'} View</strong><br/>
-          Click objects to edit • Drag to pan
+          <strong>{mode === 'network' ? 'Integrations' : 'Landscape'} View</strong>
+          {activeOverlay && <div style={{ color: 'var(--primary)', fontWeight: 600, marginTop: '4px' }}>Overlay: {metaDefs?.find(d => d.fieldName === activeOverlay)?.label}</div>}
+          <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
         </Panel>
       </ReactFlow>
     </div>
