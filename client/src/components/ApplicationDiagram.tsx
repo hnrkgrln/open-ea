@@ -58,6 +58,19 @@ interface Props {
   activeOverlay?: string | null; // fieldName of the range field to visualize
 }
 
+const getContrastColor = (hexcolor: string) => {
+  if (!hexcolor || hexcolor === 'transparent') return 'var(--foreground)';
+  // If it's a CSS variable or rgba, we might need a better parser, but for hex:
+  if (hexcolor.startsWith('#')) {
+    const r = parseInt(hexcolor.substring(1, 3), 16);
+    const g = parseInt(hexcolor.substring(3, 5), 16);
+    const b = parseInt(hexcolor.substring(5, 7), 16);
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    return (yiq >= 128) ? '#000000' : '#ffffff';
+  }
+  return 'var(--foreground)';
+};
+
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
@@ -94,14 +107,8 @@ const getLifecycleColor = (lifecycle: string, isDark: boolean) => {
     sunset: isDark ? '#d9480f' : '#fff4e6',
     decommissioned: isDark ? '#c92a2a' : '#fff5f5'
   };
-  const textColors: any = {
-    planning: isDark ? '#d0ebff' : '#1971c2',
-    deployment: isDark ? '#e5dbff' : '#6741d9',
-    maintenance: isDark ? '#d3f9d8' : '#2b8a3e',
-    sunset: isDark ? '#fff4e6' : '#e67700',
-    decommissioned: isDark ? '#ffe3e3' : '#c92a2a'
-  };
-  return { bg: colors[lc] || colors.planning, text: textColors[lc] || textColors.planning };
+  const bg = colors[lc] || colors.planning;
+  return { bg, text: getContrastColor(bg) };
 };
 
 // Helper to interpolate colors for gradients
@@ -141,7 +148,7 @@ const getOverlayColor = (value: number, def: MetadataDefinition, isDark: boolean
     bg = interpolateColor(colors[0], colors[1], normalized);
   }
 
-  return { bg, text: isDark ? '#ffffff' : '#000000' };
+  return { bg, text: getContrastColor(bg) };
 };
 
 export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay }: Props) => {
@@ -212,7 +219,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           style: { 
             background: colors.bg, 
             color: colors.text, 
-            border: `1px solid ${isDark ? 'transparent' : borderColor}`,
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
             borderRadius: '8px',
             width: 200,
             fontSize: '13px',
@@ -319,7 +326,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
             style: {
               background: colors.bg,
               color: colors.text,
-              border: `1px solid ${isDark ? 'transparent' : borderColor}`,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
               borderRadius: '8px',
               width: maxWidth - (padding * 2),
               height: appHeight,

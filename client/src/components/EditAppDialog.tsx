@@ -55,13 +55,30 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
   const [capabilities, setCapabilities] = useState<Capability[]>([]);
   const [picklists, setPicklists] = useState<any[]>([]);
   const [metaDefs, setMetaDefs] = useState<any[]>([]);
+  
+  // Controlled form state
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    owner: '',
+    type: '',
+    lifecycle: ''
+  });
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
   const [relations, setRelations] = useState<{ id?: string, targetId: string; type: string; name: string }[]>([]);
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
 
   useEffect(() => {
     if (open) {
-      // Initialize core fields
+      // Initialize core fields from prop
+      setFormData({
+        name: app.name || '',
+        description: app.description || '',
+        owner: app.owner || '',
+        type: app.type || '',
+        lifecycle: app.lifecycle || ''
+      });
+
       if (app.capabilities) {
         setSelectedCapIds(app.capabilities.map(c => c.id));
       } else {
@@ -104,7 +121,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
           setRelations(existing);
         });
     }
-  }, [open, app.id, app.capabilities, app.metadata]);
+  }, [open, app]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -142,16 +159,17 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
     setRelations(newRelations);
   };
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
+    
     const appData = {
-      name: formData.get('name') as string,
-      description: formData.get('description') as string,
-      owner: formData.get('owner') as string,
-      lifecycle: formData.get('lifecycle') as string,
-      type: formData.get('type') as string,
+      ...formData,
       metadata: JSON.stringify(dynamicValues),
       capabilityIds: selectedCapIds,
     };
@@ -261,30 +279,30 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
           <form onSubmit={handleSubmit}>
             <div className="field">
               <label className="label">Name</label>
-              <input name="name" key={`name-${app.id}`} required defaultValue={app.name} />
+              <input name="name" required value={formData.name} onChange={handleInputChange} />
             </div>
             <div className="field">
               <label className="label">Description</label>
-              <textarea name="description" key={`desc-${app.id}`} rows={2} defaultValue={app.description} />
+              <textarea name="description" rows={2} value={formData.description} onChange={handleInputChange} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
               <div className="field">
                 <label className="label">Owner</label>
-                <select name="owner" key={`owner-${app.id}`} defaultValue={app.owner}>
+                <select name="owner" value={formData.owner} onChange={handleInputChange}>
                   <option value="">Select owner...</option>
                   {ownerOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div className="field">
                 <label className="label">Type</label>
-                <select name="type" key={`type-${app.id}`} defaultValue={app.type}>
+                <select name="type" value={formData.type} onChange={handleInputChange}>
                   <option value="">Select type...</option>
                   {appTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div className="field">
                 <label className="label">Lifecycle</label>
-                <select name="lifecycle" key={`lifecycle-${app.id}`} defaultValue={app.lifecycle}>
+                <select name="lifecycle" value={formData.lifecycle} onChange={handleInputChange}>
                   {lifecycleOptions.map((opt: any) => (
                     <option key={opt.id} value={opt.value}>{opt.label}</option>
                   ))}
@@ -323,9 +341,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
                               type="range" 
                               min={def.min ?? 0} 
                               max={def.max ?? 100}
-                              style={{ 
-                                background: getScaleGradient(def.scaleType),
-                              }}
+                              style={{ background: getScaleGradient(def.scaleType) }}
                               value={dynamicValues[def.fieldName] ?? def.min ?? 0}
                               onChange={(e) => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})}
                             />
