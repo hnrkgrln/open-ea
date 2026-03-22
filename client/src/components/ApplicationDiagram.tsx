@@ -69,6 +69,7 @@ interface Props {
   mode?: 'network' | 'landscape';
   activeOverlay?: string | null;
   showApplications?: boolean;
+  relationSearch?: string;
 }
 
 const STANDARD_DEFS: MetadataDefinition[] = [
@@ -155,7 +156,7 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
   return { bg, text: getContrastColor(bg) };
 };
 
-export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay, showApplications = true }: Props) => {
+export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay, showApplications = true, relationSearch = '' }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -164,11 +165,11 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     queryFn: async () => {
       const res = await fetch('/api/applications');
       return res.json();
-    },
-    enabled: !appsOverride
+    }
   });
 
-  const apps = appsOverride || remoteApps;
+  const allApps = remoteApps || [];
+  const filteredAppsProps = appsOverride || allApps;
 
   const { data: integrations } = useQuery<Integration[]>({
     queryKey: ['integrations'],
@@ -213,7 +214,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
   }, [dbMetaDefs]);
 
   useEffect(() => {
-    if (!apps || !integrations || !allCapabilities || !metaDefs || !picklists) return;
+    if (!allApps.length || !integrations || !allCapabilities || !metaDefs || !picklists) return;
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const borderColor = 'var(--border)';
@@ -236,69 +237,84 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     };
 
     if (mode === 'network') {
-      const radius = Math.max(apps.length * 50, 350);
-      const centerX = 600;
-      const centerY = 600;
+      const search = relationSearch.toLowerCase();
+      const visibleAppIdsFromProps = new Set(filteredAppsProps.map(a => a.id));
 
-      const networkNodes: Node[] = apps.map((app, index) => {
-        const angle = (index / apps.length) * 2 * Math.PI;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
+      // --- Smart Integration Filter ---
+      const filteredIntegrations = integrations.filter(i => {
+        const sourceApp = allApps.find(a => a.id === i.sourceAppId);
+        const targetApp = allApps.find(a => a.id === i.targetAppId);
+        if (!sourceApp || !targetApp) return false;
+
+        const iMatches = i.name?.toLowerCase().includes(search) || i.type?.toLowerCase().includes(search);
+        const sMatches = sourceApp.name.toLowerCase().includes(search);
+        const tMatches = targetApp.name.toLowerCase().includes(search);
         
-        let colors = getLifecycleColor(app.lifecycle, isDark);
-        if (activeOverlay && appDef) {
-          const val = getAppScore(app, activeOverlay, appDef);
-          colors = getOverlayColor(val, appDef, picklists);
+        if (search) {
+          // If searching, show the connection if IT matches OR its apps match
+          return iMatches || sMatches || tMatches;
+        } else {
+          // If no search, only show connections between apps that passed the other filters (Owner, Lifecycle, etc)
+          return visibleAppIdsFromProps.has(i.sourceAppId) && visibleAppIdsFromProps.has(i.targetAppId);
         }
+      });
 
-        return {
-          id: app.id,
-          data: { label: app.name, type: 'app', original: app },
-          position: { x, y },
-          style: { 
-            background: colors.bg, 
-            color: colors.text, 
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-            borderRadius: '12px',
-            width: 180,
-            fontSize: '13px',
-            fontWeight: 600,
-            textAlign: 'center',
-            padding: '12px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+      // Final set of apps: those that passed filters + those involved in matching integrations
+      const finalAppIds = new Set([
+        ...filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]),
+        ...filteredAppsProps.map(a => a.id)
+      ]);
+
+      const networkNodes: Node[] = allApps
+        .filter(app => finalAppIds.has(app.id))
+        .map((app, index, list) => {
+          const radius = Math.max(list.length * 50, 350);
+          const centerX = 600;
+          const centerY = 600;
+          const angle = (index / list.length) * 2 * Math.PI;
+          const x = centerX + radius * Math.cos(angle);
+          const y = centerY + radius * Math.sin(angle);
+          
+          let colors = getLifecycleColor(app.lifecycle, isDark);
+          if (activeOverlay && appDef) {
+            const val = getAppScore(app, activeOverlay, appDef);
+            colors = getOverlayColor(val, appDef, picklists);
           }
-        };
-      });
 
-      const visibleIds = new Set(apps.map(a => a.id));
-      const networkEdges: Edge[] = integrations
-        .filter(i => visibleIds.has(i.sourceAppId) && visibleIds.has(i.targetAppId))
-        .map((i) => ({
-          id: `e-${i.id}`,
-          source: i.sourceAppId,
-          target: i.targetAppId,
-          label: i.name || i.type,
-          type: 'default',
-          labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 },
-          labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
-          labelBgPadding: [4, 2],
-          labelBgBorderRadius: 4,
-          style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
-        }));
+          return {
+            id: app.id,
+            data: { label: app.name, type: 'app', original: app },
+            position: { x, y },
+            style: { 
+              background: colors.bg, 
+              color: colors.text, 
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+              borderRadius: '12px',
+              width: 180,
+              fontSize: '13px',
+              fontWeight: 600,
+              textAlign: 'center',
+              padding: '12px',
+              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            }
+          };
+        });
 
-      const dagreGraph = new dagre.graphlib.Graph();
-      dagreGraph.setDefaultEdgeLabel(() => ({}));
-      dagreGraph.setGraph({ rankdir: 'TB', nodesep: 150, ranksep: 200 });
-      networkNodes.forEach(n => dagreGraph.setNode(n.id, { width: 200, height: 70 }));
-      networkEdges.forEach(e => dagreGraph.setEdge(e.source, e.target));
-      dagre.layout(dagreGraph);
-      const layoutedNodes = networkNodes.map(n => {
-        const pos = dagreGraph.node(n.id);
-        return { ...n, position: { x: pos.x - 100, y: pos.y - 35 } };
-      });
+      const networkEdges: Edge[] = filteredIntegrations.map((i) => ({
+        id: `e-${i.id}`,
+        source: i.sourceAppId,
+        target: i.targetAppId,
+        label: i.name || i.type,
+        type: 'default',
+        labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 },
+        labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
+        labelBgPadding: [4, 2],
+        labelBgBorderRadius: 4,
+        style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
+      }));
 
-      setNodes(layoutedNodes);
+      setNodes(networkNodes);
       setEdges(networkEdges);
     } else {
       const landscapeNodes: Node[] = [];
@@ -308,7 +324,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       const appToCapMap = new Map<string, string>();
       const unassignedApps: Application[] = [];
 
-      apps.forEach(app => {
+      filteredAppsProps.forEach(app => {
         if (!app.capabilities || app.capabilities.length === 0) {
           unassignedApps.push(app);
           return;
@@ -321,22 +337,13 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       });
 
       const appsByCap = new Map<string, Application[]>();
-      apps.forEach(app => {
+      filteredAppsProps.forEach(app => {
         const assignedCapId = appToCapMap.get(app.id);
         if (assignedCapId) {
           if (!appsByCap.has(assignedCapId)) appsByCap.set(assignedCapId, []);
           appsByCap.get(assignedCapId)!.push(app);
         }
       });
-
-      const getAllAppsForCap = (capId: string): Application[] => {
-        let res = appsByCap.get(capId) || [];
-        const children = allCapabilities.filter(c => c.parentId === capId);
-        children.forEach(child => {
-          res = [...res, ...getAllAppsForCap(child.id)];
-        });
-        return res;
-      };
 
       const renderCap = (capId: string, parentId?: string, depth = 0, rootX = 0, rootY = 0): { width: number; height: number } => {
         const cap = capsMap.get(capId)!;
@@ -373,7 +380,6 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
             const val = getAppScore(app, activeOverlay, appDef);
             colors = getOverlayColor(val, appDef, picklists);
           }
-
           landscapeNodes.push({
             id: `app-${capId}-${app.id}`,
             parentNode: `cap-${capId}`,
@@ -433,7 +439,6 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         return { width: maxWidth, height: finalHeight };
       };
 
-      // --- MULTI-ROW GRID LOGIC ---
       let currentX = 0;
       let currentY = 0;
       let maxRowHeight = 0;
@@ -442,29 +447,24 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       const itemsPerRow = 5;
 
       const roots = allCapabilities.filter(c => !c.parentId);
-      
       roots.forEach((root, index) => {
         if (index > 0 && index % itemsPerRow === 0) {
           currentX = 0;
           currentY += maxRowHeight + verticalGap;
           maxRowHeight = 0;
         }
-
         const layout = renderCap(root.id, undefined, 0, currentX, currentY);
         currentX += layout.width + horizontalGap;
         maxRowHeight = Math.max(maxRowHeight, layout.height);
       });
 
-      // Render Unassigned Applications Group as the next item in the grid
       if (showApplications && unassignedApps.length > 0) {
         if (roots.length % itemsPerRow === 0 && roots.length > 0) {
           currentX = 0;
           currentY += maxRowHeight + verticalGap;
           maxRowHeight = 0;
         }
-
         const appHeight = 50;
-        const appWidth = 240;
         const padding = 20;
         const titleHeight = 50;
         const maxWidth = 300;
@@ -498,7 +498,6 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
             const val = getAppScore(app, activeOverlay, appDef);
             colors = getOverlayColor(val, appDef, picklists);
           }
-
           landscapeNodes.push({
             id: `app-unassigned-${app.id}`,
             parentNode: 'cap-unassigned',
@@ -525,7 +524,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       setNodes(landscapeNodes);
       setEdges([]);
     }
-  }, [apps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications]);
+  }, [allApps, filteredAppsProps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications, relationSearch]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);

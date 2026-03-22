@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -53,6 +53,7 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
     technicalFit: '3'
   });
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
+  const [capSearch, setCapSearch] = useState('');
   const [outgoingRelations, setOutgoingRelations] = useState<Relation[]>([]);
   const [incomingRelations, setIncomingRelations] = useState<Relation[]>([]);
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
@@ -158,6 +159,11 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
     }
   };
 
+  const filteredCaps = capabilities.filter(cap => 
+    cap.name.toLowerCase().includes(capSearch.toLowerCase()) || 
+    selectedCapIds.includes(cap.id)
+  );
+
   const standardFieldNames = ['criticality', 'functionalFit', 'technicalFit'];
   const otherMetaDefs = metaDefs.filter(d => !standardFieldNames.includes(d.fieldName));
 
@@ -189,7 +195,7 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
                   <div className="field"><label className="label">Type</label><select name="type" value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '0.4rem 0.6rem' }}><option value="">Type...</option>{appTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
                 </div>
                 
-                <div className="field"><label className="label">Lifecycle</label><select name="lifecycle" value={formData.lifecycle} onChange={e => setFormData({...formData, lifecycle: e.target.value})} style={{ padding: '0.4rem 0.6rem' }}>{lifecycleOptions.map((opt: any) => (<option key={opt.id} value={opt.label}>{opt.label}</option>))}</select></div>
+                <div className="field"><label className="label">Lifecycle</label><select name="lifecycle" value={formData.lifecycle} onChange={e => setFormData({...formData, lifecycle: e.target.value})} style={{ padding: '0.4rem 0.6rem' }}>{lifecycleOptions.map((opt: any) => (<option key={opt.id} value={opt.value}>{opt.label}</option>))}</select></div>
 
                 <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: 'var(--muted)', padding: '0.75rem', borderRadius: 'var(--radius)' }}>
                   <div className="field" style={{ margin: 0 }}>
@@ -227,14 +233,25 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label className="label" style={{ fontSize: '0.75rem' }}>Capabilities</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <label className="label" style={{ fontSize: '0.75rem', margin: 0 }}>Capabilities</label>
+                      <div style={{ position: 'relative', width: '140px' }}>
+                        <Search size={12} style={{ position: 'absolute', left: '0.4rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
+                        <input 
+                          placeholder="Filter..." 
+                          value={capSearch}
+                          onChange={e => setCapSearch(e.target.value)}
+                          style={{ height: '1.5rem', padding: '0 0.4rem 0 1.5rem', fontSize: '0.65rem', marginTop: 0 }}
+                        />
+                      </div>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.25rem', maxHeight: '180px', overflowY: 'auto', padding: '0.4rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                      {capabilities.map(cap => (
+                      {filteredCaps.length > 0 ? filteredCaps.map(cap => (
                         <button key={cap.id} type="button" onClick={() => toggleCapability(cap.id)} style={{ height: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.7rem', justifyContent: 'flex-start', background: selectedCapIds.includes(cap.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(cap.id) ? 'var(--primary-foreground)' : 'var(--foreground)' }}>
                           {selectedCapIds.includes(cap.id) && <CheckCircle2 size={10} style={{ marginRight: '0.25rem' }} />}
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cap.name}</span>
                         </button>
-                      ))}
+                      )) : <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textAlign: 'center', padding: '1rem' }}>No matches</div>}
                     </div>
                   </div>
 
@@ -259,43 +276,21 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase', fontSize: '0.65rem', color: 'var(--muted-foreground)', margin: 0 }}><ArrowRight size={12} /> Providing Data</label>
-                        <button type="button" onClick={addOutgoing} style={{ height: '1.5rem', padding: '0 0.4rem', fontSize: '0.65rem' }}><Plus size={12} /> Add</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase', fontSize: '0.65rem', color: 'var(--muted-foreground)', margin: 0 }}><ArrowRight size={12} /> Integrations (Targets)</label>
+                    <button type="button" onClick={addOutgoing} style={{ height: '1.5rem', padding: '0 0.4rem', fontSize: '0.65rem' }}><Plus size={12} /> Add</button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
+                    {outgoingRelations.map((rel, index) => (
+                      <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: '0.25rem' }}>
+                        <input value={rel.name} onChange={e => updateRelation(index, 'name', e.target.value)} placeholder="Integration Name..." style={{ fontSize: '0.7rem', padding: '0.25rem' }} />
+                        <select value={rel.targetId} onChange={e => updateRelation(index, 'targetId', e.target.value)} style={{ fontSize: '0.7rem', padding: '0.25rem' }}>
+                          <option value="">Target...</option>
+                          {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        </select>
+                        <button type="button" onClick={() => removeRelation(index, true)} style={{ border: 'none', color: 'var(--destructive)', background: 'transparent', padding: 0 }}><Trash2 size={12} /></button>
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
-                        {outgoingRelations.map((rel, i) => (
-                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: '0.25rem' }}>
-                            <input value={rel.name} onChange={e => updateRelation(i, true, 'name', e.target.value)} placeholder="Integration..." style={{ fontSize: '0.7rem', padding: '0.25rem' }} />
-                            <select value={rel.targetId} onChange={e => updateRelation(i, true, 'targetId', e.target.value)} style={{ fontSize: '0.7rem', padding: '0.25rem' }}>
-                              <option value="">Target...</option>
-                              {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                            <button type="button" onClick={() => removeRelation(i, true)} style={{ border: 'none', color: 'var(--destructive)', background: 'transparent', padding: 0 }}><Trash2 size={12} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                        <label className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textTransform: 'uppercase', fontSize: '0.65rem', color: 'var(--muted-foreground)', margin: 0 }}><ArrowLeft size={12} /> Consuming Data</label>
-                        <button type="button" onClick={addIncoming} style={{ height: '1.5rem', padding: '0 0.4rem', fontSize: '0.65rem' }}><Plus size={12} /> Add</button>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
-                        {incomingRelations.map((rel, i) => (
-                          <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: '0.25rem' }}>
-                            <input value={rel.name} onChange={e => updateRelation(i, false, 'name', e.target.value)} placeholder="Integration..." style={{ fontSize: '0.7rem', padding: '0.25rem' }} />
-                            <select value={rel.sourceId} onChange={e => updateRelation(i, false, 'sourceId', e.target.value)} style={{ fontSize: '0.7rem', padding: '0.25rem' }}>
-                              <option value="">Source...</option>
-                              {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                            </select>
-                            <button type="button" onClick={() => removeRelation(i, false)} style={{ border: 'none', color: 'var(--destructive)', background: 'transparent', padding: 0 }}><Trash2 size={12} /></button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               </div>

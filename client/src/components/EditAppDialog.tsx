@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -73,6 +73,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
     technicalFit: '3'
   });
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
+  const [capSearch, setCapSearch] = useState('');
   const [outgoingRelations, setOutgoingRelations] = useState<Relation[]>([]);
   const [incomingRelations, setIncomingRelations] = useState<Relation[]>([]);
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
@@ -228,6 +229,11 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
     } catch (err) { console.error(err); } finally { setDeleting(false); }
   };
 
+  const filteredCaps = capabilities.filter(cap => 
+    cap.name.toLowerCase().includes(capSearch.toLowerCase()) || 
+    selectedCapIds.includes(cap.id)
+  );
+
   const standardFieldNames = ['criticality', 'functionalFit', 'technicalFit'];
   const otherMetaDefs = metaDefs.filter(d => !standardFieldNames.includes(d.fieldName));
 
@@ -302,14 +308,25 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label className="label" style={{ fontSize: '0.75rem' }}>Capabilities</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <label className="label" style={{ fontSize: '0.75rem', margin: 0 }}>Capabilities</label>
+                      <div style={{ position: 'relative', width: '140px' }}>
+                        <Search size={12} style={{ position: 'absolute', left: '0.4rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
+                        <input 
+                          placeholder="Filter..." 
+                          value={capSearch}
+                          onChange={e => setCapSearch(e.target.value)}
+                          style={{ height: '1.5rem', padding: '0 0.4rem 0 1.5rem', fontSize: '0.65rem', marginTop: 0 }}
+                        />
+                      </div>
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.25rem', maxHeight: '180px', overflowY: 'auto', padding: '0.4rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                      {capabilities.map(cap => (
+                      {filteredCaps.length > 0 ? filteredCaps.map(cap => (
                         <button key={cap.id} type="button" onClick={() => toggleCapability(cap.id)} style={{ height: 'auto', padding: '0.3rem 0.5rem', fontSize: '0.7rem', justifyContent: 'flex-start', background: selectedCapIds.includes(cap.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(cap.id) ? 'var(--primary-foreground)' : 'var(--foreground)' }}>
                           {selectedCapIds.includes(cap.id) && <CheckCircle2 size={10} style={{ marginRight: '0.25rem' }} />}
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{cap.name}</span>
                         </button>
-                      ))}
+                      )) : <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textAlign: 'center', padding: '1rem' }}>No matches</div>}
                     </div>
                   </div>
 

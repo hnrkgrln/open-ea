@@ -393,7 +393,13 @@ const CapabilitiesView = ({ onRefresh }: { onRefresh: () => void }) => {
 };
 
 const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application[], onEditApp: (app: Application) => void, onEditCapability: (cap: any) => void }) => {
-  const [filters, setFilters] = useLocalStorage('meat_diagram_filters', { search: '', owner: '', lifecycle: '', type: '' });
+  const [filters, setFilters] = useLocalStorage('meat_diagram_filters', { 
+    search: '', 
+    owner: '', 
+    lifecycle: '', 
+    type: '',
+    capabilityId: ''
+  });
   const [mode, setMode] = useLocalStorage<'network' | 'landscape'>('meat_diagram_mode', 'network');
   const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('meat_diagram_overlay', null);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
@@ -401,6 +407,8 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
+  const { data: flatCapabilities } = useQuery<Capability[]>({ queryKey: ['capabilities'], queryFn: async () => { const res = await fetch('/api/capabilities'); return res.json(); } });
+  const { data: integrations } = useQuery<Integration[]>({ queryKey: ['integrations'], queryFn: async () => { const res = await fetch('/api/integrations'); return res.json(); } });
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -416,13 +424,39 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application
 
   const filteredApps = useMemo(() => {
     return apps.filter(app => {
-      const matchSearch = !filters.search || app.name.toLowerCase().includes(filters.search.toLowerCase()) || app.description?.toLowerCase().includes(filters.search.toLowerCase());
       const matchOwner = !filters.owner || app.owner === filters.owner || app.owner?.toLowerCase() === filters.owner.toLowerCase();
       const matchLifecycle = !filters.lifecycle || app.lifecycle === filters.lifecycle || app.lifecycle?.toLowerCase() === filters.lifecycle.toLowerCase();
       const matchType = !filters.type || app.type === filters.type || app.type?.toLowerCase() === filters.type.toLowerCase();
-      return matchSearch && matchOwner && matchLifecycle && matchType;
+      
+      // Capability Filter Logic
+      let matchCap = true;
+      if (filters.capabilityId) {
+        const getDescendantIds = (id: string): string[] => {
+          const children = flatCapabilities?.filter(c => c.parentId === id) || [];
+          return [id, ...children.flatMap(c => getDescendantIds(c.id))];
+        };
+        const targetIds = getDescendantIds(filters.capabilityId);
+        matchCap = app.capabilities?.some(c => targetIds.includes(c.id)) || false;
+      }
+
+      // --- UNIFIED SEARCH LOGIC ---
+      let matchSearch = true;
+      if (filters.search) {
+        const query = filters.search.toLowerCase();
+        const appMatches = app.name.toLowerCase().includes(query) || app.description?.toLowerCase().includes(query);
+        
+        // Also match if any of the app's integrations match the query
+        const integrationMatches = integrations?.some(i => 
+          (i.sourceAppId === app.id || i.targetAppId === app.id) && 
+          (i.name?.toLowerCase().includes(query) || i.type?.toLowerCase().includes(query))
+        ) || false;
+
+        matchSearch = appMatches || integrationMatches;
+      }
+
+      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap;
     });
-  }, [apps, filters]);
+  }, [apps, filters, flatCapabilities, integrations]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -449,29 +483,26 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application
       {showFilters && (
         <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            <div className="field" style={{ margin: 0 }}><label className="label">Search</label><input value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} placeholder="Search..." style={{ marginTop: '0.25rem' }} /></div>
+            <div className="field" style={{ margin: 0 }}><label className="label">Diagram Search</label><input value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} placeholder="App or Integration name..." style={{ marginTop: '0.25rem' }} /></div>
             <div className="field" style={{ margin: 0 }}><label className="label">Owner</label><select value={filters.owner} onChange={(e) => setFilters({...filters, owner: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Owners</option>{ownerOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Type</label><select value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Types</option>{appTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
+            <div className="field" style={{ margin: 0 }}><label className="label">Capability Area</label><select value={filters.capabilityId} onChange={(e) => setFilters({...filters, capabilityId: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Areas</option>{flatCapabilities?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
             <div className="field" style={{ margin: 0 }}><label className="label">Lifecycle</label><select value={filters.lifecycle} onChange={(e) => setFilters({...filters, lifecycle: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Lifecycles</option>{lifecycleOptions.map((opt: any) => (<option key={opt.id} value={opt.value}>{opt.label}</option>))}</select></div>
             
             {mode === 'landscape' && (
               <div className="field" style={{ margin: 0 }}>
                 <label className="label">Visibility</label>
-                <button 
-                  onClick={() => setShowApplications(!showApplications)} 
-                  style={{ width: '100%', height: '2.5rem', justifyContent: 'center', background: showApplications ? 'var(--accent)' : 'var(--background)', color: showApplications ? 'var(--primary)' : 'var(--muted-foreground)' }}
-                >
+                <button onClick={() => setShowApplications(!showApplications)} style={{ width: '100%', height: '2.5rem', justifyContent: 'center', background: showApplications ? 'var(--accent)' : 'var(--background)', color: showApplications ? 'var(--primary)' : 'var(--muted-foreground)' }}>
                   {showApplications ? <Eye size={16} style={{ marginRight: '0.5rem' }} /> : <EyeOff size={16} style={{ marginRight: '0.5rem' }} />}
-                  {showApplications ? 'Hide Applications' : 'Show Applications'}
+                  {showApplications ? 'Hide Apps' : 'Show Apps'}
                 </button>
               </div>
             )}
 
-            <button onClick={() => setFilters({ search: '', owner: '', lifecycle: '', type: '' })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <button onClick={() => setFilters({ search: '', owner: '', lifecycle: '', type: '', capabilityId: '' })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
         </div>
       )}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}><ApplicationDiagram onNodeClick={onEditApp} onCapabilityClick={onEditCapability} appsOverride={filteredApps} mode={mode} activeOverlay={activeOverlay} showApplications={showApplications} /></div>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}><ApplicationDiagram onNodeClick={onEditApp} onCapabilityClick={onEditCapability} appsOverride={filteredApps} mode={mode} activeOverlay={activeOverlay} showApplications={showApplications} relationSearch={filters.search} /></div>
     </div>
   );
 };

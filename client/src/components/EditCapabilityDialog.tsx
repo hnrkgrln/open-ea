@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Edit2, Plus, CheckCircle2, Trash2 } from 'lucide-react';
+import { X, Edit2, Plus, CheckCircle2, Trash2, Search } from 'lucide-react';
 
 interface Capability {
   id: string;
@@ -54,6 +54,7 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
     criticality: '3'
   });
   const [selectedAppIds, setSelectedAppIds] = useState<string[]>([]);
+  const [appSearch, setAppSearch] = useState('');
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
 
   useEffect(() => {
@@ -136,23 +137,19 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
     
     setDeleting(true);
     try {
-      const res = await fetch(`/api/capabilities/${capability.id}`, {
-        method: 'DELETE'
-      });
-      if (res.ok) {
-        setOpen(false);
-        onSuccess();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setDeleting(false);
-    }
+      const res = await fetch(`/api/capabilities/${capability.id}`, { method: 'DELETE' });
+      if (res.ok) { setOpen(false); onSuccess(); }
+    } catch (err) { console.error(err); } finally { setDeleting(false); }
   };
 
   const toggleApp = (id: string) => {
     setSelectedAppIds(prev => prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]);
   };
+
+  const filteredApps = allApps.filter(app => 
+    app.name.toLowerCase().includes(appSearch.toLowerCase()) || 
+    selectedAppIds.includes(app.id)
+  );
 
   const standardFieldNames = ['criticality'];
   const otherMetaDefs = metaDefs.filter(d => !standardFieldNames.includes(d.fieldName));
@@ -160,11 +157,6 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       {trigger && <Dialog.Trigger asChild>{trigger}</Dialog.Trigger>}
-      {!trigger && (
-        <Dialog.Trigger asChild>
-          <button className="primary"><Plus size={18} style={{ marginRight: '0.5rem' }} /> New Capability</button>
-        </Dialog.Trigger>
-      )}
       <Dialog.Portal>
         <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
         <Dialog.Content style={{ 
@@ -183,7 +175,7 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
           
           <form onSubmit={handleSubmit}>
             <div className="field"><label className="label">Name</label><input name="name" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="e.g. Sales Management" /></div>
-            <div className="field"><label className="label">Description</label><textarea name="description" rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Describe this business capability..." /></div>
+            <div className="field"><label className="label">Description</label><textarea name="description" rows={2} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Describe this business capability..." /></div>
             
             <div className="field">
               <label className="label">Parent Capability</label>
@@ -194,7 +186,7 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
             </div>
 
             {/* Standard Picklist-based Sliders */}
-            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
               <div className="field">
                 <label className="label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                   Business Criticality 
@@ -229,21 +221,35 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
             )}
 
             <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
-              <label className="label">Linked Applications</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <label className="label">Linked Applications</label>
+                <div style={{ position: 'relative', width: '200px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
+                  <input 
+                    placeholder="Fast filter..." 
+                    value={appSearch}
+                    onChange={e => setAppSearch(e.target.value)}
+                    style={{ height: '1.75rem', padding: '0 0.5rem 0 1.75rem', fontSize: '0.75rem', marginTop: 0 }}
+                  />
+                </div>
+              </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', maxHeight: '150px', overflowY: 'auto', padding: '0.5rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-                {allApps.map(app => (
+                {filteredApps.length > 0 ? filteredApps.map(app => (
                   <button key={app.id} type="button" onClick={() => toggleApp(app.id)} style={{ height: 'auto', padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'flex-start', background: selectedAppIds.includes(app.id) ? 'var(--primary)' : 'var(--background)', color: selectedAppIds.includes(app.id) ? 'var(--primary-foreground)' : 'var(--foreground)' }}>
                     {selectedAppIds.includes(app.id) && <CheckCircle2 size={12} style={{ marginRight: '0.25rem' }} />}
                     <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.name}</span>
                   </button>
-                ))}
+                )) : (
+                  <div style={{ gridColumn: 'span 2', textAlign: 'center', padding: '1rem', color: 'var(--muted-foreground)', fontSize: '0.75rem' }}>No matching applications</div>
+                )}
               </div>
             </div>
 
             <div style={{ marginTop: '2rem', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', borderTop: '1px solid var(--border)', paddingTop: '1.5rem' }}>
               {capability && (
                 <button type="button" onClick={handleDelete} disabled={deleting} style={{ marginRight: 'auto', background: 'transparent', color: 'var(--destructive)', borderColor: 'var(--destructive)' }}>
-                  <Trash2 size={16} style={{ marginRight: '0.5rem' }} /> {deleting ? 'Deleting...' : 'Delete Capability'}
+                  <Trash2 size={16} style={{ marginRight: '0.5rem' }} /> {deleting ? 'Deleting...' : 'Delete'}
                 </button>
               )}
               <Dialog.Close asChild><button type="button">Cancel</button></Dialog.Close>
