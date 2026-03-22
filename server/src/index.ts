@@ -1,9 +1,8 @@
-import 'dotenv/config';
-import fastify from 'fastify';
-import cors from '@fastify/cors';
+import { fastify } from 'fastify';
+import { fastifyCors } from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
-import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 
 const prisma = new PrismaClient();
 const server = fastify().withTypeProvider<ZodTypeProvider>();
@@ -11,19 +10,17 @@ const server = fastify().withTypeProvider<ZodTypeProvider>();
 server.setValidatorCompiler(validatorCompiler);
 server.setSerializerCompiler(serializerCompiler);
 
-server.register(cors, {
+server.register(fastifyCors, {
   origin: true,
-});
-
-// Health check
-server.get('/health', async () => {
-  return { status: 'ok' };
 });
 
 // Applications API
 server.get('/applications', async () => {
   return prisma.application.findMany({
-    include: { capabilities: true },
+    include: {
+      capabilities: true,
+    },
+    orderBy: { name: 'asc' }
   });
 });
 
@@ -35,13 +32,15 @@ server.post('/applications', {
       owner: z.string().optional(),
       lifecycle: z.string().optional(),
       type: z.string().optional(),
+      criticality: z.string().optional(),
+      functionalFit: z.string().optional(),
+      technicalFit: z.string().optional(),
       metadata: z.string().optional(),
       capabilityIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request) => {
   const { capabilityIds, ...data } = request.body;
-  console.log('Creating application with capabilityIds:', capabilityIds);
   return prisma.application.create({
     data: {
       ...data,
@@ -54,15 +53,16 @@ server.post('/applications', {
 
 server.put('/applications/:id', {
   schema: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: z.object({ id: z.string() }),
     body: z.object({
       name: z.string().optional(),
       description: z.string().optional(),
       owner: z.string().optional(),
       lifecycle: z.string().optional(),
       type: z.string().optional(),
+      criticality: z.string().optional(),
+      functionalFit: z.string().optional(),
+      technicalFit: z.string().optional(),
       metadata: z.string().optional(),
       capabilityIds: z.array(z.string()).optional(),
     }),
@@ -70,7 +70,6 @@ server.put('/applications/:id', {
 }, async (request) => {
   const { id } = request.params;
   const { capabilityIds, ...data } = request.body;
-  console.log(`Updating application ${id} with capabilityIds:`, capabilityIds);
   return prisma.application.update({
     where: { id },
     data: {
@@ -84,21 +83,20 @@ server.put('/applications/:id', {
 
 server.delete('/applications/:id', {
   schema: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: z.object({ id: z.string() }),
   },
 }, async (request) => {
-  const { id } = request.params;
   return prisma.application.delete({
-    where: { id },
+    where: { id: request.params.id },
   });
 });
 
 // Capabilities API
-server.get('/capabilities', async () => {
+server.get('/capabilities', async (request) => {
   return prisma.capability.findMany({
-    include: { applications: true },
+    include: {
+      applications: true,
+    },
     orderBy: { name: 'asc' }
   });
 });
@@ -109,6 +107,8 @@ server.post('/capabilities', {
       name: z.string(),
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),
+      metadata: z.string().optional(),
+      criticality: z.string().optional(),
       applicationIds: z.array(z.string()).optional(),
     }),
   },
@@ -127,13 +127,13 @@ server.post('/capabilities', {
 
 server.put('/capabilities/:id', {
   schema: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: z.object({ id: z.string() }),
     body: z.object({
       name: z.string().optional(),
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),
+      metadata: z.string().optional(),
+      criticality: z.string().optional(),
       applicationIds: z.array(z.string()).optional(),
     }),
   },
@@ -154,14 +154,11 @@ server.put('/capabilities/:id', {
 
 server.delete('/capabilities/:id', {
   schema: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: z.object({ id: z.string() }),
   },
 }, async (request) => {
-  const { id } = request.params;
   return prisma.capability.delete({
-    where: { id },
+    where: { id: request.params.id },
   });
 });
 
@@ -182,8 +179,6 @@ server.post('/integrations', {
       sourceAppId: z.string(),
       targetAppId: z.string(),
       type: z.string().optional(),
-      protocol: z.string().optional(),
-      dataFormat: z.string().optional(),
     }),
   },
 }, async (request) => {
@@ -200,8 +195,6 @@ server.put('/integrations/:id', {
       sourceAppId: z.string().optional(),
       targetAppId: z.string().optional(),
       type: z.string().optional(),
-      protocol: z.string().optional(),
-      dataFormat: z.string().optional(),
     }),
   },
 }, async (request) => {
@@ -213,76 +206,22 @@ server.put('/integrations/:id', {
 
 server.delete('/integrations/:id', {
   schema: {
-    params: z.object({
-      id: z.string(),
-    }),
+    params: z.object({ id: z.string() }),
   },
 }, async (request) => {
-  const { id } = request.params;
   return prisma.integration.delete({
-    where: { id },
+    where: { id: request.params.id },
   });
 });
 
-// Search API
-server.get('/search', {
-  schema: {
-    querystring: z.object({
-      q: z.string(),
-    }),
-  },
-}, async (request) => {
-  const { q } = request.query;
-  
-  const [apps, capabilities, integrations] = await Promise.all([
-    prisma.application.findMany({
-      where: {
-        OR: [
-          { name: { contains: q } },
-          { description: { contains: q } },
-          { owner: { contains: q } },
-        ],
-      },
-      include: { capabilities: true },
-      take: 5,
-    }),
-    prisma.capability.findMany({
-      where: {
-        OR: [
-          { name: { contains: q } },
-          { description: { contains: q } },
-        ],
-      },
-      take: 5,
-    }),
-    prisma.integration.findMany({
-      where: {
-        OR: [
-          { name: { contains: q } },
-          { type: { contains: q } },
-          { sourceApp: { name: { contains: q } } },
-          { targetApp: { name: { contains: q } } },
-        ],
-      },
-      include: {
-        sourceApp: true,
-        targetApp: true,
-      },
-      take: 5,
-    }),
-  ]);
-
-  return {
-    applications: apps,
-    capabilities,
-    relations: integrations,
-  };
-});
-
-// Picklist API
+// Picklists API
 server.get('/picklists', async () => {
   return prisma.picklist.findMany({
-    include: { options: { orderBy: { order: 'asc' } } },
+    include: {
+      options: {
+        orderBy: { order: 'asc' }
+      }
+    }
   });
 });
 
@@ -302,6 +241,32 @@ server.post('/picklists/:id/options', {
       ...request.body,
       picklistId: request.params.id,
     },
+  });
+});
+
+server.put('/picklists/:id/options', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.array(z.object({
+      value: z.string(),
+      label: z.string(),
+      color: z.string().optional(),
+      order: z.number().optional(),
+    })),
+  },
+}, async (request) => {
+  const { id } = request.params;
+  return prisma.$transaction(async (tx) => {
+    await tx.picklistOption.deleteMany({ where: { picklistId: id } });
+    return tx.picklist.update({
+      where: { id },
+      data: {
+        options: {
+          create: request.body.map((opt, i) => ({ ...opt, order: opt.order ?? (i + 1) }))
+        }
+      },
+      include: { options: { orderBy: { order: 'asc' } } }
+    });
   });
 });
 
@@ -370,6 +335,43 @@ server.delete('/metadata-definitions/:id', {
   return prisma.metadataDefinition.delete({
     where: { id: request.params.id },
   });
+});
+
+// Unified Search API
+server.get('/search', {
+  schema: {
+    querystring: z.object({
+      q: z.string(),
+    }),
+  },
+}, async (request) => {
+  const { q } = request.query;
+  const [apps, caps] = await Promise.all([
+    prisma.application.findMany({
+      where: {
+        OR: [
+          { name: { contains: q } },
+          { description: { contains: q } },
+        ],
+      },
+      include: { capabilities: true },
+      take: 10,
+    }),
+    prisma.capability.findMany({
+      where: {
+        OR: [
+          { name: { contains: q } },
+          { description: { contains: q } },
+        ],
+      },
+      take: 10,
+    }),
+  ]);
+
+  return {
+    applications: apps,
+    capabilities: caps,
+  };
 });
 
 const start = async () => {

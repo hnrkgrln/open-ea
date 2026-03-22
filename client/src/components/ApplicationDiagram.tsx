@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -21,7 +21,10 @@ interface Application {
   lifecycle: string;
   type: string;
   metadata?: string;
-  capabilities?: { id: string; name: string }[];
+  criticality: string;
+  functionalFit: string;
+  technicalFit: string;
+  capabilities?: { id: string; name: string; criticality: string }[];
 }
 
 interface Capability {
@@ -29,6 +32,8 @@ interface Capability {
   name: string;
   description?: string;
   parentId?: string | null;
+  metadata?: string;
+  criticality: string;
   applications?: { id: string }[];
 }
 
@@ -42,6 +47,7 @@ interface Integration {
 
 interface MetadataDefinition {
   id: string;
+  entityType: string;
   fieldName: string;
   fieldType: string;
   label: string;
@@ -50,17 +56,30 @@ interface MetadataDefinition {
   scaleType: string;
 }
 
+interface Picklist {
+  id: string;
+  name: string;
+  options: { value: string; color: string; label: string }[];
+}
+
 interface Props {
   onNodeClick?: (app: Application) => void;
   onCapabilityClick?: (cap: Capability) => void;
   appsOverride?: Application[];
   mode?: 'network' | 'landscape';
-  activeOverlay?: string | null; // fieldName of the range field to visualize
+  activeOverlay?: string | null;
+  showApplications?: boolean;
 }
+
+const STANDARD_DEFS: MetadataDefinition[] = [
+  { id: 'crit-app', entityType: 'Application', fieldName: 'criticality', fieldType: 'range', label: 'Business Criticality', min: 1, max: 5, scaleType: 'importance' },
+  { id: 'crit-cap', entityType: 'Capability', fieldName: 'criticality', fieldType: 'range', label: 'Business Criticality', min: 1, max: 5, scaleType: 'importance' },
+  { id: 'func-app', entityType: 'Application', fieldName: 'functionalFit', fieldType: 'range', label: 'Functional Fit', min: 1, max: 5, scaleType: 'bad-good' },
+  { id: 'tech-app', entityType: 'Application', fieldName: 'technicalFit', fieldType: 'range', label: 'Technical Fit', min: 1, max: 5, scaleType: 'bad-good' },
+];
 
 const getContrastColor = (hexcolor: string) => {
   if (!hexcolor || hexcolor === 'transparent') return 'var(--foreground)';
-  // If it's a CSS variable or rgba, we might need a better parser, but for hex:
   if (hexcolor.startsWith('#')) {
     const r = parseInt(hexcolor.substring(1, 3), 16);
     const g = parseInt(hexcolor.substring(3, 5), 16);
@@ -71,74 +90,60 @@ const getContrastColor = (hexcolor: string) => {
   return 'var(--foreground)';
 };
 
-const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  const dagreGraph = new dagre.graphlib.Graph();
-  dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: 'TB', nodesep: 150, ranksep: 200 });
-
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: 200, height: 70 });
-  });
-
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
-
-  dagre.layout(dagreGraph);
-
-  return nodes.map((node) => {
-    const nodeWithPosition = dagreGraph.node(node.id);
-    return {
-      ...node,
-      position: {
-        x: nodeWithPosition.x - 100,
-        y: nodeWithPosition.y - 35,
-      },
-    };
-  });
-};
+const LIFECYCLE_STAGES = [
+  { label: 'Planning', color: '#1864ab', lightColor: '#e7f5ff' },
+  { label: 'Deployment', color: '#5f3dc4', lightColor: '#f3f0ff' },
+  { label: 'Maintenance', color: '#2b8a3e', lightColor: '#ebfbee' },
+  { label: 'Sunset', color: '#d9480f', lightColor: '#fff4e6' },
+  { label: 'Decommissioned', color: '#c92a2a', lightColor: '#fff5f5' }
+];
 
 const getLifecycleColor = (lifecycle: string, isDark: boolean) => {
   const lc = lifecycle?.toLowerCase() || 'planning';
-  const colors: any = {
-    planning: isDark ? '#1864ab' : '#e7f5ff',
-    deployment: isDark ? '#5f3dc4' : '#f3f0ff',
-    maintenance: isDark ? '#2b8a3e' : '#ebfbee',
-    sunset: isDark ? '#d9480f' : '#fff4e6',
-    decommissioned: isDark ? '#c92a2a' : '#fff5f5'
-  };
-  const bg = colors[lc] || colors.planning;
+  const stage = LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === lc) || LIFECYCLE_STAGES[0];
+  const bg = isDark ? stage.color : stage.lightColor;
   return { bg, text: getContrastColor(bg) };
 };
 
-// Helper to interpolate colors for gradients
 const interpolateColor = (color1: string, color2: string, factor: number) => {
   const r1 = parseInt(color1.substring(1, 3), 16);
   const g1 = parseInt(color1.substring(3, 5), 16);
   const b1 = parseInt(color1.substring(5, 7), 16);
-
   const r2 = parseInt(color2.substring(1, 3), 16);
   const g2 = parseInt(color2.substring(3, 5), 16);
   const b2 = parseInt(color2.substring(5, 7), 16);
-
   const r = Math.round(r1 + factor * (r2 - r1));
   const g = Math.round(g1 + factor * (g2 - g1));
   const b = Math.round(b1 + factor * (b2 - b1));
-
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 };
 
-const getOverlayColor = (value: number, def: MetadataDefinition, isDark: boolean) => {
+const getScaleColors = (scaleType: string) => {
+  switch (scaleType) {
+    case 'good-bad': return ['#2b8a3e', '#fab005', '#c92a2a'];
+    case 'bad-good': return ['#c92a2a', '#fab005', '#2b8a3e'];
+    case 'low-high': return ['#e7f5ff', '#1864ab'];
+    case 'importance': return ['#dee2e6', '#7048e8', '#311b92'];
+    default: return ['#dee2e6', '#343a40'];
+  }
+};
+
+const getOverlayColor = (value: string | number, def: MetadataDefinition, picklists: Picklist[]) => {
+  const targetName = def.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
+  const picklist = picklists.find(p => p.name === targetName || p.name === def.fieldName);
+  
+  if (picklist) {
+    const rounded = Math.round(Number(value));
+    const option = picklist.options.find(o => o.value === String(rounded));
+    if (option) return { bg: option.color, text: getContrastColor(option.color) };
+  }
+
+  const numVal = Number(value);
   const min = def.min ?? 0;
   const max = def.max ?? 100;
   const range = max - min;
-  const normalized = range === 0 ? 0.5 : (value - min) / range;
-
-  let colors = ['#2b8a3e', '#fab005', '#c92a2a']; // good-bad default
-  if (def.scaleType === 'bad-good') colors = ['#c92a2a', '#fab005', '#2b8a3e'];
-  if (def.scaleType === 'low-high') colors = ['#e7f5ff', '#1864ab'];
-  if (def.scaleType === 'importance') colors = ['#f1f3f5', '#5f3dc4'];
-  if (def.scaleType === 'neutral') colors = ['#dee2e6', '#343a40'];
+  const normalized = range === 0 ? 0.5 : Math.max(0, Math.min(1, (numVal - min) / range));
+  const colors = getScaleColors(def.scaleType);
 
   let bg = '';
   if (colors.length === 3) {
@@ -147,11 +152,10 @@ const getOverlayColor = (value: number, def: MetadataDefinition, isDark: boolean
   } else {
     bg = interpolateColor(colors[0], colors[1], normalized);
   }
-
   return { bg, text: getContrastColor(bg) };
 };
 
-export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay }: Props) => {
+export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay, showApplications = true }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -182,7 +186,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     }
   });
 
-  const { data: metaDefs } = useQuery<MetadataDefinition[]>({
+  const { data: dbMetaDefs } = useQuery<MetadataDefinition[]>({
     queryKey: ['metadata-definitions'],
     queryFn: async () => {
       const res = await fetch('/api/metadata-definitions');
@@ -190,38 +194,73 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     }
   });
 
+  const { data: picklists } = useQuery<Picklist[]>({
+    queryKey: ['picklists'],
+    queryFn: async () => {
+      const res = await fetch('/api/picklists');
+      return res.json();
+    }
+  });
+
+  const metaDefs = useMemo(() => {
+    const defs = [...(dbMetaDefs || [])];
+    STANDARD_DEFS.forEach(std => {
+      if (!defs.some(d => d.fieldName === std.fieldName && d.entityType === std.entityType)) {
+        defs.push(std);
+      }
+    });
+    return defs;
+  }, [dbMetaDefs]);
+
   useEffect(() => {
-    if (!apps || !integrations || !allCapabilities || !metaDefs) return;
+    if (!apps || !integrations || !allCapabilities || !metaDefs || !picklists) return;
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const borderColor = 'var(--border)';
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
     const textColor = 'var(--foreground)';
 
-    const activeDef = metaDefs.find(d => d.fieldName === activeOverlay);
+    const fieldDefs = metaDefs.filter(d => d.fieldName === activeOverlay);
+    const appDef = fieldDefs.find(d => d.entityType === 'Application');
+    const capDef = fieldDefs.find(d => d.entityType === 'Capability');
+
+    const getAppScore = (app: Application, fieldName: string, def: MetadataDefinition) => {
+      if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
+        const capScores = app.capabilities.map(c => {
+          const fullCap = allCapabilities.find(ac => ac.id === c.id);
+          return Number(fullCap?.criticality || 1);
+        });
+        return Math.max(...capScores);
+      }
+      return (app as any)[fieldName] || (app.metadata ? JSON.parse(app.metadata)[fieldName] : def.min);
+    };
 
     if (mode === 'network') {
-      const networkNodes: Node[] = apps.map((app) => {
-        let colors = getLifecycleColor(app.lifecycle, isDark);
+      const radius = Math.max(apps.length * 50, 350);
+      const centerX = 600;
+      const centerY = 600;
+
+      const networkNodes: Node[] = apps.map((app, index) => {
+        const angle = (index / apps.length) * 2 * Math.PI;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
         
-        if (activeOverlay && activeDef) {
-          try {
-            const meta = app.metadata ? JSON.parse(app.metadata) : {};
-            const val = meta[activeOverlay] ?? activeDef.min;
-            colors = getOverlayColor(Number(val), activeDef, isDark);
-          } catch (e) {}
+        let colors = getLifecycleColor(app.lifecycle, isDark);
+        if (activeOverlay && appDef) {
+          const val = getAppScore(app, activeOverlay, appDef);
+          colors = getOverlayColor(val, appDef, picklists);
         }
 
         return {
           id: app.id,
           data: { label: app.name, type: 'app', original: app },
-          position: { x: 0, y: 0 },
+          position: { x, y },
           style: { 
             background: colors.bg, 
             color: colors.text, 
             border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-            borderRadius: '8px',
-            width: 200,
+            borderRadius: '12px',
+            width: 180,
             fontSize: '13px',
             fontWeight: 600,
             textAlign: 'center',
@@ -248,7 +287,17 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
         }));
 
-      const layoutedNodes = getLayoutedElements(networkNodes, networkEdges);
+      const dagreGraph = new dagre.graphlib.Graph();
+      dagreGraph.setDefaultEdgeLabel(() => ({}));
+      dagreGraph.setGraph({ rankdir: 'TB', nodesep: 150, ranksep: 200 });
+      networkNodes.forEach(n => dagreGraph.setNode(n.id, { width: 200, height: 70 }));
+      networkEdges.forEach(e => dagreGraph.setEdge(e.source, e.target));
+      dagre.layout(dagreGraph);
+      const layoutedNodes = networkNodes.map(n => {
+        const pos = dagreGraph.node(n.id);
+        return { ...n, position: { x: pos.x - 100, y: pos.y - 35 } };
+      });
+
       setNodes(layoutedNodes);
       setEdges(networkEdges);
     } else {
@@ -257,8 +306,13 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       allCapabilities.forEach(c => capsMap.set(c.id, c));
 
       const appToCapMap = new Map<string, string>();
+      const unassignedApps: Application[] = [];
+
       apps.forEach(app => {
-        if (!app.capabilities || app.capabilities.length === 0) return;
+        if (!app.capabilities || app.capabilities.length === 0) {
+          unassignedApps.push(app);
+          return;
+        }
         let deepestCap = app.capabilities[0];
         app.capabilities.forEach(cap => {
           if (allCapabilities.some(c => c.id === cap.id && c.parentId === deepestCap.id)) deepestCap = cap;
@@ -275,15 +329,20 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         }
       });
 
-      let currentRootX = 0;
-      const rootGap = 100;
+      const getAllAppsForCap = (capId: string): Application[] => {
+        let res = appsByCap.get(capId) || [];
+        const children = allCapabilities.filter(c => c.parentId === capId);
+        children.forEach(child => {
+          res = [...res, ...getAllAppsForCap(child.id)];
+        });
+        return res;
+      };
 
-      const renderCap = (capId: string, parentId?: string, depth = 0): { width: number; height: number } => {
+      const renderCap = (capId: string, parentId?: string, depth = 0, rootX = 0, rootY = 0): { width: number; height: number } => {
         const cap = capsMap.get(capId)!;
         const children = allCapabilities.filter(c => c.parentId === capId);
-        const associatedApps = appsByCap.get(capId) || [];
+        const associatedApps = showApplications ? (appsByCap.get(capId) || []) : [];
         const appHeight = 50;
-        const appWidth = 240;
         const padding = 20;
         const titleHeight = 50;
 
@@ -310,12 +369,9 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
 
         associatedApps.forEach((app, i) => {
           let colors = getLifecycleColor(app.lifecycle, isDark);
-          if (activeOverlay && activeDef) {
-            try {
-              const meta = app.metadata ? JSON.parse(app.metadata) : {};
-              const val = meta[activeOverlay] ?? activeDef.min;
-              colors = getOverlayColor(Number(val), activeDef, isDark);
-            } catch (e) {}
+          if (activeOverlay && appDef) {
+            const val = getAppScore(app, activeOverlay, appDef);
+            colors = getOverlayColor(val, appDef, picklists);
           }
 
           landscapeNodes.push({
@@ -342,49 +398,148 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
 
         const finalHeight = totalHeight + (associatedApps.length * (appHeight + 10)) + padding;
 
+        let capBg = depth === 0 ? groupBg : 'rgba(0,0,0,0.03)';
+        let capTextColor = 'var(--foreground)';
+        if (activeOverlay && capDef) {
+          const val = (cap as any)[activeOverlay] || (cap.metadata ? JSON.parse(cap.metadata)[activeOverlay] : capDef.min);
+          const colors = getOverlayColor(val, capDef, picklists);
+          capBg = colors.bg;
+          capTextColor = colors.text;
+        }
+
         landscapeNodes.push({
           id: `cap-${capId}`,
-          data: { label: cap.name, type: 'capability', originalId: capId },
-          position: { x: depth === 0 ? currentRootX : 0, y: 0 },
+          data: { label: cap.name, type: 'capability', originalId: capId, original: cap },
+          position: { x: depth === 0 ? rootX : 0, y: depth === 0 ? rootY : 0 },
           parentNode: parentId,
           style: {
-            background: depth === 0 ? groupBg : 'rgba(0,0,0,0.03)',
+            background: capBg,
             border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? '#373a40' : '#dee2e6'}`,
             width: maxWidth,
             height: finalHeight,
             borderRadius: depth === 0 ? '16px' : '8px',
             pointerEvents: 'all',
             zIndex: depth,
+            color: capTextColor,
+            fontWeight: 800,
+            fontSize: '14px',
+            textAlign: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            paddingTop: '12px'
           }
         });
 
         return { width: maxWidth, height: finalHeight };
       };
 
+      // --- MULTI-ROW GRID LOGIC ---
+      let currentX = 0;
+      let currentY = 0;
+      let maxRowHeight = 0;
+      const horizontalGap = 100;
+      const verticalGap = 100;
+      const itemsPerRow = 5;
+
       const roots = allCapabilities.filter(c => !c.parentId);
-      roots.forEach(root => {
-        const layout = renderCap(root.id);
-        currentRootX += layout.width + rootGap;
+      
+      roots.forEach((root, index) => {
+        if (index > 0 && index % itemsPerRow === 0) {
+          currentX = 0;
+          currentY += maxRowHeight + verticalGap;
+          maxRowHeight = 0;
+        }
+
+        const layout = renderCap(root.id, undefined, 0, currentX, currentY);
+        currentX += layout.width + horizontalGap;
+        maxRowHeight = Math.max(maxRowHeight, layout.height);
       });
+
+      // Render Unassigned Applications Group as the next item in the grid
+      if (showApplications && unassignedApps.length > 0) {
+        if (roots.length % itemsPerRow === 0 && roots.length > 0) {
+          currentX = 0;
+          currentY += maxRowHeight + verticalGap;
+          maxRowHeight = 0;
+        }
+
+        const appHeight = 50;
+        const appWidth = 240;
+        const padding = 20;
+        const titleHeight = 50;
+        const maxWidth = 300;
+        const finalHeight = titleHeight + (unassignedApps.length * (appHeight + 10)) + padding;
+
+        landscapeNodes.push({
+          id: 'cap-unassigned',
+          data: { label: 'Unassigned Applications', type: 'capability', originalId: 'unassigned' },
+          position: { x: currentX, y: currentY },
+          style: {
+            background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+            border: `2px solid ${isDark ? '#373a40' : '#dee2e6'}`,
+            width: maxWidth,
+            height: finalHeight,
+            borderRadius: '16px',
+            pointerEvents: 'all',
+            color: 'var(--foreground)',
+            fontWeight: 800,
+            fontSize: '14px',
+            textAlign: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            paddingTop: '12px',
+            opacity: 0.8
+          }
+        });
+
+        unassignedApps.forEach((app, i) => {
+          let colors = getLifecycleColor(app.lifecycle, isDark);
+          if (activeOverlay && appDef) {
+            const val = getAppScore(app, activeOverlay, appDef);
+            colors = getOverlayColor(val, appDef, picklists);
+          }
+
+          landscapeNodes.push({
+            id: `app-unassigned-${app.id}`,
+            parentNode: 'cap-unassigned',
+            data: { label: app.name, type: 'app', original: app },
+            position: { x: padding, y: titleHeight + (i * (appHeight + 10)) },
+            style: {
+              background: colors.bg,
+              color: colors.text,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+              borderRadius: '8px',
+              width: maxWidth - (padding * 2),
+              height: appHeight,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '13px',
+              fontWeight: 600,
+              zIndex: 100
+            }
+          });
+        });
+      }
 
       setNodes(landscapeNodes);
       setEdges([]);
     }
-  }, [apps, integrations, allCapabilities, metaDefs, mode, activeOverlay]);
+  }, [apps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
-    if (node.data.type === 'app') {
-      onNodeClick?.(node.data.original);
-    } else if (node.data.type === 'capability') {
-      const cap = allCapabilities?.find(c => c.id === node.data.originalId);
-      if (cap) onCapabilityClick?.(cap);
-    }
+    if (node.data.type === 'app') onNodeClick?.(node.data.original);
+    else if (node.data.type === 'capability' && node.data.originalId !== 'unassigned') onCapabilityClick?.(node.data.original);
   };
+
+  const fieldDefs = metaDefs.filter(d => d.fieldName === activeOverlay);
+  const activeDef = fieldDefs[0];
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
-        key={`${mode}-${activeOverlay}`}
+        key={`${mode}-${activeOverlay}-${showApplications}`}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -402,6 +557,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       >
         <Background color="var(--border)" gap={20} />
         <Controls showInteractive={false} />
+        
         <Panel position="top-right" style={{ 
           background: 'var(--card)', 
           padding: '8px 12px', 
@@ -412,8 +568,56 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
         }}>
           <strong>{mode === 'network' ? 'Integrations' : 'Landscape'} View</strong>
-          {activeOverlay && <div style={{ color: 'var(--primary)', fontWeight: 600, marginTop: '4px' }}>Overlay: {metaDefs?.find(d => d.fieldName === activeOverlay)?.label}</div>}
           <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
+        </Panel>
+
+        <Panel position="top-left" style={{ 
+          background: 'var(--card)', 
+          padding: '12px', 
+          borderRadius: '12px', 
+          border: '1px solid var(--border)',
+          fontSize: '11px',
+          color: 'var(--foreground)',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          maxWidth: '220px'
+        }}>
+          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+            {activeOverlay ? activeDef?.label : 'Application Lifecycle'}
+          </div>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {!activeOverlay ? (
+              LIFECYCLE_STAGES.map(stage => (
+                <div key={stage.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? stage.color : stage.lightColor, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                  <span>{stage.label}</span>
+                </div>
+              ))
+            ) : (
+              picklists.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase()) ? (
+                picklists.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase())?.options.map(opt => (
+                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                    <span>{opt.label}</span>
+                  </div>
+                ))
+              ) : activeDef && (
+                <div style={{ width: '100%' }}>
+                  <div style={{ 
+                    height: '10px', 
+                    width: '100%', 
+                    borderRadius: '5px', 
+                    background: `linear-gradient(to right, ${getScaleColors(activeDef.scaleType).join(', ')})`,
+                    marginBottom: '4px'
+                  }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 600 }}>
+                    <span>{activeDef.min}</span>
+                    <span>{activeDef.max}</span>
+                  </div>
+                </div>
+              )
+            )}
+          </div>
         </Panel>
       </ReactFlow>
     </div>

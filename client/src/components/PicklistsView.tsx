@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, GripVertical, FileCode, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Settings2, GripVertical, FileCode, Edit2, Sliders } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
+import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 
 interface PicklistOption {
   id: string;
@@ -38,11 +39,13 @@ export const PicklistsView = () => {
   // States for new picklist option
   const [newValue, setNewValue] = useState('');
   const [newLabel, setNewLabel] = useState('');
+  const [newColor, setNewColor] = useState('#adb5bd');
 
   // States for new metadata field
   const [metaLabel, setMetaLabel] = useState('');
   const [metaName, setMetaName] = useState('');
   const [metaType, setMetaType] = useState('string');
+  const [metaEntity, setMetaEntity] = useState('Application');
   const [metaMin, setMetaMin] = useState(0);
   const [metaMax, setMetaMax] = useState(100);
   const [metaScale, setMetaScale] = useState('neutral');
@@ -82,6 +85,7 @@ export const PicklistsView = () => {
         body: JSON.stringify({
           value: newValue,
           label: newLabel,
+          color: newColor,
           order: selectedPicklist.options.length + 1
         }),
       });
@@ -89,6 +93,7 @@ export const PicklistsView = () => {
       if (res.ok) {
         setNewValue('');
         setNewLabel('');
+        setNewColor('#adb5bd');
         queryClient.invalidateQueries({ queryKey: ['picklists'] });
       }
     } catch (err) {
@@ -115,7 +120,7 @@ export const PicklistsView = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entityType: 'Application',
+          entityType: metaEntity,
           fieldName: metaName,
           fieldType: metaType,
           label: metaLabel,
@@ -140,7 +145,7 @@ export const PicklistsView = () => {
   };
 
   const handleDeleteMeta = async (id: string) => {
-    if (!confirm('Are you sure? Existing application data for this field will not be deleted but won\'t show up in forms.')) return;
+    if (!confirm('Are you sure? Existing data for this field will not be deleted but won\'t show up in forms.')) return;
     try {
       const res = await fetch(`/api/metadata-definitions/${id}`, { method: 'DELETE' });
       if (res.ok) queryClient.invalidateQueries({ queryKey: ['metadata-definitions'] });
@@ -150,6 +155,8 @@ export const PicklistsView = () => {
   };
 
   if (loadingPicklists || loadingMeta) return <div>Loading settings...</div>;
+
+  const isRangePicklist = selectedPicklist && ['criticality', 'functional_fit', 'technical_fit'].includes(selectedPicklist.name);
 
   return (
     <div>
@@ -211,71 +218,109 @@ export const PicklistsView = () => {
         <div className="card">
           {activeTab === 'picklists' && selectedPicklist ? (
             <>
-              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{selectedPicklist.label} Options</h2>
-                <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Values available in the "{selectedPicklist.name}" dropdowns.</p>
+              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div>
+                  <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{selectedPicklist.label}</h2>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
+                    {isRangePicklist ? 'This is a standard architectural range field.' : `Values available in the "${selectedPicklist.name}" dropdowns.`}
+                  </p>
+                </div>
+                {isRangePicklist && (
+                  <EditRangePicklistDialog 
+                    picklist={selectedPicklist} 
+                    onSuccess={() => queryClient.invalidateQueries({ queryKey: ['picklists'] })} 
+                  />
+                )}
               </div>
 
-              <div style={{ marginBottom: '2rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Label</th>
-                      <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Internal Value</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'right' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              {isRangePicklist ? (
+                <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                     {selectedPicklist.options.map(opt => (
-                      <tr key={opt.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{opt.label}</td>
-                        <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{opt.value}</td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          <button onClick={() => handleDeleteOption(opt.id)} style={{ border: 'none', background: 'transparent', color: 'var(--destructive)', padding: '0.25rem' }}>
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
+                      <div key={opt.id} title={opt.label} style={{ width: '30px', height: '30px', borderRadius: '6px', background: opt.color, border: '1px solid var(--border)' }} />
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </div>
+                  <p style={{ fontSize: '0.875rem', fontWeight: 600 }}>Defined Range: {selectedPicklist.options[0]?.label} — {selectedPicklist.options[selectedPicklist.options.length-1]?.label}</p>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.5rem' }}>Click "Configure Range" to modify the scale, labels, or colors.</p>
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: '2rem' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                          <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Color</th>
+                          <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Label</th>
+                          <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Value</th>
+                          <th style={{ padding: '0.75rem', textAlign: 'right' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedPicklist.options.map(opt => (
+                          <tr key={opt.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '0.75rem' }}>
+                              <div style={{ width: '24px', height: '24px', borderRadius: '4px', background: opt.color || '#adb5bd', border: '1px solid var(--border)' }} />
+                            </td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{opt.label}</td>
+                            <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{opt.value}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                              <button onClick={() => handleDeleteOption(opt.id)} style={{ border: 'none', background: 'transparent', color: 'var(--destructive)', padding: '0.25rem' }}>
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
 
-              <div className="card" style={{ background: 'var(--background)' }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Add New Option</h3>
-                <form onSubmit={handleAddOption} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label className="label">Label</label>
-                    <input 
-                      value={newLabel}
-                      onChange={(e) => {
-                        setNewLabel(e.target.value);
-                        if (!newValue) setNewValue(e.target.value.replace(/\s+/g, '_').toLowerCase());
-                      }}
-                      placeholder="e.g. Finance" required 
-                    />
+                  <div className="card" style={{ background: 'var(--background)' }}>
+                    <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Add New Option</h3>
+                    <form onSubmit={handleAddOption} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr auto', gap: '1rem', alignItems: 'flex-end' }}>
+                      <div className="field" style={{ margin: 0 }}>
+                        <label className="label">Color</label>
+                        <input 
+                          type="color" 
+                          value={newColor} 
+                          onChange={(e) => setNewColor(e.target.value)} 
+                          style={{ width: '40px', height: '2.5rem', padding: '2px', cursor: 'pointer' }}
+                        />
+                      </div>
+                      <div className="field" style={{ margin: 0 }}>
+                        <label className="label">Label</label>
+                        <input 
+                          value={newLabel}
+                          onChange={(e) => {
+                            setNewLabel(e.target.value);
+                            if (!newValue) setNewValue(e.target.value.replace(/\s+/g, '_').toLowerCase());
+                          }}
+                          placeholder="e.g. Finance" required 
+                        />
+                      </div>
+                      <div className="field" style={{ margin: 0 }}>
+                        <label className="label">Value</label>
+                        <input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="e.g. finance" required />
+                      </div>
+                      <button type="submit" className="primary" style={{ height: '2.5rem' }}>
+                        <Plus size={18} /> Add
+                      </button>
+                    </form>
                   </div>
-                  <div className="field" style={{ margin: 0 }}>
-                    <label className="label">Internal Value</label>
-                    <input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="e.g. finance" required />
-                  </div>
-                  <button type="submit" className="primary" style={{ height: '2.5rem' }}>
-                    <Plus size={18} /> Add
-                  </button>
-                </form>
-              </div>
+                </>
+              )}
             </>
           ) : activeTab === 'metadata' ? (
             <>
               <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Custom Fields (Application)</h2>
-                <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Add dynamically rendered fields to the Application model.</p>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Custom Fields (Meta-model)</h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Add dynamically rendered fields to Applications or Capabilities.</p>
               </div>
 
               <div style={{ marginBottom: '2rem' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Entity</th>
                       <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Label</th>
                       <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Field Name</th>
                       <th style={{ padding: '0.75rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Type</th>
@@ -286,6 +331,9 @@ export const PicklistsView = () => {
                   <tbody>
                     {metaDefs?.map(def => (
                       <tr key={def.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
+                          <span style={{ background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>{def.entityType}</span>
+                        </td>
                         <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>{def.label}</td>
                         <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{def.fieldName}</td>
                         <td style={{ padding: '0.75rem', fontSize: '0.875rem' }}>
@@ -316,7 +364,14 @@ export const PicklistsView = () => {
               <div className="card" style={{ background: 'var(--background)' }}>
                 <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Add Custom Field</h3>
                 <form onSubmit={handleAddMeta}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">Entity Type</label>
+                      <select value={metaEntity} onChange={(e) => setMetaEntity(e.target.value)}>
+                        <option value="Application">Application</option>
+                        <option value="Capability">Capability</option>
+                      </select>
+                    </div>
                     <div className="field" style={{ margin: 0 }}>
                       <label className="label">Field Label</label>
                       <input 

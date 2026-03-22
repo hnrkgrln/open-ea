@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Search, Database, Network, Boxes, X, ArrowRight } from 'lucide-react';
-import { LifecycleBadge } from './LifecycleBadge';
+import { Search, Database, Boxes, X } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 interface Props {
   onSelectApp: (app: any) => void;
@@ -11,158 +11,140 @@ interface Props {
 export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQ] = useState('');
-  const [results, setResults] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+
+  const { data: results, isLoading } = useQuery({
+    queryKey: ['search', query],
+    queryFn: async () => {
+      if (!query) return { applications: [], capabilities: [] };
+      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      return res.json();
+    },
+    enabled: query.length > 1,
+  });
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen((open) => !open);
+        setOpen(open => !open);
       }
     };
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  useEffect(() => {
-    if (query.length < 2) {
-      setResults(null);
-      return;
-    }
-
-    const timer = setTimeout(async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        setResults(data);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [query]);
+  const closeAndSelect = useCallback((type: 'app' | 'cap', item: any) => {
+    setOpen(false);
+    setQ('');
+    if (type === 'app') onSelectApp(item);
+    else onSelectCapability(item);
+  }, [onSelectApp, onSelectCapability]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild>
-        <button style={{ borderRadius: '50%', width: '2.5rem', padding: 0 }} title="Search (Ctrl+K)">
-          <Search size={18} />
-        </button>
-      </Dialog.Trigger>
-      <Dialog.Portal>
-        <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, backdropFilter: 'blur(2px)' }} />
-        <Dialog.Content style={{ 
-          position: 'fixed', 
-          top: '20%', 
-          left: '50%', 
-          transform: 'translateX(-50%)',
-          width: '90vw',
-          maxWidth: '600px',
-          background: 'var(--card)',
-          borderRadius: 'var(--radius)',
-          zIndex: 150,
-          border: '1px solid var(--border)',
-          overflow: 'hidden',
-          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
-        }}>
-          <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Search size={20} color="var(--muted-foreground)" />
-            <input 
-              autoFocus
-              placeholder="Search applications, capabilities, relations..."
-              value={query}
-              onChange={(e) => setQ(e.target.value)}
-              style={{ border: 'none', padding: 0, margin: 0, fontSize: '1rem', background: 'transparent', outline: 'none', color: 'var(--foreground)', width: '100%' }}
-            />
-            <div style={{ fontSize: '0.75rem', background: 'var(--muted)', padding: '0.2rem 0.4rem', borderRadius: '4px', color: 'var(--muted-foreground)', whiteSpace: 'nowrap' }}>
-              ESC
+    <>
+      <button 
+        onClick={() => setOpen(true)}
+        className="secondary"
+        style={{ height: '2.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0 1rem', width: '240px', justifyContent: 'space-between' }}
+      >
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <Search size={16} />
+          <span style={{ fontSize: '0.875rem' }}>Search inventory...</span>
+        </div>
+        <kbd style={{ fontSize: '0.75rem', background: 'var(--muted)', padding: '0.1rem 0.3rem', borderRadius: '4px', opacity: 0.7 }}>⌘K</kbd>
+      </button>
+
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
+          <Dialog.Content style={{ 
+            position: 'fixed', top: '20%', left: '50%', transform: 'translateX(-50%)',
+            width: '90vw', maxWidth: '600px', background: 'var(--card)', padding: '0',
+            borderRadius: 'var(--radius)', zIndex: 250, border: '1px solid var(--border)',
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
+          }}>
+            <Dialog.Title style={{ display: 'none' }}>Search</Dialog.Title>
+            <Dialog.Description style={{ display: 'none' }}>Quickly find applications and capabilities.</Dialog.Description>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <Search size={20} style={{ color: 'var(--muted-foreground)' }} />
+              <input 
+                autoFocus
+                placeholder="Type to search applications or capabilities..." 
+                value={query}
+                onChange={(e) => setQ(e.target.value)}
+                style={{ border: 'none', background: 'transparent', width: '100%', fontSize: '1rem', outline: 'none' }}
+              />
+              <Dialog.Close asChild>
+                <button style={{ border: 'none', background: 'transparent', padding: '0.25rem', cursor: 'pointer' }}><X size={18} /></button>
+              </Dialog.Close>
             </div>
-          </div>
 
-          <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem' }}>
-            {loading && <p style={{ padding: '1rem', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>Searching...</p>}
-            
-            {results && (
-              <>
-                {results.applications.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Applications</div>
-                    {results.applications.map((app: any) => (
-                      <div 
-                        key={app.id} 
-                        onClick={() => { onSelectApp(app); setOpen(false); }}
-                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-                        className="search-item"
-                      >
-                        <Database size={16} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{app.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{app.owner || 'No owner'}</div>
-                        </div>
-                        <LifecycleBadge lifecycle={app.lifecycle} style={{ transform: 'scale(0.8)' }} />
+            <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem' }}>
+              {!query && (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+                  Search for apps, capabilities, or descriptions...
+                </div>
+              )}
+
+              {query && query.length > 1 && !isLoading && (
+                <>
+                  {/* Applications Section */}
+                  {results?.applications?.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Database size={12} /> Applications
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {results.applications.map((app: any) => (
+                        <button
+                          key={app.id}
+                          onClick={() => closeAndSelect('app', app)}
+                          style={{ width: '100%', padding: '0.75rem', textAlign: 'left', background: 'transparent', border: 'none', display: 'flex', flexDirection: 'column', borderRadius: '4px', cursor: 'pointer' }}
+                          className="search-result-item"
+                        >
+                          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{app.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-                {results.capabilities.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Capabilities</div>
-                    {results.capabilities.map((cap: any) => (
-                      <div 
-                        key={cap.id} 
-                        onClick={() => { onSelectCapability(cap); setOpen(false); }}
-                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-                        className="search-item"
-                      >
-                        <Boxes size={16} />
-                        <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{cap.name}</div>
+                  {/* Capabilities Section */}
+                  {results?.capabilities?.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Boxes size={12} /> Capabilities
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {results.capabilities.map((cap: any) => (
+                        <button
+                          key={cap.id}
+                          onClick={() => closeAndSelect('cap', cap)}
+                          style={{ width: '100%', padding: '0.75rem', textAlign: 'left', background: 'transparent', border: 'none', display: 'flex', flexDirection: 'column', borderRadius: '4px', cursor: 'pointer' }}
+                          className="search-result-item"
+                        >
+                          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{cap.name}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
-                {results.relations.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ padding: '0.5rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Relations</div>
-                    {results.relations.map((rel: any) => (
-                      <div 
-                        key={rel.id} 
-                        onClick={() => { onSelectApp(rel.sourceApp); setOpen(false); }}
-                        style={{ padding: '0.75rem', borderRadius: 'var(--radius)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem' }}
-                        className="search-item"
-                      >
-                        <Network size={16} />
-                        <div style={{ fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          {rel.sourceApp.name} <ArrowRight size={12} /> {rel.targetApp.name}
-                          <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>({rel.type})</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                  {(!results?.applications?.length && !results?.capabilities?.length) && (
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+                      No results found for "{query}"
+                    </div>
+                  )}
+                </>
+              )}
 
-                {!results.applications.length && !results.capabilities.length && !results.relations.length && (
-                  <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>No results found for "{query}"</p>
-                )}
-              </>
-            )}
-
-            {!results && !loading && (
-              <p style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-                Type to search across your enterprise architecture...
-              </p>
-            )}
-          </div>
-          <Dialog.Title style={{ display: 'none' }}>Unified Search</Dialog.Title>
-          <Dialog.Description style={{ display: 'none' }}>Search for applications, capabilities, and relationships.</Dialog.Description>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+              {isLoading && (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+                  Searching...
+                </div>
+              )}
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 };

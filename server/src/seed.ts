@@ -14,8 +14,49 @@ async function main() {
 
   console.log('Cleared database.');
 
-  // Create Picklists
-  const lifecyclePicklist = await prisma.picklist.create({
+  // Create Standard Score Picklists (1-5)
+  const fitOptions = [
+    { value: '1', label: '1 - Low', color: '#c92a2a', order: 1 },
+    { value: '2', label: '2', color: '#e67700', order: 2 },
+    { value: '3', label: '3', color: '#fab005', order: 3 },
+    { value: '4', label: '4', color: '#94d82d', order: 4 },
+    { value: '5', label: '5 - High', color: '#2b8a3e', order: 5 },
+  ];
+
+  const criticalityOptions = [
+    { value: '1', label: '1 - Not Critical', color: '#dee2e6', order: 1 },
+    { value: '2', label: '2', color: '#adb5bd', order: 2 },
+    { value: '3', label: '3', color: '#7048e8', order: 3 },
+    { value: '4', label: '4', color: '#5f3dc4', order: 4 },
+    { value: '5', label: '5 - Mission Critical', color: '#311b92', order: 5 },
+  ];
+
+  await prisma.picklist.create({
+    data: {
+      name: 'technical_fit',
+      label: 'Technical Fit',
+      options: { create: fitOptions }
+    }
+  });
+
+  await prisma.picklist.create({
+    data: {
+      name: 'functional_fit',
+      label: 'Functional Fit',
+      options: { create: fitOptions }
+    }
+  });
+
+  await prisma.picklist.create({
+    data: {
+      name: 'criticality',
+      label: 'Business Criticality',
+      options: { create: criticalityOptions }
+    }
+  });
+
+  // Create Standard Picklists
+  await prisma.picklist.create({
     data: {
       name: 'lifecycle',
       label: 'Application Lifecycle',
@@ -31,7 +72,7 @@ async function main() {
     }
   });
 
-  const ownerPicklist = await prisma.picklist.create({
+  await prisma.picklist.create({
     data: {
       name: 'owner',
       label: 'Application Owner',
@@ -46,7 +87,21 @@ async function main() {
     }
   });
 
-  const relationTypePicklist = await prisma.picklist.create({
+  await prisma.picklist.create({
+    data: {
+      name: 'application_type',
+      label: 'Application Type',
+      options: {
+        create: [
+          { value: 'Business Application', label: 'Business Application', order: 1 },
+          { value: 'Infrastructure Service', label: 'Infrastructure Service', order: 2 },
+          { value: 'Platform', label: 'Platform', order: 3 },
+        ]
+      }
+    }
+  });
+
+  await prisma.picklist.create({
     data: {
       name: 'relation_type',
       label: 'Relation Type',
@@ -61,27 +116,12 @@ async function main() {
     }
   });
 
-  const appTypePicklist = await prisma.picklist.create({
-    data: {
-      name: 'application_type',
-      label: 'Application Type',
-      options: {
-        create: [
-          { value: 'On-premise', label: 'On-premise', order: 1 },
-          { value: 'SaaS', label: 'SaaS', order: 2 },
-          { value: 'PaaS', label: 'PaaS', order: 3 },
-          { value: 'Mobile App', label: 'Mobile App', order: 4 },
-          { value: 'Desktop App', label: 'Desktop App', order: 5 },
-        ]
-      }
-    }
-  });
-
   // Create Capabilities
   const cap1 = await prisma.capability.create({
     data: {
       name: 'Customer Management',
       description: 'Capabilities related to managing customer lifecycle and data.',
+      criticality: '5',
     },
   });
 
@@ -89,6 +129,7 @@ async function main() {
     data: {
       name: 'Financial Services',
       description: 'Core financial processing and reporting.',
+      criticality: '4',
     },
   });
 
@@ -96,6 +137,7 @@ async function main() {
     data: {
       name: 'Human Resources',
       description: 'Employee management and payroll.',
+      criticality: '2',
     },
   });
 
@@ -106,7 +148,10 @@ async function main() {
       description: 'Core CRM application.',
       owner: 'Sales Operations',
       lifecycle: 'Maintenance',
-      type: 'SaaS',
+      type: 'Business Application',
+      criticality: '5',
+      functionalFit: '5',
+      technicalFit: '5',
       capabilities: { connect: [{ id: cap1.id }] },
     },
   });
@@ -117,7 +162,10 @@ async function main() {
       description: 'Enterprise ERP system.',
       owner: 'Finance',
       lifecycle: 'Maintenance',
-      type: 'On-premise',
+      type: 'Business Application',
+      criticality: '5',
+      functionalFit: '4',
+      technicalFit: '3',
       capabilities: { connect: [{ id: cap2.id }] },
     },
   });
@@ -128,7 +176,10 @@ async function main() {
       description: 'Time management for employees.',
       owner: 'HR',
       lifecycle: 'Maintenance',
-      type: 'SaaS',
+      type: 'Business Application',
+      criticality: '3',
+      functionalFit: '4',
+      technicalFit: '4',
       capabilities: { connect: [{ id: cap3.id }] },
     },
   });
@@ -139,7 +190,10 @@ async function main() {
       description: 'HR and Payroll system.',
       owner: 'HR',
       lifecycle: 'Maintenance',
-      type: 'On-premise',
+      type: 'Business Application',
+      criticality: '3',
+      functionalFit: '2',
+      technicalFit: '2',
       capabilities: { connect: [{ id: cap3.id }] },
     },
   });
@@ -163,7 +217,7 @@ async function main() {
     },
   });
 
-  console.log('Seed data created successfully.');
+  console.log('Seed data created successfully with updated standard types.');
 }
 
 main()
