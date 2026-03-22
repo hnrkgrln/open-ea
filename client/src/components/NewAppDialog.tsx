@@ -81,8 +81,8 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
   const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
-  const relationTypeOptions = picklists?.find(p => p.name === 'relation_type')?.options || [];
-  
+  const integrationTypeOptions = picklists?.find(p => p.name === 'integration_type')?.options || [];
+
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
@@ -92,13 +92,12 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
   };
 
   const addOutgoing = () => {
-    setOutgoingRelations([...outgoingRelations, { sourceId: '', targetId: '', type: relationTypeOptions[0]?.value || 'API', name: '' }]);
+    setOutgoingRelations([...outgoingRelations, { sourceId: '', targetId: '', type: integrationTypeOptions[0]?.value || 'API', name: '' }]);
   };
 
   const addIncoming = () => {
-    setIncomingRelations([...incomingRelations, { sourceId: '', targetId: '', type: relationTypeOptions[0]?.value || 'API', name: '' }]);
+    setIncomingRelations([...incomingRelations, { sourceId: '', targetId: '', type: integrationTypeOptions[0]?.value || 'API', name: '' }]);
   };
-
   const removeRelation = (index: number, isOutgoing: boolean) => {
     const setter = isOutgoing ? setOutgoingRelations : setIncomingRelations;
     const list = isOutgoing ? outgoingRelations : incomingRelations;

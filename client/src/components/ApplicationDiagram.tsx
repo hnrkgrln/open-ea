@@ -593,7 +593,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
                 </div>
               ))
             ) : (
-              picklists.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase()) ? (
+              picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase()) ? (
                 picklists.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase())?.options.map(opt => (
                   <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />

@@ -50,7 +50,7 @@ export const NewIntegrationDialog = ({ applications, onSuccess }: Props) => {
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         <button style={{ gap: '0.5rem' }}>
-          <Network size={18} /> New Relation
+          <Network size={18} /> New Integration
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
@@ -68,11 +68,12 @@ export const NewIntegrationDialog = ({ applications, onSuccess }: Props) => {
           zIndex: 100
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <Dialog.Title style={{ fontWeight: 600 }}>Create Application Relation</Dialog.Title>
+            <Dialog.Title style={{ fontWeight: 600 }}>Create Application Integration</Dialog.Title>
             <Dialog.Close asChild>
               <button style={{ border: 'none', height: 'auto', padding: '0.25rem' }}><X size={18} /></button>
             </Dialog.Close>
           </div>
+          <Dialog.Description style={{ display: 'none' }}>Define a new integration between two applications.</Dialog.Description>
           
           <form onSubmit={handleSubmit}>
             <div className="field">
@@ -96,7 +97,7 @@ export const NewIntegrationDialog = ({ applications, onSuccess }: Props) => {
             </div>
 
             <div className="field">
-              <label className="label">Relation Type</label>
+              <label className="label">Integration Type</label>
               <select name="type">
                 <option value="API">API</option>
                 <option value="Batch">Batch</option>
@@ -115,7 +116,7 @@ export const NewIntegrationDialog = ({ applications, onSuccess }: Props) => {
                 <button type="button">Cancel</button>
               </Dialog.Close>
               <button type="submit" className="primary" disabled={loading}>
-                {loading ? 'Creating...' : 'Create Relation'}
+                {loading ? 'Creating...' : 'Create Integration'}
               </button>
             </div>
           </form>

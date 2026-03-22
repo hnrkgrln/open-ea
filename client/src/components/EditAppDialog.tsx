@@ -139,22 +139,21 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
   const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
-  const relationTypeOptions = picklists?.find(p => p.name === 'relation_type')?.options || [];
-  
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
+  const integrationTypeOptions = picklists?.find(p => p.name === 'integration_type')?.options || [];
 
   const toggleCapability = (id: string) => {
     setSelectedCapIds(prev => prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]);
   };
 
   const addOutgoing = () => {
-    setOutgoingRelations([...outgoingRelations, { sourceId: app.id, targetId: '', type: relationTypeOptions[0]?.value || 'API', name: '' }]);
+    setOutgoingRelations([...outgoingRelations, { sourceId: app.id, targetId: '', type: integrationTypeOptions[0]?.value || 'API', name: '' }]);
   };
 
   const addIncoming = () => {
-    setIncomingRelations([...incomingRelations, { sourceId: '', targetId: app.id, type: relationTypeOptions[0]?.value || 'API', name: '' }]);
+    setIncomingRelations([...incomingRelations, { sourceId: '', targetId: app.id, type: integrationTypeOptions[0]?.value || 'API', name: '' }]);
   };
 
   const removeRelation = async (index: number, isOutgoing: boolean) => {

@@ -7,6 +7,19 @@ import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-
 const prisma = new PrismaClient();
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
+// One-time migration to rename Relation Type to Integration Type
+async function migrateMetadata() {
+  const relType = await prisma.picklist.findUnique({ where: { name: 'relation_type' } });
+  if (relType) {
+    await prisma.picklist.update({
+      where: { name: 'relation_type' },
+      data: { name: 'integration_type', label: 'Integration Type' }
+    });
+    console.log('Migrated relation_type picklist to integration_type');
+  }
+}
+migrateMetadata().catch(console.error);
+
 server.setValidatorCompiler(validatorCompiler);
 server.setSerializerCompiler(serializerCompiler);
 

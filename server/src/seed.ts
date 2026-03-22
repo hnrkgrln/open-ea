@@ -103,8 +103,8 @@ async function main() {
 
   await prisma.picklist.create({
     data: {
-      name: 'relation_type',
-      label: 'Relation Type',
+      name: 'integration_type',
+      label: 'Integration Type',
       options: {
         create: [
           { value: 'API', label: 'API', order: 1 },
