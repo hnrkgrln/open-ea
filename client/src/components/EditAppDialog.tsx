@@ -253,7 +253,9 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
           borderRadius: 'var(--radius)', zIndex: 150, border: '1px solid var(--border)'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-            <Dialog.Title style={{ fontWeight: 600, fontSize: '1.125rem' }}>{app.name}</Dialog.Title>
+            <Dialog.Title style={{ fontWeight: 600, fontSize: '1.125rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Edit2 size={18} /> Editing: {app.name}
+            </Dialog.Title>
             <Dialog.Close asChild><button style={{ border: 'none', height: 'auto', padding: '0.25rem', background: 'transparent' }}><X size={18} /></button></Dialog.Close>
           </div>
           <Dialog.Description style={{ display: 'none' }}>Edit application details.</Dialog.Description>

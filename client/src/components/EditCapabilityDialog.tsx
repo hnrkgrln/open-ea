@@ -222,7 +222,7 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
 
             <div style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <label className="label">Linked Applications</label>
+                <label className="label">Supporting Applications</label>
                 <div style={{ position: 'relative', width: '200px' }}>
                   <Search size={14} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
                   <input 

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -6,6 +6,7 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MarkerType,
+  useReactFlow,
   type Node,
   type Edge
 } from 'reactflow';
@@ -43,6 +44,8 @@ interface Integration {
   targetAppId: string;
   name?: string;
   type?: string;
+  sourceApp?: Application;
+  targetApp?: Application;
 }
 
 interface MetadataDefinition {
@@ -69,6 +72,7 @@ interface Props {
   mode?: 'network' | 'landscape';
   activeOverlay?: string | null;
   showApplications?: boolean;
+  showCriticality?: boolean;
   relationSearch?: string;
 }
 
@@ -156,9 +160,11 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
   return { bg, text: getContrastColor(bg) };
 };
 
-export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay, showApplications = true, relationSearch = '' }: Props) => {
+const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay = 'lifecycle', showApplications = true, showCriticality = true, relationSearch = '' }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { fitView } = useReactFlow();
+  const [hasFit, setHasFit] = useState(false);
 
   const { data: remoteApps } = useQuery<Application[]>({
     queryKey: ['applications'],
@@ -213,6 +219,14 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     return defs;
   }, [dbMetaDefs]);
 
+  const critDef = metaDefs.find(d => d.fieldName === 'criticality' && d.entityType === 'Capability');
+  const appOverlayDef = metaDefs.find(d => d.fieldName === activeOverlay && d.entityType === 'Application');
+
+  // Reset fit flag when mode changes
+  useEffect(() => {
+    setHasFit(false);
+  }, [mode]);
+
   useEffect(() => {
     if (!allApps.length || !integrations || !allCapabilities || !metaDefs || !picklists) return;
 
@@ -221,11 +235,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
     const textColor = 'var(--foreground)';
 
-    const fieldDefs = metaDefs.filter(d => d.fieldName === activeOverlay);
-    const appDef = fieldDefs.find(d => d.entityType === 'Application');
-    const capDef = fieldDefs.find(d => d.entityType === 'Capability');
-
-    const getAppScore = (app: Application, fieldName: string, def: MetadataDefinition) => {
+    const getAppScore = (app: Application, fieldName: string, def?: MetadataDefinition) => {
       if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
         const capScores = app.capabilities.map(c => {
           const fullCap = allCapabilities.find(ac => ac.id === c.id);
@@ -233,6 +243,7 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         });
         return Math.max(...capScores);
       }
+      if (!def) return 0;
       return (app as any)[fieldName] || (app.metadata ? JSON.parse(app.metadata)[fieldName] : def.min);
     };
 
@@ -240,7 +251,6 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       const search = relationSearch.toLowerCase();
       const visibleAppIdsFromProps = new Set(filteredAppsProps.map(a => a.id));
 
-      // --- Smart Integration Filter ---
       const filteredIntegrations = integrations.filter(i => {
         const sourceApp = allApps.find(a => a.id === i.sourceAppId);
         const targetApp = allApps.find(a => a.id === i.targetAppId);
@@ -250,16 +260,10 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         const sMatches = sourceApp.name.toLowerCase().includes(search);
         const tMatches = targetApp.name.toLowerCase().includes(search);
         
-        if (search) {
-          // If searching, show the connection if IT matches OR its apps match
-          return iMatches || sMatches || tMatches;
-        } else {
-          // If no search, only show connections between apps that passed the other filters (Owner, Lifecycle, etc)
-          return visibleAppIdsFromProps.has(i.sourceAppId) && visibleAppIdsFromProps.has(i.targetAppId);
-        }
+        if (search) return iMatches || sMatches || tMatches;
+        return visibleAppIdsFromProps.has(i.sourceAppId) && visibleAppIdsFromProps.has(i.targetAppId);
       });
 
-      // Final set of apps: those that passed filters + those involved in matching integrations
       const finalAppIds = new Set([
         ...filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]),
         ...filteredAppsProps.map(a => a.id)
@@ -275,10 +279,15 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
           const x = centerX + radius * Math.cos(angle);
           const y = centerY + radius * Math.sin(angle);
           
-          let colors = getLifecycleColor(app.lifecycle, isDark);
-          if (activeOverlay && appDef) {
-            const val = getAppScore(app, activeOverlay, appDef);
-            colors = getOverlayColor(val, appDef, picklists);
+          let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
+          if (activeOverlay === 'lifecycle') {
+            colors = getLifecycleColor(app.lifecycle, isDark);
+          } else {
+            const overlayToUse = activeOverlay === 'criticality' ? metaDefs.find(d => d.fieldName === 'criticality' && d.entityType === 'Application') : appOverlayDef;
+            if (overlayToUse) {
+              const val = getAppScore(app, activeOverlay!, overlayToUse);
+              colors = getOverlayColor(val, overlayToUse, picklists);
+            }
           }
 
           return {
@@ -375,11 +384,14 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         if (children.length > 0) totalHeight = currentYOffset;
 
         associatedApps.forEach((app, i) => {
-          let colors = getLifecycleColor(app.lifecycle, isDark);
-          if (activeOverlay && appDef) {
-            const val = getAppScore(app, activeOverlay, appDef);
-            colors = getOverlayColor(val, appDef, picklists);
+          let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
+          if (activeOverlay === 'lifecycle') {
+            colors = getLifecycleColor(app.lifecycle, isDark);
+          } else if (activeOverlay !== 'criticality' && appOverlayDef) {
+            const val = getAppScore(app, activeOverlay!, appOverlayDef);
+            colors = getOverlayColor(val, appOverlayDef, picklists);
           }
+
           landscapeNodes.push({
             id: `app-${capId}-${app.id}`,
             parentNode: `cap-${capId}`,
@@ -406,9 +418,10 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
 
         let capBg = depth === 0 ? groupBg : 'rgba(0,0,0,0.03)';
         let capTextColor = 'var(--foreground)';
-        if (activeOverlay && capDef) {
-          const val = (cap as any)[activeOverlay] || (cap.metadata ? JSON.parse(cap.metadata)[activeOverlay] : capDef.min);
-          const colors = getOverlayColor(val, capDef, picklists);
+        
+        if (showCriticality && critDef) {
+          const val = (cap as any).criticality || (cap.metadata ? JSON.parse(cap.metadata).criticality : critDef.min);
+          const colors = getOverlayColor(val, critDef, picklists);
           capBg = colors.bg;
           capTextColor = colors.text;
         }
@@ -493,10 +506,12 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
         });
 
         unassignedApps.forEach((app, i) => {
-          let colors = getLifecycleColor(app.lifecycle, isDark);
-          if (activeOverlay && appDef) {
-            const val = getAppScore(app, activeOverlay, appDef);
-            colors = getOverlayColor(val, appDef, picklists);
+          let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
+          if (activeOverlay === 'lifecycle') {
+            colors = getLifecycleColor(app.lifecycle, isDark);
+          } else if (activeOverlay !== 'criticality' && appOverlayDef) {
+            const val = getAppScore(app, activeOverlay!, appOverlayDef);
+            colors = getOverlayColor(val, appOverlayDef, picklists);
           }
           landscapeNodes.push({
             id: `app-unassigned-${app.id}`,
@@ -524,68 +539,99 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
       setNodes(landscapeNodes);
       setEdges([]);
     }
-  }, [allApps, filteredAppsProps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications, relationSearch]);
+  }, [allApps, filteredAppsProps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef]);
+
+  // Initial fit view logic
+  useEffect(() => {
+    if (nodes.length > 0 && !hasFit) {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+        setHasFit(true);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [nodes, hasFit, fitView]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
     else if (node.data.type === 'capability' && node.data.originalId !== 'unassigned') onCapabilityClick?.(node.data.original);
   };
 
-  const fieldDefs = metaDefs.filter(d => d.fieldName === activeOverlay);
-  const activeDef = fieldDefs[0];
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
 
   return (
-    <div style={{ width: '100%', height: '100%' }}>
-      <ReactFlow
-        key={`${mode}-${activeOverlay}-${showApplications}`}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={onNodeInternalClick}
-        nodesDraggable={true}
-        nodesConnectable={false}
-        elementsSelectable={true}
-        panOnDrag={true}
-        zoomOnScroll={true}
-        fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.01}
-        maxZoom={4}
-      >
-        <Background color="var(--border)" gap={20} />
-        <Controls showInteractive={false} />
-        
-        <Panel position="top-right" style={{ 
-          background: 'var(--card)', 
-          padding: '8px 12px', 
-          borderRadius: '8px', 
-          border: '1px solid var(--border)',
-          fontSize: '12px',
-          color: 'var(--foreground)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-        }}>
-          <strong>{mode === 'network' ? 'Integrations' : 'Landscape'} View</strong>
-          <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
-        </Panel>
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onNodeClick={onNodeInternalClick}
+      nodesDraggable={true}
+      nodesConnectable={false}
+      elementsSelectable={true}
+      panOnDrag={true}
+      zoomOnScroll={true}
+      onMoveStart={() => setHasFit(true)}
+      minZoom={0.01}
+      maxZoom={4}
+    >
+      <Background color="var(--border)" gap={20} />
+      <Controls showInteractive={false} />
+      
+      <Panel position="top-right" style={{ 
+        background: 'var(--card)', 
+        padding: '8px 12px', 
+        borderRadius: '8px', 
+        border: '1px solid var(--border)',
+        fontSize: '12px',
+        color: 'var(--foreground)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+      }}>
+        <strong>{mode === 'network' ? 'Integrations' : 'Landscape'} View</strong>
+        <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
+      </Panel>
 
-        <Panel position="top-left" style={{ 
-          background: 'var(--card)', 
-          padding: '12px', 
-          borderRadius: '12px', 
-          border: '1px solid var(--border)',
-          fontSize: '11px',
-          color: 'var(--foreground)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          maxWidth: '220px'
-        }}>
-          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-            {activeOverlay ? activeDef?.label : 'Application Lifecycle'}
+      <Panel position="top-left" style={{ 
+        background: 'var(--card)', 
+        padding: '12px', 
+        borderRadius: '12px', 
+        border: '1px solid var(--border)',
+        fontSize: '11px',
+        color: 'var(--foreground)',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        maxWidth: '220px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px'
+      }}>
+        {/* Capability Section (Only relevant in Landscape Mode) */}
+        {mode === 'landscape' && (
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+              Capability Criticality
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {!showCriticality ? (
+                <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div>
+              ) : (
+                picklists?.find(p => p.name === 'criticality')?.options.map(opt => (
+                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                    <span>{opt.label}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          
+        )}
+
+        {/* Application Section */}
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+            Application {activeOverlay === 'lifecycle' ? 'Lifecycle' : (activeOverlay === 'criticality' ? 'Business Criticality' : (activeOverlay === 'functionalFit' ? 'Functional Fit' : 'Technical Fit'))}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {!activeOverlay ? (
+            {activeOverlay === 'lifecycle' ? (
               LIFECYCLE_STAGES.map(stage => (
                 <div key={stage.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? stage.color : stage.lightColor, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
@@ -593,32 +639,26 @@ export const ApplicationDiagram = ({ onNodeClick, onCapabilityClick, appsOverrid
                 </div>
               ))
             ) : (
-              picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase()) ? (
-                picklists.find(p => p.name.replace(/_/g, '').toLowerCase() === activeDef?.fieldName.toLowerCase())?.options.map(opt => (
-                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
-                    <span>{opt.label}</span>
-                  </div>
-                ))
-              ) : activeDef && (
-                <div style={{ width: '100%' }}>
-                  <div style={{ 
-                    height: '10px', 
-                    width: '100%', 
-                    borderRadius: '5px', 
-                    background: `linear-gradient(to right, ${getScaleColors(activeDef.scaleType).join(', ')})`,
-                    marginBottom: '4px'
-                  }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', fontWeight: 600 }}>
-                    <span>{activeDef.min}</span>
-                    <span>{activeDef.max}</span>
-                  </div>
+              picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === activeOverlay?.toLowerCase())?.options.map(opt => (
+                <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                  <span>{opt.label}</span>
                 </div>
-              )
+              ))
             )}
           </div>
-        </Panel>
-      </ReactFlow>
-    </div>
+        </div>
+      </Panel>
+    </ReactFlow>
   );
 };
+
+export const ApplicationDiagram = (props: Props) => (
+  <div style={{ width: '100%', height: '100%' }}>
+    <ReactFlowProvider>
+      <DiagramInner {...props} />
+    </ReactFlowProvider>
+  </div>
+);
+
+import { ReactFlowProvider } from 'reactflow';

@@ -163,6 +163,25 @@ body {
   gap: 1.5rem;
 }
 
+.masonry-grid {
+  column-count: 3;
+  column-gap: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .masonry-grid { column-count: 2; }
+}
+
+@media (max-width: 768px) {
+  .masonry-grid { column-count: 1; }
+}
+
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 1.5rem;
+}
+
 button {
   display: inline-flex;
   align-items: center;
