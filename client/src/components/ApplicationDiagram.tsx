@@ -452,35 +452,40 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         return { width: maxWidth, height: finalHeight };
       };
 
-      let currentX = 0;
-      let currentY = 0;
-      let maxRowHeight = 0;
+      // --- VERTICAL MASONRY LOGIC ---
+      const itemsPerRow = 5;
       const horizontalGap = 100;
       const verticalGap = 100;
-      const itemsPerRow = 5;
+      const columnWidth = 300;
+      
+      // Initialize heights for each column
+      const columnHeights = new Array(itemsPerRow).fill(0);
 
       const roots = allCapabilities.filter(c => !c.parentId);
-      roots.forEach((root, index) => {
-        if (index > 0 && index % itemsPerRow === 0) {
-          currentX = 0;
-          currentY += maxRowHeight + verticalGap;
-          maxRowHeight = 0;
-        }
+      roots.forEach((root) => {
+        // Find the column with the minimum height
+        const minHeight = Math.min(...columnHeights);
+        const columnIndex = columnHeights.indexOf(minHeight);
+        
+        const currentX = columnIndex * (columnWidth + horizontalGap);
+        const currentY = minHeight;
+
         const layout = renderCap(root.id, undefined, 0, currentX, currentY);
-        currentX += layout.width + horizontalGap;
-        maxRowHeight = Math.max(maxRowHeight, layout.height);
+        
+        // Update column height with the new card's height + gap
+        columnHeights[columnIndex] += layout.height + verticalGap;
       });
 
+      // Render Unassigned Applications Group in the shortest remaining column
       if (showApplications && unassignedApps.length > 0) {
-        if (roots.length % itemsPerRow === 0 && roots.length > 0) {
-          currentX = 0;
-          currentY += maxRowHeight + verticalGap;
-          maxRowHeight = 0;
-        }
+        const minHeight = Math.min(...columnHeights);
+        const columnIndex = columnHeights.indexOf(minHeight);
+        const currentX = columnIndex * (columnWidth + horizontalGap);
+        const currentY = minHeight;
+
         const appHeight = 50;
         const padding = 20;
         const titleHeight = 50;
-        const maxWidth = 300;
         const finalHeight = titleHeight + (unassignedApps.length * (appHeight + 10)) + padding;
 
         landscapeNodes.push({
@@ -490,7 +495,7 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
           style: {
             background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
             border: `2px solid ${isDark ? '#373a40' : '#dee2e6'}`,
-            width: maxWidth,
+            width: columnWidth,
             height: finalHeight,
             borderRadius: '16px',
             pointerEvents: 'all',
@@ -523,7 +528,7 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
               color: colors.text,
               border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
               borderRadius: '8px',
-              width: maxWidth - (padding * 2),
+              width: columnWidth - (padding * 2),
               height: appHeight,
               display: 'flex',
               alignItems: 'center',
@@ -608,7 +613,7 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         {mode === 'landscape' && (
           <div>
             <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-              Capability Criticality
+              Business Criticality
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {!showCriticality ? (
