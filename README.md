@@ -1,6 +1,6 @@
-# OpenAPM - Open Application Portfolio Management
+# OpenEA - Open Enterprise Architecture
 
-OpenAPM is a modern, high-density enterprise architecture tool designed for small-to-medium organizations to manage their application inventory, business capabilities, and system integrations with a focus on visual health and strategic alignment.
+OpenEA is a modern, high-density enterprise architecture tool designed for small-to-medium organizations to manage their application inventory, business capabilities, and system integrations with a focus on visual health and strategic alignment.
 
 ## 🚀 Key Functionalities
 
@@ -16,14 +16,15 @@ OpenAPM is a modern, high-density enterprise architecture tool designed for smal
 - **Recursive Discovery:** Filter diagrams by "Capability Area" to automatically include all applications within a specific business branch.
 
 ### 📊 Interactive Visualizations
-- **Landscape View:** A structured grid layout of root capabilities and their nested systems, optimized for readability.
-- **Integration Network:** A circular graph layout showing system dependencies and data flow types (API, Batch, etc.).
+- **Landscape Views:** Specialized **Capability Landscape** and **Application Landscape** views, optimized with vertical masonry for maximum density.
+- **Integration Network:** An intelligent "Island Layout" showing system dependencies and top-down data flows for independent system clusters.
 - **Heat Map Overlays:** Switch between **Business Criticality**, **Functional Fit**, and **Technical Fit** to visualize your architecture's health using semantic color palettes.
-- **Unified Search:** A single powerful search bar that matches App Names, Descriptions, and Integration keywords across all views.
+- **Unified Search:** A single powerful search bar with keyboard navigation (`⌘K`) that matches App Names, Descriptions, and Integration keywords.
 
 ### ⚙️ Meta-model Configuration
 - **Custom Picklists:** Manage global dropdowns with custom color schemes for visual consistency.
 - **Bulk Range Generator:** Quickly create 1-5 scales with pre-defined color palettes (Good-to-Bad, Low-to-High, etc.) for standardized scoring.
+- **Global Branding:** Customize the application identity/logo text directly from the settings.
 - **Sticky UX:** The application remembers your chosen filters, view modes, and active tabs using local persistence.
 
 ## 🛠️ Tech Stack
@@ -42,8 +43,8 @@ OpenAPM is a modern, high-density enterprise architecture tool designed for smal
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/hnrkgrln/openapm.git
-   cd openapm
+   git clone https://github.com/hnrkgrln/open-ea.git
+   cd open-ea
    ```
 
 2. **Setup the Backend:**

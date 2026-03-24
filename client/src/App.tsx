@@ -115,8 +115,8 @@ interface Integration {
 
 // Components
 const AppContent = () => {
-  const [activeTab, setActiveTab] = useLocalStorage<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('openapm_active_tab', 'inventory');
-  const [brandName, setBrandName] = useLocalStorage<string>('openapm_brand_name', 'OpenAPM');
+  const [activeTab, setActiveTab] = useLocalStorage<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('openea_active_tab', 'inventory');
+  const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
@@ -225,8 +225,8 @@ const AppContent = () => {
 };
 
 const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Application[], onRefresh: () => void, onSelectApp: (id: string) => void, onEditApp: (app: any) => void }) => {
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openapm_inventory_view', 'grid');
-  const [filters, setFilters] = useLocalStorage('openapm_inventory_filters', { 
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
+  const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
     owner: '', 
     lifecycle: '', 
@@ -522,7 +522,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
 };
 
 const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, onSelectApp: (id: string) => void }) => {
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openapm_capabilities_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -599,16 +599,16 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
 };
 
 const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand }: { apps: Application[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void }) => {
-  const [filters, setFilters] = useLocalStorage('openapm_diagram_filters', { 
+  const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
     owner: '', 
     lifecycle: '', 
     type: '',
     capabilityId: ''
   });
-  const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openapm_diagram_mode', 'landscape');
-  const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openapm_diagram_overlay', 'lifecycle');
-  const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openapm_diagram_show_crit', true);
+  const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openea_diagram_mode', 'landscape');
+  const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openea_diagram_overlay', 'lifecycle');
+  const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
   const [showFilters, setShowFilters] = useState(false);
 

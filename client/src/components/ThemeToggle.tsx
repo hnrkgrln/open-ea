@@ -5,7 +5,7 @@ type Theme = 'light' | 'dark' | 'system';
 
 export const ThemeToggle = () => {
   const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('openapm-theme') as Theme) || 'system';
+    return (localStorage.getItem('openea-theme') as Theme) || 'system';
   });
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export const ThemeToggle = () => {
       root.setAttribute('data-theme', theme);
     }
 
-    localStorage.setItem('openapm-theme', theme);
+    localStorage.setItem('openea-theme', theme);
   }, [theme]);
 
   const toggle = () => {

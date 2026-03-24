@@ -311,7 +311,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand }: Props) => {
                       placeholder="e.g. Acme Corp Architecture"
                       style={{ maxWidth: '400px' }}
                     />
-                    <button onClick={() => onUpdateBrand('OpenAPM')} className="secondary">Reset to Default</button>
+                    <button onClick={() => onUpdateBrand('OpenEA')} className="secondary">Reset to Default</button>
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.75rem' }}>This text will appear in the top-left corner of the application header.</p>
                 </div>
