@@ -242,6 +242,19 @@ input, select, textarea {
 .badge-sunset { background: var(--lc-sunset); color: var(--lc-sunset-text); }
 .badge-decommissioned { background: var(--lc-decommissioned); color: var(--lc-decommissioned-text); }
 
+/* Row Highlight */
+.row-hover {
+  transition: background-color 0.1s ease;
+}
+
+.row-hover:hover {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+}
+
+[data-theme='dark'] .row-hover:hover {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
 /* Search specific styles */
 .search-item:hover {
   background: var(--accent);

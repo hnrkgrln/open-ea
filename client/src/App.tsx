@@ -196,7 +196,7 @@ const AppContent = () => {
           <CapabilitiesView onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
         </div>
         <div style={{ display: activeTab === 'diagrams' ? 'block' : 'none', height: '100%' }}>
-          <DiagramsView apps={apps || []} onEditApp={(app) => setSelectedAppId(app.id)} onEditCapability={(cap) => setEditingCapability(cap)} />
+          <DiagramsView apps={apps || []} onEditApp={(app) => setSelectedAppId(app.id)} onEditCapability={(cap) => setEditingCapability(cap)} brandName={brandName} onUpdateBrand={setBrandName} />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
           <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} />
@@ -484,11 +484,18 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
 
   return (
     <>
-      <tr key={node.id} style={{ borderBottom: '1px solid var(--border)' }}>
+      <tr key={node.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
         <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, paddingLeft: `${1 + depth * 2}rem` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {depth > 0 && <ChevronRight size={14} style={{ color: 'var(--muted-foreground)' }} />}
             {node.name}
+          </div>
+        </td>
+        <td style={{ padding: '1rem', width: '120px' }}>
+          <div style={{ display: 'flex', gap: '0.25rem' }}>
+            <EditCapabilityDialog onSuccess={onRefresh} parentId={node.id} trigger={<button className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>} />
+            <EditCapabilityDialog capability={node} onSuccess={onRefresh} trigger={<button className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>} />
+            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
           </div>
         </td>
         <td style={{ padding: '1rem' }}>
@@ -504,13 +511,6 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
               <span key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 500 }}>{app.name}</span>
             ))}
             {(!node.applications || node.applications.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
-          </div>
-        </td>
-        <td style={{ padding: '1rem', textAlign: 'right' }}>
-          <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
-            <EditCapabilityDialog onSuccess={onRefresh} parentId={node.id} trigger={<button className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>} />
-            <EditCapabilityDialog capability={node} onSuccess={onRefresh} trigger={<button className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>} />
-            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
           </div>
         </td>
       </tr>
@@ -581,9 +581,9 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
                 <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Capability Name (Hierarchy)</th>
+                <th style={{ padding: '1rem', fontSize: '0.875rem', width: '120px' }}>Actions</th>
                 <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Criticality</th>
                 <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Supporting Applications</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>

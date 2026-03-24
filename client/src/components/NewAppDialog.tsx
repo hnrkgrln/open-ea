@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, PlusCircle } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -168,7 +168,12 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
 
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
-      <Dialog.Trigger asChild><button className="primary">New Application</button></Dialog.Trigger>
+      <Dialog.Trigger asChild>
+        <button className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <PlusCircle size={18} />
+          New Application
+        </button>
+      </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
         <Dialog.Content style={{ 
