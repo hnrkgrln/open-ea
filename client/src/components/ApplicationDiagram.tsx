@@ -13,6 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
+import { Database, Boxes, ArrowUpRight } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -318,7 +319,16 @@ const DiagramInner = ({
 
           islandNodes.push({
             id: app.id,
-            data: { label: app.name, type: 'app', original: app },
+            data: { 
+              label: (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                  <Database size={14} />
+                  <span>{app.name}</span>
+                </div>
+              ), 
+              type: 'app', 
+              original: app 
+            },
             position: { x: currentX + (dNode.x - islandBox.minX), y: (dNode.y - islandBox.minY) },
             style: { 
               background: colors.bg, color: colors.text, 
@@ -419,7 +429,16 @@ const DiagramInner = ({
 
           landscapeNodes.push({
             id: `app-${capId}-${app.id}`, parentNode: `cap-${capId}`,
-            data: { label: app.name, type: 'app', original: app },
+            data: { 
+              label: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Database size={12} />
+                  <span>{app.name}</span>
+                </div>
+              ), 
+              type: 'app', 
+              original: app 
+            },
             position: { x: padding, y: totalHeight + (i * (appHeight + 10)) },
             style: {
               background: colors.bg, color: colors.text,
@@ -442,26 +461,37 @@ const DiagramInner = ({
         }
 
         landscapeNodes.push({
-          id: `cap-${capId}`, data: { label: cap.name, type: 'capability', originalId: capId, original: cap },
+          id: `cap-${capId}`, 
+          data: { 
+            label: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <Boxes size={16} />
+                <span>{cap.name}</span>
+              </div>
+            ), 
+            type: 'capability', 
+            originalId: capId, 
+            original: cap 
+          },
           position: { x: depth === 0 ? rootX : 0, y: depth === 0 ? rootY : 0 },
           parentNode: parentId,
           style: {
             background: capBg, border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? '#373a40' : '#dee2e6'}`,
             width: maxWidth, height: finalHeight, borderRadius: depth === 0 ? '16px' : '8px',
             pointerEvents: 'all', zIndex: depth, color: capTextColor, fontWeight: 800,
-            fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center', paddingTop: '12px'
+            fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '12px'
           }
         });
         return { width: maxWidth, height: finalHeight };
       };
 
+      const roots = capabilities.filter(c => !c.parentId);
       const itemsPerRow = 5;
+      const columnHeights = new Array(itemsPerRow).fill(0);
       const horizontalGap = 100;
       const verticalGap = 100;
       const columnWidth = 300;
-      const columnHeights = new Array(itemsPerRow).fill(0);
 
-      const roots = capabilities.filter(c => !c.parentId);
       roots.forEach((root) => {
         if (!isRelevant(root.id)) return;
         const minHeight = Math.min(...columnHeights);
@@ -484,7 +514,7 @@ const DiagramInner = ({
             background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
             border: `2px solid ${isDark ? '#373a40' : '#dee2e6'}`, width: columnWidth,
             height: finalHeight, borderRadius: '16px', pointerEvents: 'all', color: 'var(--foreground)',
-            fontWeight: 800, fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center',
+            fontWeight: 800, fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'flex-start',
             paddingTop: '12px', opacity: 0.8
           }
         });
@@ -499,7 +529,16 @@ const DiagramInner = ({
           }
           landscapeNodes.push({
             id: `app-unassigned-${app.id}`, parentNode: 'cap-unassigned',
-            data: { label: app.name, type: 'app', original: app },
+            data: { 
+              label: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Database size={12} />
+                  <span>{app.name}</span>
+                </div>
+              ), 
+              type: 'app', 
+              original: app 
+            },
             position: { x: 20, y: 50 + (i * 60) },
             style: {
               background: colors.bg, color: colors.text, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
@@ -537,12 +576,22 @@ const DiagramInner = ({
         }
 
         appNodes.push({
-          id: `app-container-${app.id}`, data: { label: app.name, type: 'app', original: app },
+          id: `app-container-${app.id}`, 
+          data: { 
+            label: (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                <Database size={16} />
+                <span>{app.name}</span>
+              </div>
+            ), 
+            type: 'app', 
+            original: app 
+          },
           position: { x: currentX, y: minHeight },
           style: {
             background: colors.bg, color: colors.text, border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
             borderRadius: '16px', width: columnWidth, height: finalHeight, fontWeight: 800, fontSize: '14px',
-            textAlign: 'center', display: 'flex', justifyContent: 'center', paddingTop: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         });
 
@@ -555,7 +604,16 @@ const DiagramInner = ({
           }
           appNodes.push({
             id: `cap-in-app-${app.id}-${c.id}`, parentNode: `app-container-${app.id}`,
-            data: { label: c.name, type: 'capability', original: fullCap },
+            data: { 
+              label: (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Boxes size={12} />
+                  <span>{c.name}</span>
+                </div>
+              ), 
+              type: 'capability', 
+              original: fullCap 
+            },
             position: { x: 20, y: 60 + (i * 48) },
             style: {
               background: capColors.bg, color: capColors.text, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
@@ -570,12 +628,9 @@ const DiagramInner = ({
     }
   }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
 
-  // Unified Fit View logic
   useEffect(() => {
     if (nodes.length > 0 && visible) {
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 150);
+      const timer = setTimeout(() => { fitView({ padding: 0.2, duration: 800 }); }, 150);
       return () => clearTimeout(timer);
     }
   }, [nodes.length, mode, visible, fitView]);

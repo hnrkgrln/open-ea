@@ -148,10 +148,10 @@ const AppContent = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
             <button onClick={() => setSelectedAppId(null)} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
             <nav className="nav">
-              <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }}>Applications</button>
-              <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }}>Capabilities</button>
-              <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('diagrams'); }}>Diagrams</button>
-              <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('settings'); }}>Settings</button>
+              <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
+              <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
+              <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('diagrams'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
+              <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('settings'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
             </nav>
           </div>
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -173,10 +173,10 @@ const AppContent = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <button onClick={() => setActiveTab('inventory')} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
           <nav className="nav">
-            <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Applications</button>
-            <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')}>Capabilities</button>
-            <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => setActiveTab('diagrams')}>Diagrams</button>
-            <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')}>Settings</button>
+            <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
+            <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
+            <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => setActiveTab('diagrams')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
+            <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
           </nav>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -315,7 +315,7 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
     <div>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Application Inventory</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Database size={32} /> Application Inventory</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -408,7 +408,7 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
 
               return (
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 500 }}>{app.name}</td>
+                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Database size={14} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || '—'}</td>
                   <td style={{ padding: '1rem' }}>
@@ -468,7 +468,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
                 {expanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
               </button>
             )}
-            <span style={{ fontWeight: 800, fontSize: depth === 0 ? '1.125rem' : '1rem' }}>{node.name}</span>
+            <span style={{ fontWeight: 800, fontSize: depth === 0 ? '1.125rem' : '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Boxes size={depth === 0 ? 20 : 16} style={{ color: 'var(--muted-foreground)' }} /> {node.name}</span>
             {criticality && (
               <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${criticality.color}20`, color: criticality.color, border: `1px solid ${criticality.color}40` }}>
                 {criticality.label}
@@ -526,6 +526,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
         <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, paddingLeft: `${1 + depth * 2}rem` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {depth > 0 && <ChevronRight size={14} style={{ color: 'var(--muted-foreground)' }} />}
+            <Boxes size={14} style={{ color: 'var(--muted-foreground)' }} />
             {node.name}
           </div>
         </td>
@@ -546,7 +547,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
         <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
             {node.applications?.map(app => (
-              <span key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 500 }}>{app.name}</span>
+              <span key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Database size={10} /> {app.name}</span>
             ))}
             {(!node.applications || node.applications.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
           </div>
@@ -593,7 +594,7 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
     <div>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Business Capabilities</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Boxes size={32} /> Business Capabilities</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{flatCapabilities?.length || 0}</strong> areas.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
@@ -725,12 +726,12 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div><h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Landscape Diagrams</h1><p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
+        <div><h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MapIcon size={24} /> Landscape Diagrams</h1><p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
-            <button onClick={() => setMode('landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><MapIcon size={16} style={{ marginRight: '0.5rem' }} /> Capability Landscape</button>
-            <button onClick={() => setMode('app-landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><AppWindow size={16} style={{ marginRight: '0.5rem' }} /> Application Landscape</button>
+            <button onClick={() => setMode('landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={16} style={{ marginRight: '0.5rem' }} /> Capability Landscape</button>
+            <button onClick={() => setMode('app-landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={16} style={{ marginRight: '0.5rem' }} /> Application Landscape</button>
             <button onClick={() => setMode('network')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={16} style={{ marginRight: '0.5rem' }} /> Integrations</button>
           </div>
 
