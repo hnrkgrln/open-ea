@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, Layers, Monitor, Eye, EyeOff, Trash2, ArrowRight, ShieldAlert, Activity } from 'lucide-react';
+import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, Layers, Monitor, Eye, EyeOff, Trash2, ArrowRight, ShieldAlert, Activity, AppWindow } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
@@ -606,7 +606,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
     type: '',
     capabilityId: ''
   });
-  const [mode, setMode] = useLocalStorage<'network' | 'landscape'>('openapm_diagram_mode', 'network');
+  const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openapm_diagram_mode', 'landscape');
   const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openapm_diagram_overlay', 'lifecycle');
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openapm_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
@@ -673,12 +673,13 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
+            <button onClick={() => setMode('landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><MapIcon size={16} style={{ marginRight: '0.5rem' }} /> Capability Landscape</button>
+            <button onClick={() => setMode('app-landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><AppWindow size={16} style={{ marginRight: '0.5rem' }} /> Application Landscape</button>
             <button onClick={() => setMode('network')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={16} style={{ marginRight: '0.5rem' }} /> Integrations</button>
-            <button onClick={() => setMode('landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><MapIcon size={16} style={{ marginRight: '0.5rem' }} /> Landscape</button>
           </div>
 
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
-            {allRangeFields.filter(def => mode === 'network' || def.fieldName !== 'criticality').map(def => (
+            {allRangeFields.filter(def => (mode === 'network' || mode === 'app-landscape') || def.fieldName !== 'criticality').map(def => (
               <button key={def.id} onClick={() => setActiveOverlay(def.fieldName)} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: activeOverlay === def.fieldName ? 'var(--background)' : 'transparent', boxShadow: activeOverlay === def.fieldName ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: activeOverlay === def.fieldName ? 'var(--primary)' : 'var(--muted-foreground)', fontWeight: activeOverlay === def.fieldName ? 600 : 400 }}>{def.icon || null}{def.label}</button>
             ))}
           </div>

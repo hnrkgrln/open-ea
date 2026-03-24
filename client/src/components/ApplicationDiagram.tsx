@@ -8,7 +8,8 @@ import ReactFlow, {
   MarkerType,
   useReactFlow,
   type Node,
-  type Edge
+  type Edge,
+  ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useQuery } from '@tanstack/react-query';
@@ -69,7 +70,7 @@ interface Props {
   onNodeClick?: (app: Application) => void;
   onCapabilityClick?: (cap: Capability) => void;
   appsOverride?: Application[];
-  mode?: 'network' | 'landscape';
+  mode?: 'network' | 'landscape' | 'app-landscape';
   activeOverlay?: string | null;
   showApplications?: boolean;
   showCriticality?: boolean;
@@ -164,7 +165,6 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { fitView } = useReactFlow();
-  const [hasFit, setHasFit] = useState(false);
 
   const { data: remoteApps } = useQuery<Application[]>({
     queryKey: ['applications'],
@@ -220,12 +220,8 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
   }, [dbMetaDefs]);
 
   const critDef = metaDefs.find(d => d.fieldName === 'criticality' && d.entityType === 'Capability');
+  const appCritDef = metaDefs.find(d => d.fieldName === 'criticality' && d.entityType === 'Application');
   const appOverlayDef = metaDefs.find(d => d.fieldName === activeOverlay && d.entityType === 'Application');
-
-  // Reset fit flag when mode changes
-  useEffect(() => {
-    setHasFit(false);
-  }, [mode]);
 
   useEffect(() => {
     if (!allApps.length || !integrations || !allCapabilities || !metaDefs || !picklists) return;
@@ -264,20 +260,92 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         return visibleAppIdsFromProps.has(i.sourceAppId) && visibleAppIdsFromProps.has(i.targetAppId);
       });
 
-      const finalAppIds = new Set([
+      const finalAppIds = Array.from(new Set([
         ...filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]),
         ...filteredAppsProps.map(a => a.id)
-      ]);
+      ]));
 
-      const networkNodes: Node[] = allApps
-        .filter(app => finalAppIds.has(app.id))
-        .map((app, index, list) => {
-          const radius = Math.max(list.length * 50, 350);
-          const centerX = 600;
-          const centerY = 600;
-          const angle = (index / list.length) * 2 * Math.PI;
-          const x = centerX + radius * Math.cos(angle);
-          const y = centerY + radius * Math.sin(angle);
+      // --- ISLAND LAYOUT LOGIC ---
+      // 1. Build adjacency list for connected components (undirected)
+      const adj = new Map<string, string[]>();
+      finalAppIds.forEach(id => adj.set(id, []));
+      filteredIntegrations.forEach(i => {
+        adj.get(i.sourceAppId)?.push(i.targetAppId);
+        adj.get(i.targetAppId)?.push(i.sourceAppId);
+      });
+
+      // 2. Identify Connected Components (Islands)
+      const visited = new Set<string>();
+      const islands: string[][] = [];
+      finalAppIds.forEach(id => {
+        if (!visited.has(id)) {
+          const island: string[] = [];
+          const stack = [id];
+          visited.add(id);
+          while(stack.length > 0) {
+            const curr = stack.pop()!;
+            island.push(curr);
+            adj.get(curr)?.forEach(neighbor => {
+              if (!visited.has(neighbor)) {
+                visited.add(neighbor);
+                stack.push(neighbor);
+              }
+            });
+          }
+          islands.push(island);
+        }
+      });
+
+      // 3. Layout each island using dagre
+      const islandNodes: Node[] = [];
+      const islandEdges: Edge[] = [];
+      let currentX = 0;
+      let maxRowHeight = 0;
+      const islandGap = 100;
+      const itemsPerRow = 4;
+
+      islands.forEach((islandAppIds, idx) => {
+        const g = new dagre.graphlib.Graph();
+        g.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 100 });
+        g.setDefaultEdgeLabel(() => ({}));
+
+        const nodeWidth = 180;
+        const nodeHeight = 60;
+
+        islandAppIds.forEach(id => {
+          g.setNode(id, { width: nodeWidth, height: nodeHeight });
+        });
+
+        filteredIntegrations.forEach(i => {
+          if (islandAppIds.includes(i.sourceAppId)) {
+            g.setEdge(i.sourceAppId, i.targetAppId);
+          }
+        });
+
+        dagre.layout(g);
+
+        const islandBox = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: Infinity };
+        g.nodes().forEach(v => {
+          const node = g.node(v);
+          islandBox.minX = Math.min(islandBox.minX, node.x - nodeWidth / 2);
+          islandBox.minY = Math.min(islandBox.minY, node.y - nodeHeight / 2);
+          islandBox.maxX = Math.max(islandBox.maxX, node.x + nodeWidth / 2);
+          islandBox.maxY = Math.max(islandBox.maxY, node.y + nodeHeight / 2);
+        });
+
+        const islandWidth = islandBox.maxX - islandBox.minX;
+        const islandHeight = islandBox.maxY - islandBox.minY;
+
+        // Position island in a grid
+        if (idx > 0 && idx % itemsPerRow === 0) {
+          currentX = 0;
+          const prevRowMaxHeight = maxRowHeight;
+          // Offset current island logic... simplify for now to a simple side-by-side or manual offset
+        }
+
+        islandAppIds.forEach(id => {
+          const app = allApps.find(a => a.id === id)!;
+          const dNode = g.node(id);
           
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') {
@@ -290,73 +358,83 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
             }
           }
 
-          return {
+          islandNodes.push({
             id: app.id,
             data: { label: app.name, type: 'app', original: app },
-            position: { x, y },
+            position: { x: currentX + (dNode.x - islandBox.minX), y: (dNode.y - islandBox.minY) }, // Stacked islands vertically for now if needed, or simple horizontal
             style: { 
               background: colors.bg, 
               color: colors.text, 
               border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
               borderRadius: '12px',
-              width: 180,
+              width: nodeWidth,
               fontSize: '13px',
               fontWeight: 600,
               textAlign: 'center',
               padding: '12px',
               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }
-          };
+          });
         });
 
-      const networkEdges: Edge[] = filteredIntegrations.map((i) => ({
-        id: `e-${i.id}`,
-        source: i.sourceAppId,
-        target: i.targetAppId,
-        label: i.name || i.type,
-        type: 'default',
-        labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 },
-        labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
-        labelBgPadding: [4, 2],
-        labelBgBorderRadius: 4,
-        style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
-        markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
-      }));
+        // Add edges for this island
+        filteredIntegrations.forEach(i => {
+          if (islandAppIds.includes(i.sourceAppId)) {
+            islandEdges.push({
+              id: `e-${i.id}`,
+              source: i.sourceAppId,
+              target: i.targetAppId,
+              label: i.name || i.type,
+              type: 'default',
+              labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 },
+              labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
+              labelBgPadding: [4, 2],
+              labelBgBorderRadius: 4,
+              style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
+              markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
+            });
+          }
+        });
 
-      setNodes(networkNodes);
-      setEdges(networkEdges);
-    } else {
+        currentX += islandWidth + islandGap;
+      });
+
+      setNodes(islandNodes);
+      setEdges(islandEdges);
+    } else if (mode === 'landscape') {
       const landscapeNodes: Node[] = [];
       const capsMap = new Map<string, Capability>();
       allCapabilities.forEach(c => capsMap.set(c.id, c));
 
-      const appToCapMap = new Map<string, string>();
       const unassignedApps: Application[] = [];
+      const appsByCap = new Map<string, Application[]>();
 
       filteredAppsProps.forEach(app => {
         if (!app.capabilities || app.capabilities.length === 0) {
           unassignedApps.push(app);
           return;
         }
-        let deepestCap = app.capabilities[0];
-        app.capabilities.forEach(cap => {
-          if (allCapabilities.some(c => c.id === cap.id && c.parentId === deepestCap.id)) deepestCap = cap;
+        app.capabilities.forEach(capRef => {
+          if (!appsByCap.has(capRef.id)) appsByCap.set(capRef.id, []);
+          appsByCap.get(capRef.id)!.push(app);
         });
-        appToCapMap.set(app.id, deepestCap.id);
       });
 
-      const appsByCap = new Map<string, Application[]>();
-      filteredAppsProps.forEach(app => {
-        const assignedCapId = appToCapMap.get(app.id);
-        if (assignedCapId) {
-          if (!appsByCap.has(assignedCapId)) appsByCap.set(assignedCapId, []);
-          appsByCap.get(assignedCapId)!.push(app);
-        }
-      });
+      const memoRelevant = new Map<string, boolean>();
+      const isRelevant = (capId: string): boolean => {
+        if (memoRelevant.has(capId)) return memoRelevant.get(capId)!;
+        const hasApps = appsByCap.has(capId) && appsByCap.get(capId)!.length > 0;
+        const children = allCapabilities.filter(c => c.parentId === capId);
+        const res = hasApps || children.some(c => isRelevant(c.id));
+        memoRelevant.set(capId, res);
+        return res;
+      };
 
       const renderCap = (capId: string, parentId?: string, depth = 0, rootX = 0, rootY = 0): { width: number; height: number } => {
+        if (!isRelevant(capId)) return { width: 0, height: 0 };
+
         const cap = capsMap.get(capId)!;
-        const children = allCapabilities.filter(c => c.parentId === capId);
+        const children = allCapabilities.filter(c => c.parentId === capId && isRelevant(c.id));
         const associatedApps = showApplications ? (appsByCap.get(capId) || []) : [];
         const appHeight = 50;
         const padding = 20;
@@ -452,37 +530,28 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         return { width: maxWidth, height: finalHeight };
       };
 
-      // --- VERTICAL MASONRY LOGIC ---
       const itemsPerRow = 5;
       const horizontalGap = 100;
       const verticalGap = 100;
       const columnWidth = 300;
-      
-      // Initialize heights for each column
       const columnHeights = new Array(itemsPerRow).fill(0);
 
       const roots = allCapabilities.filter(c => !c.parentId);
       roots.forEach((root) => {
-        // Find the column with the minimum height
+        if (!isRelevant(root.id)) return;
         const minHeight = Math.min(...columnHeights);
         const columnIndex = columnHeights.indexOf(minHeight);
-        
         const currentX = columnIndex * (columnWidth + horizontalGap);
         const currentY = minHeight;
-
         const layout = renderCap(root.id, undefined, 0, currentX, currentY);
-        
-        // Update column height with the new card's height + gap
         columnHeights[columnIndex] += layout.height + verticalGap;
       });
 
-      // Render Unassigned Applications Group in the shortest remaining column
       if (showApplications && unassignedApps.length > 0) {
         const minHeight = Math.min(...columnHeights);
         const columnIndex = columnHeights.indexOf(minHeight);
         const currentX = columnIndex * (columnWidth + horizontalGap);
         const currentY = minHeight;
-
         const appHeight = 50;
         const padding = 20;
         const titleHeight = 50;
@@ -543,19 +612,105 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
 
       setNodes(landscapeNodes);
       setEdges([]);
-    }
-  }, [allApps, filteredAppsProps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef]);
+    } else if (mode === 'app-landscape') {
+      const appNodes: Node[] = [];
+      const itemsPerRow = 5;
+      const horizontalGap = 100;
+      const verticalGap = 100;
+      const columnWidth = 300;
+      const columnHeights = new Array(itemsPerRow).fill(0);
 
-  // Initial fit view logic
+      filteredAppsProps.forEach((app) => {
+        const minHeight = Math.min(...columnHeights);
+        const columnIndex = columnHeights.indexOf(minHeight);
+        const currentX = columnIndex * (columnWidth + horizontalGap);
+        const currentY = minHeight;
+
+        const capHeight = 40;
+        const padding = 20;
+        const titleHeight = 60;
+        const associatedCaps = app.capabilities || [];
+        const finalHeight = titleHeight + (associatedCaps.length * (capHeight + 8)) + padding;
+
+        let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
+        if (activeOverlay === 'lifecycle') {
+          colors = getLifecycleColor(app.lifecycle, isDark);
+        } else {
+          const overlayToUse = activeOverlay === 'criticality' ? appCritDef : appOverlayDef;
+          if (overlayToUse) {
+            const val = getAppScore(app, activeOverlay!, overlayToUse);
+            colors = getOverlayColor(val, overlayToUse, picklists);
+          }
+        }
+
+        appNodes.push({
+          id: `app-container-${app.id}`,
+          data: { label: app.name, type: 'app', original: app },
+          position: { x: currentX, y: currentY },
+          style: {
+            background: colors.bg,
+            color: colors.text,
+            border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+            borderRadius: '16px',
+            width: columnWidth,
+            height: finalHeight,
+            fontWeight: 800,
+            fontSize: '14px',
+            textAlign: 'center',
+            display: 'flex',
+            justifyContent: 'center',
+            paddingTop: '16px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+          }
+        });
+
+        associatedCaps.forEach((c, i) => {
+          const fullCap = allCapabilities.find(ac => ac.id === c.id);
+          let capColors = { bg: 'var(--secondary)', text: 'var(--foreground)' };
+          if (critDef && fullCap) {
+            const val = fullCap.criticality || critDef.min;
+            capColors = getOverlayColor(val, critDef, picklists);
+          }
+
+          appNodes.push({
+            id: `cap-in-app-${app.id}-${c.id}`,
+            parentNode: `app-container-${app.id}`,
+            data: { label: c.name, type: 'capability', original: fullCap },
+            position: { x: padding, y: titleHeight + (i * (capHeight + 8)) },
+            style: {
+              background: capColors.bg,
+              color: capColors.text,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+              borderRadius: '8px',
+              width: columnWidth - (padding * 2),
+              height: capHeight,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              fontWeight: 600,
+              zIndex: 100
+            }
+          });
+        });
+
+        columnHeights[columnIndex] += finalHeight + verticalGap;
+      });
+
+      setNodes(appNodes);
+      setEdges([]);
+    }
+  }, [allApps, filteredAppsProps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
+
+  // Dynamic Fit View logic
   useEffect(() => {
-    if (nodes.length > 0 && !hasFit) {
+    if (nodes.length > 0) {
       const timer = setTimeout(() => {
         fitView({ padding: 0.2, duration: 800 });
-        setHasFit(true);
-      }, 100);
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [nodes, hasFit, fitView]);
+  }, [nodes.length, mode, fitView]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
@@ -576,7 +731,6 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
       elementsSelectable={true}
       panOnDrag={true}
       zoomOnScroll={true}
-      onMoveStart={() => setHasFit(true)}
       minZoom={0.01}
       maxZoom={4}
     >
@@ -592,7 +746,7 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         color: 'var(--foreground)',
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
       }}>
-        <strong>{mode === 'network' ? 'Integrations' : 'Landscape'} View</strong>
+        <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
         <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
       </Panel>
 
@@ -609,26 +763,24 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         flexDirection: 'column',
         gap: '16px'
       }}>
-        {/* Capability Section (Only relevant in Landscape Mode) */}
-        {mode === 'landscape' && (
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-              Business Criticality
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {!showCriticality ? (
-                <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div>
-              ) : (
-                picklists?.find(p => p.name === 'criticality')?.options.map(opt => (
-                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
-                    <span>{opt.label}</span>
-                  </div>
-                ))
-              )}
-            </div>
+        {/* Capability Section */}
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+            Business Criticality
           </div>
-        )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {mode === 'landscape' && !showCriticality ? (
+              <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div>
+            ) : (
+              picklists?.find(p => p.name === 'criticality')?.options.map(opt => (
+                <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                  <span>{opt.label}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
 
         {/* Application Section */}
         <div>
@@ -665,5 +817,3 @@ export const ApplicationDiagram = (props: Props) => (
     </ReactFlowProvider>
   </div>
 );
-
-import { ReactFlowProvider } from 'reactflow';
