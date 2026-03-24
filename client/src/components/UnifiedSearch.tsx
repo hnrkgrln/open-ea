@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Search, Database, Boxes, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +11,7 @@ interface Props {
 export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQ] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const { data: results, isLoading } = useQuery({
     queryKey: ['search', query],
@@ -21,6 +22,16 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
     },
     enabled: query.length > 1,
   });
+
+  const flatResults = useMemo(() => {
+    const apps = (results?.applications || []).map((item: any) => ({ ...item, _type: 'app' }));
+    const caps = (results?.capabilities || []).map((item: any) => ({ ...item, _type: 'cap' }));
+    return [...apps, ...caps];
+  }, [results]);
+
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query, results]);
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -39,6 +50,24 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
     if (type === 'app') onSelectApp(item);
     else onSelectCapability(item);
   }, [onSelectApp, onSelectCapability]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (flatResults.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev + 1) % flatResults.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex((prev) => (prev - 1 + flatResults.length) % flatResults.length);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const item = flatResults[selectedIndex];
+      if (item) {
+        closeAndSelect(item._type as 'app' | 'cap', item);
+      }
+    }
+  };
 
   return (
     <>
@@ -72,6 +101,7 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
                 placeholder="Type to search applications or capabilities..." 
                 value={query}
                 onChange={(e) => setQ(e.target.value)}
+                onKeyDown={handleKeyDown}
                 style={{ border: 'none', background: 'transparent', width: '100%', fontSize: '1rem', outline: 'none' }}
               />
               <Dialog.Close asChild>
@@ -94,17 +124,26 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
                       <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Database size={12} /> Applications
                       </div>
-                      {results.applications.map((app: any) => (
-                        <button
-                          key={app.id}
-                          onClick={() => closeAndSelect('app', app)}
-                          style={{ width: '100%', padding: '0.75rem', textAlign: 'left', background: 'transparent', border: 'none', display: 'flex', flexDirection: 'column', borderRadius: '4px', cursor: 'pointer' }}
-                          className="search-result-item"
-                        >
-                          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{app.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.description}</span>
-                        </button>
-                      ))}
+                      {results.applications.map((app: any, idx: number) => {
+                        const isSelected = selectedIndex === idx;
+                        return (
+                          <button
+                            key={app.id}
+                            onClick={() => closeAndSelect('app', app)}
+                            onMouseEnter={() => setSelectedIndex(idx)}
+                            style={{ 
+                              width: '100%', padding: '0.75rem', textAlign: 'left', 
+                              background: isSelected ? 'var(--accent)' : 'transparent', 
+                              border: 'none', display: 'flex', flexDirection: 'column', 
+                              borderRadius: '4px', cursor: 'pointer' 
+                            }}
+                            className="search-result-item"
+                          >
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{app.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.description}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -114,17 +153,27 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
                       <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Boxes size={12} /> Capabilities
                       </div>
-                      {results.capabilities.map((cap: any) => (
-                        <button
-                          key={cap.id}
-                          onClick={() => closeAndSelect('cap', cap)}
-                          style={{ width: '100%', padding: '0.75rem', textAlign: 'left', background: 'transparent', border: 'none', display: 'flex', flexDirection: 'column', borderRadius: '4px', cursor: 'pointer' }}
-                          className="search-result-item"
-                        >
-                          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{cap.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.description}</span>
-                        </button>
-                      ))}
+                      {results.capabilities.map((cap: any, idx: number) => {
+                        const actualIdx = (results.applications?.length || 0) + idx;
+                        const isSelected = selectedIndex === actualIdx;
+                        return (
+                          <button
+                            key={cap.id}
+                            onClick={() => closeAndSelect('cap', cap)}
+                            onMouseEnter={() => setSelectedIndex(actualIdx)}
+                            style={{ 
+                              width: '100%', padding: '0.75rem', textAlign: 'left', 
+                              background: isSelected ? 'var(--accent)' : 'transparent', 
+                              border: 'none', display: 'flex', flexDirection: 'column', 
+                              borderRadius: '4px', cursor: 'pointer' 
+                            }}
+                            className="search-result-item"
+                          >
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{cap.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.description}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 

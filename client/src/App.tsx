@@ -116,6 +116,7 @@ interface Integration {
 // Components
 const AppContent = () => {
   const [activeTab, setActiveTab] = useLocalStorage<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('openapm_active_tab', 'inventory');
+  const [brandName, setBrandName] = useLocalStorage<string>('openapm_brand_name', 'OpenAPM');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
@@ -145,7 +146,7 @@ const AppContent = () => {
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <header className="header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            <button onClick={() => setSelectedAppId(null)} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>OpenAPM</button>
+            <button onClick={() => setSelectedAppId(null)} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
             <nav className="nav">
               <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }}>Applications</button>
               <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }}>Capabilities</button>
@@ -170,7 +171,7 @@ const AppContent = () => {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <a href="/" className="logo">OpenAPM</a>
+          <button onClick={() => setActiveTab('inventory')} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
           <nav className="nav">
             <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Applications</button>
             <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')}>Capabilities</button>
@@ -198,7 +199,7 @@ const AppContent = () => {
           <DiagramsView apps={apps || []} onEditApp={(app) => setSelectedAppId(app.id)} onEditCapability={(cap) => setEditingCapability(cap)} />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
-          <PicklistsView />
+          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} />
         </div>
       </main>
 
@@ -597,7 +598,7 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
   );
 };
 
-const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application[], onEditApp: (app: Application) => void, onEditCapability: (cap: any) => void }) => {
+const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand }: { apps: Application[], onEditApp: (app: Application) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void }) => {
   const [filters, setFilters] = useLocalStorage('openapm_diagram_filters', { 
     search: '', 
     owner: '', 
@@ -608,7 +609,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application
   const [mode, setMode] = useLocalStorage<'network' | 'landscape'>('openapm_diagram_mode', 'network');
   const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openapm_diagram_overlay', 'lifecycle');
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openapm_diagram_show_crit', true);
-  const [showApplications, setShowApplications] = useLocalStorage<boolean>('openapm_diagram_show_apps', true);
+  const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });

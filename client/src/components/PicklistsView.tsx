@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, GripVertical, FileCode, Edit2, Sliders, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, Settings2, GripVertical, FileCode, Edit2, Sliders, ShieldCheck, Palette } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 
@@ -31,9 +31,14 @@ interface MetadataDefinition {
   scaleType?: string;
 }
 
-export const PicklistsView = () => {
+interface Props {
+  brandName: string;
+  onUpdateBrand: (val: string) => void;
+}
+
+export const PicklistsView = ({ brandName, onUpdateBrand }: Props) => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'strategic' | 'picklists' | 'metadata'>('strategic');
+  const [activeTab, setActiveTab] = useState<'strategic' | 'picklists' | 'metadata' | 'branding'>('strategic');
   const [selectedPicklistId, setSelectedPicklistId] = useState<string | null>(null);
   
   // States for new picklist option
@@ -229,6 +234,25 @@ export const PicklistsView = () => {
             >
               <FileCode size={16} /> Custom Meta-model
             </button>
+            <button
+              onClick={() => setActiveTab('branding')}
+              style={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                border: 'none',
+                background: activeTab === 'branding' ? 'var(--accent)' : 'transparent',
+                color: activeTab === 'branding' ? 'var(--foreground)' : 'var(--muted-foreground)',
+                padding: '0.75rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textAlign: 'left',
+                display: 'flex',
+                gap: '0.5rem',
+                alignItems: 'center'
+              }}
+            >
+              <Palette size={16} /> Branding
+            </button>
           </div>
         </div>
 
@@ -267,6 +291,29 @@ export const PicklistsView = () => {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          ) : activeTab === 'branding' ? (
+            <div className="card">
+              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Global Branding</h2>
+                <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Customize the appearance of your OpenAPM instance.</p>
+              </div>
+              <div className="card" style={{ background: 'var(--background)' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '1rem' }}>Organization Name</h3>
+                <div className="field">
+                  <label className="label">Logo Text</label>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                    <input 
+                      value={brandName} 
+                      onChange={(e) => onUpdateBrand(e.target.value)} 
+                      placeholder="e.g. Acme Corp Architecture"
+                      style={{ maxWidth: '400px' }}
+                    />
+                    <button onClick={() => onUpdateBrand('OpenAPM')} className="secondary">Reset to Default</button>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.75rem' }}>This text will appear in the top-left corner of the application header.</p>
                 </div>
               </div>
             </div>
