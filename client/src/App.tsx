@@ -196,7 +196,14 @@ const AppContent = () => {
           <CapabilitiesView onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
         </div>
         <div style={{ display: activeTab === 'diagrams' ? 'block' : 'none', height: '100%' }}>
-          <DiagramsView apps={apps || []} onEditApp={(id) => setSelectedAppId(id)} onEditCapability={(cap) => setEditingCapability(cap)} brandName={brandName} onUpdateBrand={setBrandName} />
+          <DiagramsView 
+            apps={apps || []} 
+            onEditApp={(id) => setSelectedAppId(id)} 
+            onEditCapability={(cap) => setEditingCapability(cap)} 
+            brandName={brandName} 
+            onUpdateBrand={setBrandName} 
+            isVisible={activeTab === 'diagrams'}
+          />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
           <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} />
@@ -598,7 +605,7 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
   );
 };
 
-const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand }: { apps: Application[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void }) => {
+const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], onEditApp: (app: any) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
     owner: '', 
@@ -735,6 +742,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
           showApplications={showApplications} 
           showCriticality={showCriticality} 
           relationSearch={filters.search} 
+          visible={isVisible}
         />
       </div>
     </div>

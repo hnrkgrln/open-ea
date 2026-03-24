@@ -79,6 +79,7 @@ interface Props {
   showApplications?: boolean;
   showCriticality?: boolean;
   relationSearch?: string;
+  visible?: boolean;
 }
 
 const STANDARD_DEFS: MetadataDefinition[] = [
@@ -178,7 +179,8 @@ const DiagramInner = ({
   activeOverlay = 'lifecycle', 
   showApplications = true, 
   showCriticality = true, 
-  relationSearch = '' 
+  relationSearch = '',
+  visible = false
 }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -199,7 +201,6 @@ const DiagramInner = ({
   const appOverlayDef = metaDefs.find(d => d.fieldName === activeOverlay && d.entityType === 'Application');
 
   useEffect(() => {
-    // Robust null and empty checks
     if (!apps || !capabilities || !metaDefs || !picklists || apps.length === 0 || capabilities.length === 0) return;
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -569,12 +570,15 @@ const DiagramInner = ({
     }
   }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
 
+  // Unified Fit View logic
   useEffect(() => {
-    if (nodes.length > 0) {
-      const timer = setTimeout(() => { fitView({ padding: 0.2, duration: 800 }); }, 150);
+    if (nodes.length > 0 && visible) {
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [nodes.length, mode, fitView]);
+  }, [nodes.length, mode, visible, fitView]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
