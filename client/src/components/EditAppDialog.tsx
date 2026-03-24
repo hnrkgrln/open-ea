@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity } from 'lucide-react';
+import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity, ArrowUpRight } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -10,6 +10,7 @@ interface Application {
 interface Capability {
   id: string;
   name: string;
+  criticality: string;
 }
 
 interface Relation {
@@ -135,6 +136,20 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
         });
     }
   }, [open, app]);
+
+  // Inheritance Logic
+  const effectiveCriticality = useMemo(() => {
+    if (selectedCapIds.length === 0) return formData.criticality;
+    
+    const capCriticalities = selectedCapIds.map(id => {
+      const cap = capabilities.find(c => c.id === id);
+      return Number(cap?.criticality || 1);
+    });
+    
+    return String(Math.max(...capCriticalities));
+  }, [selectedCapIds, formData.criticality, capabilities]);
+
+  const isCriticalityInherited = selectedCapIds.length > 0;
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -313,8 +328,32 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
                     <Share2 size={18} /> Strategic Assessment
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    {/* Business Criticality - HANDLES INHERITANCE */}
+                    <div className="field" style={{ margin: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '12px' }}>
+                        <div>
+                          <label className="label" style={{ margin: 0, fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            Business Criticality
+                            {isCriticalityInherited && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}><ArrowUpRight size={10} /> INHERITED</span>}
+                          </label>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '2px' }}>
+                            {isCriticalityInherited ? 'Automatically derived from supporting capabilities.' : 'How vital is this system to operations?'}
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 800, color: criticalityOptions.find((o:any) => o.value === effectiveCriticality)?.color, background: 'var(--card)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                          {criticalityOptions.find((o:any) => o.value === effectiveCriticality)?.label}
+                        </div>
+                      </div>
+                      <input 
+                        type="range" min="1" max="5" step="1" 
+                        disabled={isCriticalityInherited}
+                        style={{ background: getScaleGradient('importance'), height: '10px', opacity: isCriticalityInherited ? 0.5 : 1, cursor: isCriticalityInherited ? 'not-allowed' : 'pointer' }} 
+                        value={effectiveCriticality} 
+                        onChange={e => setFormData({...formData, criticality: e.target.value})} 
+                      />
+                    </div>
+
                     {[
-                      { label: 'Business Criticality', key: 'criticality', grad: 'importance', options: criticalityOptions, desc: 'How vital is this system to operations?' },
                       { label: 'Functional Fit', key: 'functionalFit', grad: 'bad-good', options: funcFitOptions, desc: 'Does it fulfill business requirements?' },
                       { label: 'Technical Fit', key: 'technicalFit', grad: 'bad-good', options: techFitOptions, desc: 'Is the underlying technology modern and stable?' }
                     ].map(item => (

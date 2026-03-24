@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, Layers, Monitor, Eye, EyeOff, Trash2, ArrowRight, ShieldAlert, Activity, AppWindow } from 'lucide-react';
+import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, Layers, Monitor, Eye, EyeOff, Trash2, ArrowRight, ShieldAlert, Activity, AppWindow, ArrowUpRight } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
@@ -242,7 +242,17 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
     functionalFit: '',
     technicalFit: ''
   });
-  const [showFilters, setShowFilters] = useState(false);
+  
+  // Auto-show filters if any are active
+  const isAnyFilterActive = useMemo(() => {
+    return Object.values(filters).some(val => val !== '');
+  }, [filters]);
+
+  const [showFilters, setShowFilters] = useState(isAnyFilterActive);
+
+  useEffect(() => {
+    if (isAnyFilterActive) setShowFilters(true);
+  }, [isAnyFilterActive]);
 
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -283,7 +293,12 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
       const matchOwner = !filters.owner || app.owner === filters.owner || app.owner?.toLowerCase() === filters.owner.toLowerCase();
       const matchLifecycle = !filters.lifecycle || app.lifecycle === filters.lifecycle || app.lifecycle?.toLowerCase() === filters.lifecycle.toLowerCase();
       const matchType = !filters.type || app.type === filters.type || app.type?.toLowerCase() === filters.type.toLowerCase();
-      const matchCrit = !filters.criticality || app.criticality === filters.criticality;
+      
+      const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
+        ? String(Math.max(...app.capabilities.map(c => Number(c.criticality || 1))))
+        : app.criticality;
+
+      const matchCrit = !filters.criticality || inheritedCrit === filters.criticality;
       const matchFunc = !filters.functionalFit || app.functionalFit === filters.functionalFit;
       const matchTech = !filters.technicalFit || app.technicalFit === filters.technicalFit;
       
@@ -331,6 +346,11 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
         <div className="grid">
           {filteredApps.map(app => {
             const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            const isInherited = app.capabilities && app.capabilities.length > 0;
+            const inheritedCrit = isInherited 
+              ? String(Math.max(...app.capabilities!.map(c => Number(c.criticality || 1))))
+              : app.criticality;
+
             return (
               <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'flex-start' }}>
@@ -338,12 +358,17 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
                     <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: 'var(--radius)' }}><Database size={20} /></div>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {allRangeFields.map(def => {
-                        const val = (app as any)[def.fieldName] || meta[def.fieldName] || def.min;
+                        const val = def.fieldName === 'criticality' ? inheritedCrit : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
+                        const isThisInherited = def.fieldName === 'criticality' && isInherited;
                         return (
                           <div 
                             key={def.id} 
-                            title={`${def.label}: ${val}`}
-                            style={{ width: '10px', height: '10px', borderRadius: '50%', background: getOverlayColor(Number(val), def) }} 
+                            title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`}
+                            style={{ 
+                              width: '10px', height: '10px', borderRadius: '50%', 
+                              background: getOverlayColor(Number(val), def),
+                              border: isThisInherited ? '1px solid var(--primary)' : 'none'
+                            }} 
                           />
                         );
                       })}
@@ -376,6 +401,11 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
             <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Name</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Owner</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Type</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Status</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Lifecycle</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Capabilities</th><th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>{filteredApps.map(app => {
               const meta = app.metadata ? JSON.parse(app.metadata) : {};
+              const isInherited = app.capabilities && app.capabilities.length > 0;
+              const inheritedCrit = isInherited 
+                ? String(Math.max(...app.capabilities!.map(c => Number(c.criticality || 1))))
+                : app.criticality;
+
               return (
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 500 }}>{app.name}</td>
@@ -384,9 +414,10 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {allRangeFields.map(def => {
-                        const val = (app as any)[def.fieldName] || meta[def.fieldName] || def.min;
+                        const val = def.fieldName === 'criticality' ? inheritedCrit : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
+                        const isThisInherited = def.fieldName === 'criticality' && isInherited;
                         return (
-                          <div key={def.id} title={`${def.label}: ${val}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: getOverlayColor(Number(val), def) }} />
+                          <div key={def.id} title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: getOverlayColor(Number(val), def), border: isThisInherited ? '1px solid var(--primary)' : 'none' }} />
                         );
                       })}
                     </div>
@@ -605,7 +636,7 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
   );
 };
 
-const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], onEditApp: (app: any) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
+const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
     owner: '', 
@@ -613,11 +644,22 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
     type: '',
     capabilityId: ''
   });
+  
+  // Auto-show filters if any are active
+  const isAnyFilterActive = useMemo(() => {
+    return Object.values(filters).some(val => val !== '');
+  }, [filters]);
+
+  const [showFilters, setShowFilters] = useState(isAnyFilterActive);
+
+  useEffect(() => {
+    if (isAnyFilterActive) setShowFilters(true);
+  }, [isAnyFilterActive]);
+
   const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openea_diagram_mode', 'landscape');
   const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openea_diagram_overlay', 'lifecycle');
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
-  const [showFilters, setShowFilters] = useState(false);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
@@ -642,6 +684,13 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
       const matchOwner = !filters.owner || app.owner === filters.owner || app.owner?.toLowerCase() === filters.owner.toLowerCase();
       const matchLifecycle = !filters.lifecycle || app.lifecycle === filters.lifecycle || app.lifecycle?.toLowerCase() === filters.lifecycle.toLowerCase();
       const matchType = !filters.type || app.type === filters.type || app.type?.toLowerCase() === filters.type.toLowerCase();
+      
+      // Effective Criticality calculation for filtering
+      const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
+        ? String(Math.max(...app.capabilities.map(c => Number(c.criticality || 1))))
+        : app.criticality;
+
+      const matchCrit = !filters.criticality || inheritedCrit === filters.criticality;
       
       // Capability Filter Logic
       let matchCap = true;
@@ -669,7 +718,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
         matchSearch = appMatches || integrationMatches;
       }
 
-      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap;
+      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap && matchCrit;
     });
   }, [apps, filters, flatCapabilities, integrations]);
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck } from 'lucide-react';
+import { X, Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { LifecycleBadge } from './LifecycleBadge';
 import { EditAppDialog } from './EditAppDialog';
@@ -24,6 +24,17 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
   });
 
   const app = useMemo(() => latestApps?.find(a => a.id === appId), [latestApps, appId]);
+
+  // Effective Criticality Logic (Inherited from max of capabilities)
+  const effectiveCriticality = useMemo(() => {
+    if (!app) return '3';
+    if (!app.capabilities || app.capabilities.length === 0) return app.criticality || '3';
+    
+    const capCriticalities = app.capabilities.map((c: any) => Number(c.criticality || 1));
+    return String(Math.max(...capCriticalities));
+  }, [app]);
+
+  const isInherited = app?.capabilities && app.capabilities.length > 0;
 
   if (isLoading || !app) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading application details...</div>;
 
@@ -91,13 +102,18 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
                   {[
-                    { label: 'Criticality', val: app.criticality, key: 'criticality' },
-                    { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit' },
-                    { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit' }
+                    { label: 'Criticality', val: effectiveCriticality, key: 'criticality', inherited: isInherited },
+                    { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit', inherited: false },
+                    { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit', inherited: false }
                   ].map(score => {
                     const info = getPicklistInfo(score.key, score.val);
                     return (
-                      <div key={score.label} style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                      <div key={score.label} style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', position: 'relative' }}>
+                        {score.inherited && (
+                          <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.6rem', fontWeight: 800 }}>
+                            <ArrowUpRight size={10} /> INHERITED
+                          </div>
+                        )}
                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>{score.label}</div>
                         <div style={{ fontSize: '1.25rem', fontWeight: 800, color: info.color }}>{info.label}</div>
                         <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
