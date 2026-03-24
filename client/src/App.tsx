@@ -196,7 +196,7 @@ const AppContent = () => {
           <CapabilitiesView onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
         </div>
         <div style={{ display: activeTab === 'diagrams' ? 'block' : 'none', height: '100%' }}>
-          <DiagramsView apps={apps || []} onEditApp={(app) => setSelectedAppId(app.id)} onEditCapability={(cap) => setEditingCapability(cap)} brandName={brandName} onUpdateBrand={setBrandName} />
+          <DiagramsView apps={apps || []} onEditApp={(id) => setSelectedAppId(id)} onEditCapability={(cap) => setEditingCapability(cap)} brandName={brandName} onUpdateBrand={setBrandName} />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
           <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} />
@@ -598,7 +598,7 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
   );
 };
 
-const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand }: { apps: Application[], onEditApp: (app: Application) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void }) => {
+const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand }: { apps: Application[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void }) => {
   const [filters, setFilters] = useLocalStorage('openapm_diagram_filters', { 
     search: '', 
     owner: '', 
@@ -720,7 +720,23 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
           </div>
         </div>
       )}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}><ApplicationDiagram onNodeClick={onEditApp} onCapabilityClick={onEditCapability} appsOverride={filteredApps} mode={mode} activeOverlay={activeOverlay} showApplications={showApplications} showCriticality={showCriticality} relationSearch={filters.search} /></div>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <ApplicationDiagram 
+          onNodeClick={onEditApp} 
+          onCapabilityClick={onEditCapability} 
+          apps={apps || []}
+          filteredApps={filteredApps}
+          integrations={integrations || []}
+          capabilities={flatCapabilities || []}
+          metaDefs={metaDefs || []}
+          picklists={picklists || []}
+          mode={mode} 
+          activeOverlay={activeOverlay} 
+          showApplications={showApplications} 
+          showCriticality={showCriticality} 
+          relationSearch={filters.search} 
+        />
+      </div>
     </div>
   );
 };

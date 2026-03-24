@@ -12,7 +12,6 @@ import ReactFlow, {
   ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { useQuery } from '@tanstack/react-query';
 import dagre from '@dagrejs/dagre';
 
 interface Application {
@@ -69,7 +68,12 @@ interface Picklist {
 interface Props {
   onNodeClick?: (app: Application) => void;
   onCapabilityClick?: (cap: Capability) => void;
-  appsOverride?: Application[];
+  apps: Application[];
+  filteredApps: Application[];
+  integrations: Integration[];
+  capabilities: Capability[];
+  metaDefs: MetadataDefinition[];
+  picklists: Picklist[];
   mode?: 'network' | 'landscape' | 'app-landscape';
   activeOverlay?: string | null;
   showApplications?: boolean;
@@ -161,53 +165,24 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
   return { bg, text: getContrastColor(bg) };
 };
 
-const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'network', activeOverlay = 'lifecycle', showApplications = true, showCriticality = true, relationSearch = '' }: Props) => {
+const DiagramInner = ({ 
+  onNodeClick, 
+  onCapabilityClick, 
+  apps, 
+  filteredApps, 
+  integrations, 
+  capabilities, 
+  metaDefs: dbMetaDefs, 
+  picklists, 
+  mode = 'landscape', 
+  activeOverlay = 'lifecycle', 
+  showApplications = true, 
+  showCriticality = true, 
+  relationSearch = '' 
+}: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const { fitView } = useReactFlow();
-
-  const { data: remoteApps } = useQuery<Application[]>({
-    queryKey: ['applications'],
-    queryFn: async () => {
-      const res = await fetch('/api/applications');
-      return res.json();
-    }
-  });
-
-  const allApps = remoteApps || [];
-  const filteredAppsProps = appsOverride || allApps;
-
-  const { data: integrations } = useQuery<Integration[]>({
-    queryKey: ['integrations'],
-    queryFn: async () => {
-      const res = await fetch('/api/integrations');
-      return res.json();
-    }
-  });
-
-  const { data: allCapabilities } = useQuery<Capability[]>({
-    queryKey: ['capabilities'],
-    queryFn: async () => {
-      const res = await fetch('/api/capabilities');
-      return res.json();
-    }
-  });
-
-  const { data: dbMetaDefs } = useQuery<MetadataDefinition[]>({
-    queryKey: ['metadata-definitions'],
-    queryFn: async () => {
-      const res = await fetch('/api/metadata-definitions');
-      return res.json();
-    }
-  });
-
-  const { data: picklists } = useQuery<Picklist[]>({
-    queryKey: ['picklists'],
-    queryFn: async () => {
-      const res = await fetch('/api/picklists');
-      return res.json();
-    }
-  });
 
   const metaDefs = useMemo(() => {
     const defs = [...(dbMetaDefs || [])];
@@ -224,7 +199,8 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
   const appOverlayDef = metaDefs.find(d => d.fieldName === activeOverlay && d.entityType === 'Application');
 
   useEffect(() => {
-    if (!allApps.length || !integrations || !allCapabilities || !metaDefs || !picklists) return;
+    // Robust null and empty checks
+    if (!apps || !capabilities || !metaDefs || !picklists || apps.length === 0 || capabilities.length === 0) return;
 
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const borderColor = 'var(--border)';
@@ -234,7 +210,7 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
     const getAppScore = (app: Application, fieldName: string, def?: MetadataDefinition) => {
       if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
         const capScores = app.capabilities.map(c => {
-          const fullCap = allCapabilities.find(ac => ac.id === c.id);
+          const fullCap = capabilities.find(ac => ac.id === c.id);
           return Number(fullCap?.criticality || 1);
         });
         return Math.max(...capScores);
@@ -244,12 +220,12 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
     };
 
     if (mode === 'network') {
-      const search = relationSearch.toLowerCase();
-      const visibleAppIdsFromProps = new Set(filteredAppsProps.map(a => a.id));
+      const search = (relationSearch || '').toLowerCase();
+      const visibleAppIds = new Set(filteredApps.map(a => a.id));
 
       const filteredIntegrations = integrations.filter(i => {
-        const sourceApp = allApps.find(a => a.id === i.sourceAppId);
-        const targetApp = allApps.find(a => a.id === i.targetAppId);
+        const sourceApp = apps.find(a => a.id === i.sourceAppId);
+        const targetApp = apps.find(a => a.id === i.targetAppId);
         if (!sourceApp || !targetApp) return false;
 
         const iMatches = i.name?.toLowerCase().includes(search) || i.type?.toLowerCase().includes(search);
@@ -257,16 +233,14 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         const tMatches = targetApp.name.toLowerCase().includes(search);
         
         if (search) return iMatches || sMatches || tMatches;
-        return visibleAppIdsFromProps.has(i.sourceAppId) && visibleAppIdsFromProps.has(i.targetAppId);
+        return visibleAppIds.has(i.sourceAppId) && visibleAppIds.has(i.targetAppId);
       });
 
       const finalAppIds = Array.from(new Set([
         ...filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]),
-        ...filteredAppsProps.map(a => a.id)
+        ...filteredApps.map(a => a.id)
       ]));
 
-      // --- ISLAND LAYOUT LOGIC ---
-      // 1. Build adjacency list for connected components (undirected)
       const adj = new Map<string, string[]>();
       finalAppIds.forEach(id => adj.set(id, []));
       filteredIntegrations.forEach(i => {
@@ -274,7 +248,6 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         adj.get(i.targetAppId)?.push(i.sourceAppId);
       });
 
-      // 2. Identify Connected Components (Islands)
       const visited = new Set<string>();
       const islands: string[][] = [];
       finalAppIds.forEach(id => {
@@ -296,30 +269,21 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         }
       });
 
-      // 3. Layout each island using dagre
       const islandNodes: Node[] = [];
       const islandEdges: Edge[] = [];
       let currentX = 0;
-      let maxRowHeight = 0;
-      const islandGap = 100;
-      const itemsPerRow = 4;
+      const islandGap = 150;
+      const nodeWidth = 180;
+      const nodeHeight = 60;
 
-      islands.forEach((islandAppIds, idx) => {
+      islands.forEach((islandAppIds) => {
         const g = new dagre.graphlib.Graph();
         g.setGraph({ rankdir: 'TB', nodesep: 50, ranksep: 100 });
         g.setDefaultEdgeLabel(() => ({}));
 
-        const nodeWidth = 180;
-        const nodeHeight = 60;
-
-        islandAppIds.forEach(id => {
-          g.setNode(id, { width: nodeWidth, height: nodeHeight });
-        });
-
+        islandAppIds.forEach(id => g.setNode(id, { width: nodeWidth, height: nodeHeight }));
         filteredIntegrations.forEach(i => {
-          if (islandAppIds.includes(i.sourceAppId)) {
-            g.setEdge(i.sourceAppId, i.targetAppId);
-          }
+          if (islandAppIds.includes(i.sourceAppId)) g.setEdge(i.sourceAppId, i.targetAppId);
         });
 
         dagre.layout(g);
@@ -334,17 +298,10 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         });
 
         const islandWidth = islandBox.maxX - islandBox.minX;
-        const islandHeight = islandBox.maxY - islandBox.minY;
-
-        // Position island in a grid
-        if (idx > 0 && idx % itemsPerRow === 0) {
-          currentX = 0;
-          const prevRowMaxHeight = maxRowHeight;
-          // Offset current island logic... simplify for now to a simple side-by-side or manual offset
-        }
 
         islandAppIds.forEach(id => {
-          const app = allApps.find(a => a.id === id)!;
+          const app = apps.find(a => a.id === id)!;
+          if (!app) return;
           const dNode = g.node(id);
           
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
@@ -361,35 +318,24 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
           islandNodes.push({
             id: app.id,
             data: { label: app.name, type: 'app', original: app },
-            position: { x: currentX + (dNode.x - islandBox.minX), y: (dNode.y - islandBox.minY) }, // Stacked islands vertically for now if needed, or simple horizontal
+            position: { x: currentX + (dNode.x - islandBox.minX), y: (dNode.y - islandBox.minY) },
             style: { 
-              background: colors.bg, 
-              color: colors.text, 
+              background: colors.bg, color: colors.text, 
               border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-              borderRadius: '12px',
-              width: nodeWidth,
-              fontSize: '13px',
-              fontWeight: 600,
-              textAlign: 'center',
-              padding: '12px',
-              boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+              borderRadius: '12px', width: nodeWidth, fontSize: '13px', fontWeight: 600,
+              textAlign: 'center', padding: '12px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
             }
           });
         });
 
-        // Add edges for this island
         filteredIntegrations.forEach(i => {
           if (islandAppIds.includes(i.sourceAppId)) {
             islandEdges.push({
-              id: `e-${i.id}`,
-              source: i.sourceAppId,
-              target: i.targetAppId,
-              label: i.name || i.type,
-              type: 'default',
+              id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId,
+              label: i.name || i.type, type: 'default',
               labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 },
               labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
-              labelBgPadding: [4, 2],
-              labelBgBorderRadius: 4,
+              labelBgPadding: [4, 2], labelBgBorderRadius: 4,
               style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
               markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
             });
@@ -404,12 +350,12 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
     } else if (mode === 'landscape') {
       const landscapeNodes: Node[] = [];
       const capsMap = new Map<string, Capability>();
-      allCapabilities.forEach(c => capsMap.set(c.id, c));
+      capabilities.forEach(c => capsMap.set(c.id, c));
 
       const unassignedApps: Application[] = [];
       const appsByCap = new Map<string, Application[]>();
 
-      filteredAppsProps.forEach(app => {
+      filteredApps.forEach(app => {
         if (!app.capabilities || app.capabilities.length === 0) {
           unassignedApps.push(app);
           return;
@@ -424,7 +370,7 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
       const isRelevant = (capId: string): boolean => {
         if (memoRelevant.has(capId)) return memoRelevant.get(capId)!;
         const hasApps = appsByCap.has(capId) && appsByCap.get(capId)!.length > 0;
-        const children = allCapabilities.filter(c => c.parentId === capId);
+        const children = capabilities.filter(c => c.parentId === capId);
         const res = hasApps || children.some(c => isRelevant(c.id));
         memoRelevant.set(capId, res);
         return res;
@@ -432,14 +378,14 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
 
       const renderCap = (capId: string, parentId?: string, depth = 0, rootX = 0, rootY = 0): { width: number; height: number } => {
         if (!isRelevant(capId)) return { width: 0, height: 0 };
+        const cap = capsMap.get(capId);
+        if (!cap) return { width: 0, height: 0 };
 
-        const cap = capsMap.get(capId)!;
-        const children = allCapabilities.filter(c => c.parentId === capId && isRelevant(c.id));
+        const children = capabilities.filter(c => c.parentId === capId && isRelevant(c.id));
         const associatedApps = showApplications ? (appsByCap.get(capId) || []) : [];
         const appHeight = 50;
         const padding = 20;
         const titleHeight = 50;
-
         let totalHeight = titleHeight;
         let maxWidth = 300;
 
@@ -471,62 +417,40 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
           }
 
           landscapeNodes.push({
-            id: `app-${capId}-${app.id}`,
-            parentNode: `cap-${capId}`,
+            id: `app-${capId}-${app.id}`, parentNode: `cap-${capId}`,
             data: { label: app.name, type: 'app', original: app },
             position: { x: padding, y: totalHeight + (i * (appHeight + 10)) },
             style: {
-              background: colors.bg,
-              color: colors.text,
+              background: colors.bg, color: colors.text,
               border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-              borderRadius: '8px',
-              width: maxWidth - (padding * 2),
-              height: appHeight,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '13px',
-              fontWeight: 600,
-              zIndex: 100
+              borderRadius: '8px', width: maxWidth - (padding * 2), height: appHeight,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '13px', fontWeight: 600, zIndex: 100
             }
           });
         });
 
         const finalHeight = totalHeight + (associatedApps.length * (appHeight + 10)) + padding;
-
         let capBg = depth === 0 ? groupBg : 'rgba(0,0,0,0.03)';
         let capTextColor = 'var(--foreground)';
         
         if (showCriticality && critDef) {
           const val = (cap as any).criticality || (cap.metadata ? JSON.parse(cap.metadata).criticality : critDef.min);
           const colors = getOverlayColor(val, critDef, picklists);
-          capBg = colors.bg;
-          capTextColor = colors.text;
+          capBg = colors.bg; capTextColor = colors.text;
         }
 
         landscapeNodes.push({
-          id: `cap-${capId}`,
-          data: { label: cap.name, type: 'capability', originalId: capId, original: cap },
+          id: `cap-${capId}`, data: { label: cap.name, type: 'capability', originalId: capId, original: cap },
           position: { x: depth === 0 ? rootX : 0, y: depth === 0 ? rootY : 0 },
           parentNode: parentId,
           style: {
-            background: capBg,
-            border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? '#373a40' : '#dee2e6'}`,
-            width: maxWidth,
-            height: finalHeight,
-            borderRadius: depth === 0 ? '16px' : '8px',
-            pointerEvents: 'all',
-            zIndex: depth,
-            color: capTextColor,
-            fontWeight: 800,
-            fontSize: '14px',
-            textAlign: 'center',
-            display: 'flex',
-            justifyContent: 'center',
-            paddingTop: '12px'
+            background: capBg, border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? '#373a40' : '#dee2e6'}`,
+            width: maxWidth, height: finalHeight, borderRadius: depth === 0 ? '16px' : '8px',
+            pointerEvents: 'all', zIndex: depth, color: capTextColor, fontWeight: 800,
+            fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center', paddingTop: '12px'
           }
         });
-
         return { width: maxWidth, height: finalHeight };
       };
 
@@ -536,14 +460,13 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
       const columnWidth = 300;
       const columnHeights = new Array(itemsPerRow).fill(0);
 
-      const roots = allCapabilities.filter(c => !c.parentId);
+      const roots = capabilities.filter(c => !c.parentId);
       roots.forEach((root) => {
         if (!isRelevant(root.id)) return;
         const minHeight = Math.min(...columnHeights);
         const columnIndex = columnHeights.indexOf(minHeight);
         const currentX = columnIndex * (columnWidth + horizontalGap);
-        const currentY = minHeight;
-        const layout = renderCap(root.id, undefined, 0, currentX, currentY);
+        const layout = renderCap(root.id, undefined, 0, currentX, minHeight);
         columnHeights[columnIndex] += layout.height + verticalGap;
       });
 
@@ -551,31 +474,17 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         const minHeight = Math.min(...columnHeights);
         const columnIndex = columnHeights.indexOf(minHeight);
         const currentX = columnIndex * (columnWidth + horizontalGap);
-        const currentY = minHeight;
-        const appHeight = 50;
-        const padding = 20;
-        const titleHeight = 50;
-        const finalHeight = titleHeight + (unassignedApps.length * (appHeight + 10)) + padding;
+        const finalHeight = 50 + (unassignedApps.length * 60) + 20;
 
         landscapeNodes.push({
-          id: 'cap-unassigned',
-          data: { label: 'Unassigned Applications', type: 'capability', originalId: 'unassigned' },
-          position: { x: currentX, y: currentY },
+          id: 'cap-unassigned', data: { label: 'Unassigned Applications', type: 'capability', originalId: 'unassigned' },
+          position: { x: currentX, y: minHeight },
           style: {
             background: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
-            border: `2px solid ${isDark ? '#373a40' : '#dee2e6'}`,
-            width: columnWidth,
-            height: finalHeight,
-            borderRadius: '16px',
-            pointerEvents: 'all',
-            color: 'var(--foreground)',
-            fontWeight: 800,
-            fontSize: '14px',
-            textAlign: 'center',
-            display: 'flex',
-            justifyContent: 'center',
-            paddingTop: '12px',
-            opacity: 0.8
+            border: `2px solid ${isDark ? '#373a40' : '#dee2e6'}`, width: columnWidth,
+            height: finalHeight, borderRadius: '16px', pointerEvents: 'all', color: 'var(--foreground)',
+            fontWeight: 800, fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center',
+            paddingTop: '12px', opacity: 0.8
           }
         });
 
@@ -588,30 +497,18 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
             colors = getOverlayColor(val, appOverlayDef, picklists);
           }
           landscapeNodes.push({
-            id: `app-unassigned-${app.id}`,
-            parentNode: 'cap-unassigned',
+            id: `app-unassigned-${app.id}`, parentNode: 'cap-unassigned',
             data: { label: app.name, type: 'app', original: app },
-            position: { x: padding, y: titleHeight + (i * (appHeight + 10)) },
+            position: { x: 20, y: 50 + (i * 60) },
             style: {
-              background: colors.bg,
-              color: colors.text,
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-              borderRadius: '8px',
-              width: columnWidth - (padding * 2),
-              height: appHeight,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '13px',
-              fontWeight: 600,
-              zIndex: 100
+              background: colors.bg, color: colors.text, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+              borderRadius: '8px', width: columnWidth - 40, height: 50, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: '13px', fontWeight: 600, zIndex: 100
             }
           });
         });
       }
-
-      setNodes(landscapeNodes);
-      setEdges([]);
+      setNodes(landscapeNodes); setEdges([]);
     } else if (mode === 'app-landscape') {
       const appNodes: Node[] = [];
       const itemsPerRow = 5;
@@ -620,17 +517,12 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
       const columnWidth = 300;
       const columnHeights = new Array(itemsPerRow).fill(0);
 
-      filteredAppsProps.forEach((app) => {
+      filteredApps.forEach((app) => {
         const minHeight = Math.min(...columnHeights);
         const columnIndex = columnHeights.indexOf(minHeight);
         const currentX = columnIndex * (columnWidth + horizontalGap);
-        const currentY = minHeight;
-
-        const capHeight = 40;
-        const padding = 20;
-        const titleHeight = 60;
         const associatedCaps = app.capabilities || [];
-        const finalHeight = titleHeight + (associatedCaps.length * (capHeight + 8)) + padding;
+        const finalHeight = 60 + (associatedCaps.length * 48) + 20;
 
         let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
         if (activeOverlay === 'lifecycle') {
@@ -644,70 +536,42 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
         }
 
         appNodes.push({
-          id: `app-container-${app.id}`,
-          data: { label: app.name, type: 'app', original: app },
-          position: { x: currentX, y: currentY },
+          id: `app-container-${app.id}`, data: { label: app.name, type: 'app', original: app },
+          position: { x: currentX, y: minHeight },
           style: {
-            background: colors.bg,
-            color: colors.text,
-            border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-            borderRadius: '16px',
-            width: columnWidth,
-            height: finalHeight,
-            fontWeight: 800,
-            fontSize: '14px',
-            textAlign: 'center',
-            display: 'flex',
-            justifyContent: 'center',
-            paddingTop: '16px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+            background: colors.bg, color: colors.text, border: `2px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+            borderRadius: '16px', width: columnWidth, height: finalHeight, fontWeight: 800, fontSize: '14px',
+            textAlign: 'center', display: 'flex', justifyContent: 'center', paddingTop: '16px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
           }
         });
 
         associatedCaps.forEach((c, i) => {
-          const fullCap = allCapabilities.find(ac => ac.id === c.id);
+          const fullCap = capabilities.find(ac => ac.id === c.id);
           let capColors = { bg: 'var(--secondary)', text: 'var(--foreground)' };
           if (critDef && fullCap) {
             const val = fullCap.criticality || critDef.min;
             capColors = getOverlayColor(val, critDef, picklists);
           }
-
           appNodes.push({
-            id: `cap-in-app-${app.id}-${c.id}`,
-            parentNode: `app-container-${app.id}`,
+            id: `cap-in-app-${app.id}-${c.id}`, parentNode: `app-container-${app.id}`,
             data: { label: c.name, type: 'capability', original: fullCap },
-            position: { x: padding, y: titleHeight + (i * (capHeight + 8)) },
+            position: { x: 20, y: 60 + (i * 48) },
             style: {
-              background: capColors.bg,
-              color: capColors.text,
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
-              borderRadius: '8px',
-              width: columnWidth - (padding * 2),
-              height: capHeight,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '12px',
-              fontWeight: 600,
-              zIndex: 100
+              background: capColors.bg, color: capColors.text, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : borderColor}`,
+              borderRadius: '8px', width: columnWidth - 40, height: 40, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: '12px', fontWeight: 600, zIndex: 100
             }
           });
         });
-
         columnHeights[columnIndex] += finalHeight + verticalGap;
       });
-
-      setNodes(appNodes);
-      setEdges([]);
+      setNodes(appNodes); setEdges([]);
     }
-  }, [allApps, filteredAppsProps, integrations, allCapabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
+  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
 
-  // Dynamic Fit View logic
   useEffect(() => {
     if (nodes.length > 0) {
-      const timer = setTimeout(() => {
-        fitView({ padding: 0.2, duration: 800 });
-      }, 150);
+      const timer = setTimeout(() => { fitView({ padding: 0.2, duration: 800 }); }, 150);
       return () => clearTimeout(timer);
     }
   }, [nodes.length, mode, fitView]);
@@ -721,53 +585,18 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
 
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onNodeClick={onNodeInternalClick}
-      nodesDraggable={true}
-      nodesConnectable={false}
-      elementsSelectable={true}
-      panOnDrag={true}
-      zoomOnScroll={true}
-      minZoom={0.01}
-      maxZoom={4}
+      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick}
+      nodesDraggable={true} nodesConnectable={false} elementsSelectable={true} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
     >
       <Background color="var(--border)" gap={20} />
       <Controls showInteractive={false} />
-      
-      <Panel position="top-right" style={{ 
-        background: 'var(--card)', 
-        padding: '8px 12px', 
-        borderRadius: '8px', 
-        border: '1px solid var(--border)',
-        fontSize: '12px',
-        color: 'var(--foreground)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-      }}>
+      <Panel position="top-right" style={{ background: 'var(--card)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
         <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
       </Panel>
-
-      <Panel position="top-left" style={{ 
-        background: 'var(--card)', 
-        padding: '12px', 
-        borderRadius: '12px', 
-        border: '1px solid var(--border)',
-        fontSize: '11px',
-        color: 'var(--foreground)',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        maxWidth: '220px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
-      }}>
-        {/* Capability Section */}
+      <Panel position="top-left" style={{ background: 'var(--card)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', fontSize: '11px', color: 'var(--foreground)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxWidth: '220px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div>
-          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-            Business Criticality
-          </div>
+          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {mode === 'landscape' && !showCriticality ? (
               <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div>
@@ -781,8 +610,6 @@ const DiagramInner = ({ onNodeClick, onCapabilityClick, appsOverride, mode = 'ne
             )}
           </div>
         </div>
-
-        {/* Application Section */}
         <div>
           <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
             Application {activeOverlay === 'lifecycle' ? 'Lifecycle' : (activeOverlay === 'criticality' ? 'Business Criticality' : (activeOverlay === 'functionalFit' ? 'Functional Fit' : 'Technical Fit'))}
