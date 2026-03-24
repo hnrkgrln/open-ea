@@ -115,7 +115,7 @@ interface Integration {
 
 // Components
 const AppContent = () => {
-  const [activeTab, setActiveTab] = useLocalStorage<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('meat_active_tab', 'inventory');
+  const [activeTab, setActiveTab] = useLocalStorage<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('openapm_active_tab', 'inventory');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
@@ -145,7 +145,7 @@ const AppContent = () => {
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
         <header className="header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            <button onClick={() => setSelectedAppId(null)} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>MEAT</button>
+            <button onClick={() => setSelectedAppId(null)} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>OpenAPM</button>
             <nav className="nav">
               <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }}>Applications</button>
               <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }}>Capabilities</button>
@@ -170,7 +170,7 @@ const AppContent = () => {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <a href="/" className="logo">MEAT</a>
+          <a href="/" className="logo">OpenAPM</a>
           <nav className="nav">
             <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')}>Applications</button>
             <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')}>Capabilities</button>
@@ -224,8 +224,8 @@ const AppContent = () => {
 };
 
 const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Application[], onRefresh: () => void, onSelectApp: (id: string) => void, onEditApp: (app: any) => void }) => {
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('meat_inventory_view', 'grid');
-  const [filters, setFilters] = useLocalStorage('meat_inventory_filters', { 
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openapm_inventory_view', 'grid');
+  const [filters, setFilters] = useLocalStorage('openapm_inventory_filters', { 
     search: '', 
     owner: '', 
     lifecycle: '', 
@@ -521,7 +521,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
 };
 
 const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, onSelectApp: (id: string) => void }) => {
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('meat_capabilities_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openapm_capabilities_view', 'grid');
   
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -598,17 +598,17 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
 };
 
 const DiagramsView = ({ apps, onEditApp, onEditCapability }: { apps: Application[], onEditApp: (app: Application) => void, onEditCapability: (cap: any) => void }) => {
-  const [filters, setFilters] = useLocalStorage('meat_diagram_filters', { 
+  const [filters, setFilters] = useLocalStorage('openapm_diagram_filters', { 
     search: '', 
     owner: '', 
     lifecycle: '', 
     type: '',
     capabilityId: ''
   });
-  const [mode, setMode] = useLocalStorage<'network' | 'landscape'>('meat_diagram_mode', 'network');
-  const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('meat_diagram_overlay', 'lifecycle');
-  const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('meat_diagram_show_crit', true);
-  const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
+  const [mode, setMode] = useLocalStorage<'network' | 'landscape'>('openapm_diagram_mode', 'network');
+  const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openapm_diagram_overlay', 'lifecycle');
+  const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openapm_diagram_show_crit', true);
+  const [showApplications, setShowApplications] = useLocalStorage<boolean>('openapm_diagram_show_apps', true);
   const [showFilters, setShowFilters] = useState(false);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });

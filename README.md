@@ -1,6 +1,6 @@
-# MEAT - Modern Enterprise Architecture Tool
+# OpenAPM - Open Application Portfolio Management
 
-MEAT is a modern, high-density enterprise architecture tool designed for small-to-medium organizations to manage their application inventory, business capabilities, and system integrations with a focus on visual health and strategic alignment.
+OpenAPM is a modern, high-density enterprise architecture tool designed for small-to-medium organizations to manage their application inventory, business capabilities, and system integrations with a focus on visual health and strategic alignment.
 
 ## 🚀 Key Functionalities
 
@@ -42,8 +42,8 @@ MEAT is a modern, high-density enterprise architecture tool designed for small-t
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/hnrkgrln/meat.git
-   cd meat
+   git clone https://github.com/hnrkgrln/openapm.git
+   cd openapm
    ```
 
 2. **Setup the Backend:**
