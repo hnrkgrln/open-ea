@@ -722,7 +722,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
       )}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <ApplicationDiagram 
-          onNodeClick={onEditApp} 
+          onNodeClick={(app) => onEditApp(app.id)} 
           onCapabilityClick={onEditCapability} 
           apps={apps || []}
           filteredApps={filteredApps}
