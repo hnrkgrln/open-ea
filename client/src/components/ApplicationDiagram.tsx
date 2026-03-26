@@ -321,13 +321,35 @@ const DiagramInner = ({
             }
           }
 
+          const getCustomLabels = (app: Application) => {
+            try {
+              const meta = app.metadata ? JSON.parse(app.metadata) : {};
+              return dbMetaDefs
+                .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName])
+                .map(d => (
+                  <div key={d.id} style={{ 
+                    fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
+                    background: 'rgba(0,0,0,0.05)', color: 'var(--muted-foreground)', 
+                    border: '1px solid rgba(0,0,0,0.1)', whiteSpace: 'nowrap'
+                  }}>
+                    {d.label}: {String(meta[d.fieldName])}
+                  </div>
+                ));
+            } catch (e) { return []; }
+          };
+
           islandNodes.push({
             id: app.id,
             data: { 
               label: (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                  <Database size={14} />
-                  <span>{app.name}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                    <Database size={14} />
+                    <span>{app.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                    {getCustomLabels(app)}
+                  </div>
                 </div>
               ), 
               type: 'app', 
@@ -422,6 +444,23 @@ const DiagramInner = ({
 
         if (children.length > 0) totalHeight = currentYOffset;
 
+        const getCustomLabels = (app: Application) => {
+          try {
+            const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            return dbMetaDefs
+              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName])
+              .map(d => (
+                <div key={d.id} style={{ 
+                  fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
+                  background: 'rgba(0,0,0,0.05)', color: 'var(--muted-foreground)', 
+                  border: '1px solid rgba(0,0,0,0.1)', whiteSpace: 'nowrap'
+                }}>
+                  {String(meta[d.fieldName])}
+                </div>
+              ));
+          } catch (e) { return []; }
+        };
+
         associatedApps.forEach((app, i) => {
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') {
@@ -435,9 +474,14 @@ const DiagramInner = ({
             id: `app-${capId}-${app.id}`, parentNode: `cap-${capId}`,
             data: { 
               label: (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Database size={12} />
-                  <span>{app.name}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Database size={12} />
+                    <span>{app.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                    {getCustomLabels(app)}
+                  </div>
                 </div>
               ), 
               type: 'app', 
@@ -579,13 +623,35 @@ const DiagramInner = ({
           }
         }
 
+        const getCustomLabels = (app: Application) => {
+          try {
+            const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            return dbMetaDefs
+              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName])
+              .map(d => (
+                <div key={d.id} style={{ 
+                  fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
+                  background: 'rgba(0,0,0,0.05)', color: 'var(--muted-foreground)', 
+                  border: '1px solid rgba(0,0,0,0.1)', whiteSpace: 'nowrap'
+                }}>
+                  {String(meta[d.fieldName])}
+                </div>
+              ));
+          } catch (e) { return []; }
+        };
+
         appNodes.push({
           id: `app-container-${app.id}`, 
           data: { 
             label: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
-                <Database size={16} />
-                <span>{app.name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                  <Database size={16} />
+                  <span>{app.name}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                  {getCustomLabels(app)}
+                </div>
               </div>
             ), 
             type: 'app', 
