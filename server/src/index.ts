@@ -345,8 +345,50 @@ server.delete('/metadata-definitions/:id', {
     params: z.object({ id: z.string() }),
   },
 }, async (request) => {
-  return prisma.metadataDefinition.delete({
-    where: { id: request.params.id },
+  const { id } = request.params;
+  
+  return prisma.$transaction(async (tx) => {
+    // 1. Find the definition to know entityType and fieldName
+    const def = await tx.metadataDefinition.findUnique({ where: { id } });
+    if (!def) return { success: false };
+
+    // 2. Remove from entities
+    if (def.entityType === 'Application') {
+      const apps = await tx.application.findMany({
+        where: { metadata: { contains: def.fieldName } }
+      });
+      for (const app of apps) {
+        try {
+          const meta = JSON.parse(app.metadata || '{}');
+          if (meta[def.fieldName] !== undefined) {
+            delete meta[def.fieldName];
+            await tx.application.update({
+              where: { id: app.id },
+              data: { metadata: JSON.stringify(meta) }
+            });
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+    } else if (def.entityType === 'Capability') {
+      const caps = await tx.capability.findMany({
+        where: { metadata: { contains: def.fieldName } }
+      });
+      for (const cap of caps) {
+        try {
+          const meta = JSON.parse(cap.metadata || '{}');
+          if (meta[def.fieldName] !== undefined) {
+            delete meta[def.fieldName];
+            await tx.capability.update({
+              where: { id: cap.id },
+              data: { metadata: JSON.stringify(meta) }
+            });
+          }
+        } catch (e) { /* ignore parse errors */ }
+      }
+    }
+
+    // 3. Delete the definition
+    return tx.metadataDefinition.delete({ where: { id } });
   });
 });
 

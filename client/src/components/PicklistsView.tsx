@@ -154,7 +154,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
   };
 
   const handleDeleteMeta = async (id: string) => {
-    if (!confirm('Are you sure? Existing data for this field will not be deleted but won\'t show up in forms.')) return;
+    if (!confirm('Are you sure? This will permanently delete this field and all associated data from every record.')) return;
     try {
       const res = await fetch(`/api/metadata-definitions/${id}`, { method: 'DELETE' });
       if (res.ok) queryClient.invalidateQueries({ queryKey: ['metadata-definitions'] });
