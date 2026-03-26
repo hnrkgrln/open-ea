@@ -721,7 +721,7 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
   const { data: integrations } = useQuery<Integration[]>({ queryKey: ['integrations'], queryFn: async () => { const res = await fetch('/api/integrations'); return res.json(); } });
 
-  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => d.fieldType !== 'range') || [], [metaDefs]);
+  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -732,8 +732,7 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
     { id: 'func', fieldName: 'functionalFit', label: 'Functional Fit', scaleType: 'bad-good', icon: <Boxes size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'tech', fieldName: 'technicalFit', label: 'Technical Fit', scaleType: 'bad-good', icon: <Monitor size={16} style={{ marginRight: '0.5rem' }} /> },
   ];
-  const customRangeFields = metaDefs?.filter(d => d.fieldType === 'range' && !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [];
-  const allRangeFields = [...scoreFields, ...customRangeFields];
+  const allRangeFields = [...scoreFields];
 
   const filteredApps = useMemo(() => {
     return apps.filter(app => {

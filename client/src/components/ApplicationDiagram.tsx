@@ -328,7 +328,7 @@ const DiagramInner = ({
               if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
               const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
               return dbMetaDefs
-                .filter(d => d.entityType === entityType && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+                .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
                 .map(d => (
                   <div key={d.id} style={{ 
                     fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
@@ -452,7 +452,7 @@ const DiagramInner = ({
             if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
             const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
             return dbMetaDefs
-              .filter(d => d.entityType === entityType && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+              .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
                   fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
@@ -637,7 +637,7 @@ const DiagramInner = ({
             if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
             const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
             return dbMetaDefs
-              .filter(d => d.entityType === entityType && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+              .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
                   fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
