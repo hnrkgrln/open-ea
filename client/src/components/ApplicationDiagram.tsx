@@ -323,12 +323,12 @@ const DiagramInner = ({
             }
           }
 
-          const getCustomLabels = (app: Application) => {
+          const getCustomLabels = (entity: any, entityType: string) => {
             try {
               if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-              const meta = app.metadata ? JSON.parse(app.metadata) : {};
+              const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
               return dbMetaDefs
-                .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+                .filter(d => d.entityType === entityType && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
                 .map(d => (
                   <div key={d.id} style={{ 
                     fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
@@ -351,7 +351,7 @@ const DiagramInner = ({
                     <span>{app.name}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
-                    {getCustomLabels(app)}
+                    {getCustomLabels(app, 'Application')}
                   </div>
                 </div>
               ), 
@@ -447,12 +447,12 @@ const DiagramInner = ({
 
         if (children.length > 0) totalHeight = currentYOffset;
 
-        const getCustomLabels = (app: Application) => {
+        const getCustomLabels = (entity: any, entityType: string) => {
           try {
             if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-            const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
             return dbMetaDefs
-              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+              .filter(d => d.entityType === entityType && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
                   fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
@@ -484,7 +484,7 @@ const DiagramInner = ({
                     <span>{app.name}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
-                    {getCustomLabels(app)}
+                    {getCustomLabels(app, 'Application')}
                   </div>
                 </div>
               ), 
@@ -516,9 +516,14 @@ const DiagramInner = ({
           id: `cap-${capId}`, 
           data: { 
             label: (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
-                <Boxes size={16} />
-                <span>{cap.name}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center' }}>
+                  <Boxes size={16} />
+                  <span>{cap.name}</span>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                  {getCustomLabels(cap, 'Capability')}
+                </div>
               </div>
             ), 
             type: 'capability', 
@@ -627,12 +632,12 @@ const DiagramInner = ({
           }
         }
 
-        const getCustomLabels = (app: Application) => {
+        const getCustomLabels = (entity: any, entityType: string) => {
           try {
             if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-            const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
             return dbMetaDefs
-              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+              .filter(d => d.entityType === entityType && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
                   fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
@@ -655,7 +660,7 @@ const DiagramInner = ({
                   <span>{app.name}</span>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
-                  {getCustomLabels(app)}
+                  {getCustomLabels(app, 'Application')}
                 </div>
               </div>
             ), 
@@ -681,13 +686,17 @@ const DiagramInner = ({
             id: `cap-in-app-${app.id}-${c.id}`, parentNode: `app-container-${app.id}`,
             data: { 
               label: (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Boxes size={12} />
-                  <span>{c.name}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Boxes size={12} />
+                    <span>{c.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                    {getCustomLabels(fullCap, 'Capability')}
+                  </div>
                 </div>
-              ), 
-              type: 'capability', 
-              original: fullCap 
+              ),
+              type: 'capability',              original: fullCap 
             },
             position: { x: 20, y: 60 + (i * 48) },
             style: {

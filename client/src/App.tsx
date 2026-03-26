@@ -721,7 +721,7 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
   const { data: integrations } = useQuery<Integration[]>({ queryKey: ['integrations'], queryFn: async () => { const res = await fetch('/api/integrations'); return res.json(); } });
 
-  const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
+  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => d.fieldType !== 'range') || [], [metaDefs]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -810,11 +810,11 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
             )}
           </div>
           
-          {appMetaDefs.filter(d => d.fieldType !== 'range').length > 0 && (
+          {overlayMetaDefs.length > 0 && (
             <div style={{ width: '180px' }}>
               <MultiSelect 
                 label=""
-                options={appMetaDefs.filter(d => d.fieldType !== 'range').map(d => ({ value: d.fieldName, label: d.label }))}
+                options={overlayMetaDefs.map(d => ({ value: d.fieldName, label: `${d.label} (${d.entityType === 'Application' ? 'App' : 'Cap'})` }))}
                 selectedValues={activeCustomOverlays}
                 onChange={setActiveCustomOverlays}
                 placeholder="Custom Labels..."
