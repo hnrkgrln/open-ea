@@ -148,10 +148,11 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
 export const ImportExportSettings = ({ onRefresh, apps, capabilities }: { onRefresh: () => void, apps: any[], capabilities: any[] }) => {
   return (
-    <div className="card" style={{ marginTop: '2rem' }}>
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <FileText size={24} /> Data Portability
-      </h2>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Data Portability</h2>
+        <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Bulk import and export of your architecture artifacts.</p>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
         <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Applications</h3>

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Settings2, GripVertical, FileCode, Edit2, Sliders, ShieldCheck, Palette } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
+import { ImportExportSettings } from './ImportExport';
 
 interface PicklistOption {
   id: string;
@@ -34,11 +35,14 @@ interface MetadataDefinition {
 interface Props {
   brandName: string;
   onUpdateBrand: (val: string) => void;
+  apps: any[];
+  capabilities: any[];
+  onRefresh: () => void;
 }
 
-export const PicklistsView = ({ brandName, onUpdateBrand }: Props) => {
+export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, onRefresh }: Props) => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'strategic' | 'picklists' | 'metadata' | 'branding'>('strategic');
+  const [activeTab, setActiveTab] = useState<'strategic' | 'picklists' | 'metadata' | 'branding' | 'import-export'>('strategic');
   const [selectedPicklistId, setSelectedPicklistId] = useState<string | null>(null);
   
   // States for new picklist option
@@ -252,6 +256,25 @@ export const PicklistsView = ({ brandName, onUpdateBrand }: Props) => {
               }}
             >
               <Palette size={16} /> Branding
+            </button>
+            <button
+              onClick={() => setActiveTab('import-export')}
+              style={{
+                width: '100%',
+                justifyContent: 'flex-start',
+                border: 'none',
+                background: activeTab === 'import-export' ? 'var(--accent)' : 'transparent',
+                color: activeTab === 'import-export' ? 'var(--foreground)' : 'var(--muted-foreground)',
+                padding: '0.75rem 1rem',
+                fontSize: '0.875rem',
+                fontWeight: 500,
+                textAlign: 'left',
+                display: 'flex',
+                gap: '0.5rem',
+                alignItems: 'center'
+              }}
+            >
+              <Settings2 size={16} /> Import & Export
             </button>
           </div>
         </div>
@@ -512,6 +535,8 @@ export const PicklistsView = ({ brandName, onUpdateBrand }: Props) => {
                 </form>
               </div>
             </div>
+          ) : activeTab === 'import-export' ? (
+            <ImportExportSettings apps={apps} capabilities={capabilities} onRefresh={onRefresh} />
           ) : (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--muted-foreground)' }}>
               Select a category from the sidebar to manage configuration.
