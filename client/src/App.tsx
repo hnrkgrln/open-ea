@@ -11,7 +11,6 @@ import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
 import { SearchInput, MultiSelect } from './components/FilterControls';
-import { ImportExport, ImportExportSettings } from './components/ImportExport';
 
 // Custom hook for persisted state
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
@@ -217,8 +216,7 @@ const AppContent = () => {
           />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
-          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} />
-          <ImportExportSettings onRefresh={handleRefresh} apps={apps || []} capabilities={capabilities || []} />
+          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} onRefresh={handleRefresh} />
         </div>
       </main>
 
@@ -326,9 +324,7 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Database size={32} /> Application Inventory</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <ImportExport type="applications" data={apps || []} onImportSuccess={onRefresh} />
-          <div style={{ width: '1px', height: '1.5rem', background: 'var(--border)', margin: '0 0.5rem' }} />
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
@@ -604,8 +600,6 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <ImportExport type="capabilities" data={capabilities || []} onImportSuccess={onRefresh} />
-          <div style={{ width: '1px', height: '1.5rem', background: 'var(--border)', margin: '0 0.5rem' }} />
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
