@@ -310,17 +310,27 @@ input[type="range"]::-moz-range-thumb:hover {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  overflow: hidden;
 }
 
 .react-flow__controls-button {
   background: var(--card);
   color: var(--foreground);
   border-bottom: 1px solid var(--border);
+  transition: background-color 0.2s;
+}
+
+.react-flow__controls-button svg {
+  fill: var(--foreground);
 }
 
 .react-flow__controls-button:hover {
   background: var(--secondary);
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: none;
 }
 
 .react-flow__attribution {

@@ -96,14 +96,39 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
             <Dialog.Description style={{ display: 'none' }}>Quickly find applications and capabilities.</Dialog.Description>
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <Search size={20} style={{ color: 'var(--muted-foreground)' }} />
-              <input 
-                autoFocus
-                placeholder="Type to search applications or capabilities..." 
-                value={query}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={handleKeyDown}
-                style={{ border: 'none', background: 'transparent', width: '100%', fontSize: '1rem', outline: 'none' }}
-              />
+              <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                <input 
+                  autoFocus
+                  placeholder="Type to search applications or capabilities..." 
+                  value={query}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  style={{ border: 'none', background: 'transparent', width: '100%', fontSize: '1rem', outline: 'none', paddingRight: '2rem' }}
+                />
+                {query && (
+                  <button
+                    onClick={() => setQ('')}
+                    style={{
+                      position: 'absolute',
+                      right: '0',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      border: 'none',
+                      background: 'transparent',
+                      padding: '0.25rem',
+                      height: 'auto',
+                      width: 'auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'var(--muted-foreground)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
               <Dialog.Close asChild>
                 <button style={{ border: 'none', background: 'transparent', padding: '0.25rem', cursor: 'pointer' }}><X size={18} /></button>
               </Dialog.Close>

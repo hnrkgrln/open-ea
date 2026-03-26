@@ -167,6 +167,10 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
   return { bg, text: getContrastColor(bg) };
 };
 
+// Define outside to prevent React Flow warnings
+const initialNodeTypes = {};
+const initialEdgeTypes = {};
+
 const DiagramInner = ({ 
   onNodeClick, 
   onCapabilityClick, 
@@ -646,6 +650,7 @@ const DiagramInner = ({
     <ReactFlow
       nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick}
       nodesDraggable={true} nodesConnectable={false} elementsSelectable={true} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
+      nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes}
     >
       <Background color="var(--border)" gap={20} />
       <Controls showInteractive={false} />

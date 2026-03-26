@@ -245,8 +245,32 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
                           placeholder="Filter..." 
                           value={capSearch}
                           onChange={e => setCapSearch(e.target.value)}
-                          style={{ height: '1.5rem', padding: '0 0.4rem 0 1.5rem', fontSize: '0.65rem', marginTop: 0 }}
+                          style={{ height: '1.5rem', padding: '0 1.2rem 0 1.5rem', fontSize: '0.65rem', marginTop: 0 }}
                         />
+                        {capSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setCapSearch('')}
+                            style={{
+                              position: 'absolute',
+                              right: '0.2rem',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              border: 'none',
+                              background: 'transparent',
+                              padding: '0.1rem',
+                              height: 'auto',
+                              width: 'auto',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--muted-foreground)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.25rem', maxHeight: '180px', overflowY: 'auto', padding: '0.4rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>

@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LayoutDashboard, Database, Network, Search, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, Layers, Monitor, Eye, EyeOff, Trash2, ArrowRight, ShieldAlert, Activity, AppWindow, ArrowUpRight } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
@@ -10,6 +10,7 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
+import { SearchInput, MultiSelect } from './components/FilterControls';
 
 // Custom hook for persisted state
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
@@ -235,24 +236,20 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
-    owner: '', 
-    lifecycle: '', 
-    type: '',
-    criticality: '',
-    functionalFit: '',
-    technicalFit: ''
+    owner: [] as string[], 
+    lifecycle: [] as string[], 
+    type: [] as string[],
+    criticality: [] as string[],
+    functionalFit: [] as string[],
+    technicalFit: [] as string[]
   });
   
   // Auto-show filters if any are active
   const isAnyFilterActive = useMemo(() => {
-    return Object.values(filters).some(val => val !== '');
+    return filters.search !== '' || filters.owner.length > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.criticality.length > 0 || filters.functionalFit.length > 0 || filters.technicalFit.length > 0;
   }, [filters]);
 
   const [showFilters, setShowFilters] = useState(isAnyFilterActive);
-
-  useEffect(() => {
-    if (isAnyFilterActive) setShowFilters(true);
-  }, [isAnyFilterActive]);
 
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -290,25 +287,25 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
     if (!apps) return [];
     return apps.filter(app => {
       const matchSearch = !filters.search || app.name.toLowerCase().includes(filters.search.toLowerCase()) || app.description?.toLowerCase().includes(filters.search.toLowerCase());
-      const matchOwner = !filters.owner || app.owner === filters.owner || app.owner?.toLowerCase() === filters.owner.toLowerCase();
-      const matchLifecycle = !filters.lifecycle || app.lifecycle === filters.lifecycle || app.lifecycle?.toLowerCase() === filters.lifecycle.toLowerCase();
-      const matchType = !filters.type || app.type === filters.type || app.type?.toLowerCase() === filters.type.toLowerCase();
+      const matchOwner = filters.owner.length === 0 || filters.owner.includes(app.owner) || filters.owner.includes(app.owner?.toLowerCase());
+      const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
+      const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
       const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
         ? String(Math.max(...app.capabilities.map(c => Number(c.criticality || 1))))
         : app.criticality;
 
-      const matchCrit = !filters.criticality || inheritedCrit === filters.criticality;
-      const matchFunc = !filters.functionalFit || app.functionalFit === filters.functionalFit;
-      const matchTech = !filters.technicalFit || app.technicalFit === filters.technicalFit;
+      const matchCrit = filters.criticality.length === 0 || filters.criticality.includes(inheritedCrit);
+      const matchFunc = filters.functionalFit.length === 0 || filters.functionalFit.includes(app.functionalFit);
+      const matchTech = filters.technicalFit.length === 0 || filters.technicalFit.includes(app.technicalFit);
       
       return matchSearch && matchOwner && matchLifecycle && matchType && matchCrit && matchFunc && matchTech;
     });
   }, [apps, filters]);
 
   const clearFilters = () => setFilters({ 
-    search: '', owner: '', lifecycle: '', type: '', 
-    criticality: '', functionalFit: '', technicalFit: '' 
+    search: '', owner: [], lifecycle: [], type: [], 
+    criticality: [], functionalFit: [], technicalFit: [] 
   });
 
   return (
@@ -329,14 +326,14 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
       {showFilters && (
         <div className="card" style={{ marginBottom: '2rem', background: 'var(--background)', padding: '1.25rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            <div className="field" style={{ margin: 0 }}><label className="label">Search</label><input value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} placeholder="Search..." style={{ marginTop: '0.25rem' }} /></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Owner</label><select value={filters.owner} onChange={(e) => setFilters({...filters, owner: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Owners</option>{ownerOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Type</label><select value={filters.type} onChange={(e) => setFilters({...filters, type: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Types</option>{appTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Lifecycle</label><select value={filters.lifecycle} onChange={(e) => setFilters({...filters, lifecycle: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Lifecycles</option>{lifecycleOptions.map((opt: any) => (<option key={opt.id} value={opt.value}>{opt.label}</option>))}</select></div>
+            <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
+            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type} onChange={(val) => setFilters({...filters, type: val})} placeholder="All Types" />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
             
-            <div className="field" style={{ margin: 0 }}><label className="label">Criticality</label><select value={filters.criticality} onChange={(e) => setFilters({...filters, criticality: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All</option>{criticalityOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Functional Fit</label><select value={filters.functionalFit} onChange={(e) => setFilters({...filters, functionalFit: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All</option>{funcFitOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Technical Fit</label><select value={filters.technicalFit} onChange={(e) => setFilters({...filters, technicalFit: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All</option>{techFitOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
+            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" />
+            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" />
+            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
 
             <button onClick={clearFilters} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
@@ -602,7 +599,15 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
           </div>
-          <EditCapabilityDialog onSuccess={onRefresh} />
+          <EditCapabilityDialog 
+            onSuccess={onRefresh} 
+            trigger={
+              <button className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <PlusCircle size={18} />
+                New Capability
+              </button>
+            } 
+          />
         </div>
       </div>
 
@@ -640,22 +645,18 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
 const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
-    owner: '', 
-    lifecycle: '', 
-    type: '',
-    capabilityId: ''
+    owner: [] as string[], 
+    lifecycle: [] as string[], 
+    type: [] as string[],
+    capabilityId: [] as string[]
   });
   
   // Auto-show filters if any are active
   const isAnyFilterActive = useMemo(() => {
-    return Object.values(filters).some(val => val !== '');
+    return filters.search !== '' || filters.owner.length > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.capabilityId.length > 0;
   }, [filters]);
 
   const [showFilters, setShowFilters] = useState(isAnyFilterActive);
-
-  useEffect(() => {
-    if (isAnyFilterActive) setShowFilters(true);
-  }, [isAnyFilterActive]);
 
   const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openea_diagram_mode', 'landscape');
   const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openea_diagram_overlay', 'lifecycle');
@@ -672,7 +673,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
   const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   
   const scoreFields = [
-    { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle State', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
+    { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'crit', fieldName: 'criticality', label: 'Business Criticality', icon: <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'func', fieldName: 'functionalFit', label: 'Functional Fit', scaleType: 'bad-good', icon: <Boxes size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'tech', fieldName: 'technicalFit', label: 'Technical Fit', scaleType: 'bad-good', icon: <Monitor size={16} style={{ marginRight: '0.5rem' }} /> },
@@ -682,26 +683,24 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
 
   const filteredApps = useMemo(() => {
     return apps.filter(app => {
-      const matchOwner = !filters.owner || app.owner === filters.owner || app.owner?.toLowerCase() === filters.owner.toLowerCase();
-      const matchLifecycle = !filters.lifecycle || app.lifecycle === filters.lifecycle || app.lifecycle?.toLowerCase() === filters.lifecycle.toLowerCase();
-      const matchType = !filters.type || app.type === filters.type || app.type?.toLowerCase() === filters.type.toLowerCase();
+      const matchOwner = filters.owner.length === 0 || filters.owner.includes(app.owner) || filters.owner.includes(app.owner?.toLowerCase());
+      const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
+      const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
       // Effective Criticality calculation for filtering
       const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
         ? String(Math.max(...app.capabilities.map(c => Number(c.criticality || 1))))
         : app.criticality;
 
-      const matchCrit = !filters.criticality || inheritedCrit === filters.criticality;
-      
       // Capability Filter Logic
       let matchCap = true;
-      if (filters.capabilityId) {
+      if (filters.capabilityId.length > 0) {
         const getDescendantIds = (id: string): string[] => {
           const children = flatCapabilities?.filter(c => c.parentId === id) || [];
           return [id, ...children.flatMap(c => getDescendantIds(c.id))];
         };
-        const targetIds = getDescendantIds(filters.capabilityId);
-        matchCap = app.capabilities?.some(c => targetIds.includes(c.id)) || false;
+        const allTargetIds = filters.capabilityId.flatMap(id => getDescendantIds(id));
+        matchCap = app.capabilities?.some(c => allTargetIds.includes(c.id)) || false;
       }
 
       // --- UNIFIED SEARCH LOGIC ---
@@ -719,7 +718,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
         matchSearch = appMatches || integrationMatches;
       }
 
-      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap && matchCrit;
+      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap;
     });
   }, [apps, filters, flatCapabilities, integrations]);
 
@@ -768,12 +767,12 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
       {showFilters && (
         <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            <div className="field" style={{ margin: 0 }}><label className="label">Diagram Search</label><input value={filters.search} onChange={(e) => setFilters({...filters, search: e.target.value})} placeholder="App or Integration name..." style={{ marginTop: '0.25rem' }} /></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Owner</label><select value={filters.owner} onChange={(e) => setFilters({...filters, owner: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Owners</option>{ownerOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Capability Area</label><select value={filters.capabilityId} onChange={(e) => setFilters({...filters, capabilityId: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Areas</option>{flatCapabilities?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-            <div className="field" style={{ margin: 0 }}><label className="label">Lifecycle</label><select value={filters.lifecycle} onChange={(e) => setFilters({...filters, lifecycle: e.target.value})} style={{ marginTop: '0.25rem' }}><option value="">All Lifecycles</option>{lifecycleOptions.map((opt: any) => (<option key={opt.id} value={opt.value}>{opt.label}</option>))}</select></div>
+            <SearchInput label="Diagram Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="App or Integration name..." />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
+            <MultiSelect label="Capability Area" options={flatCapabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
             
-            <button onClick={() => setFilters({ search: '', owner: '', lifecycle: '', type: '', capabilityId: '' })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [] })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
         </div>
       )}

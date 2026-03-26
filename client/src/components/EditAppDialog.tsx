@@ -381,7 +381,31 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
                     </h3>
                     <div style={{ position: 'relative', width: '240px' }}>
                       <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
-                      <input placeholder="Filter capabilities..." value={capSearch} onChange={e => setCapSearch(e.target.value)} style={{ height: '2.25rem', padding: '0 1rem 0 2.25rem', fontSize: '0.875rem', marginTop: 0, borderRadius: '10px' }} />
+                      <input placeholder="Filter capabilities..." value={capSearch} onChange={e => setCapSearch(e.target.value)} style={{ height: '2.25rem', padding: '0 2rem 0 2.25rem', fontSize: '0.875rem', marginTop: 0, borderRadius: '10px' }} />
+                      {capSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCapSearch('')}
+                          style={{
+                            position: 'absolute',
+                            right: '0.5rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: '0.25rem',
+                            height: 'auto',
+                            width: 'auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--muted-foreground)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', maxHeight: '240px', overflowY: 'auto', padding: '1rem', background: 'var(--muted)', borderRadius: '24px', border: '1px solid var(--border)' }}>

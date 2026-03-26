@@ -233,7 +233,31 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
                     </h3>
                     <div style={{ position: 'relative', width: '240px' }}>
                       <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }} />
-                      <input placeholder="Filter applications..." value={appSearch} onChange={e => setAppSearch(e.target.value)} style={{ height: '2.25rem', padding: '0 1rem 0 2.25rem', fontSize: '0.875rem', marginTop: 0, borderRadius: '10px' }} />
+                      <input placeholder="Filter applications..." value={appSearch} onChange={e => setAppSearch(e.target.value)} style={{ height: '2.25rem', padding: '0 2rem 0 2.25rem', fontSize: '0.875rem', marginTop: 0, borderRadius: '10px' }} />
+                      {appSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setAppSearch('')}
+                          style={{
+                            position: 'absolute',
+                            right: '0.5rem',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            border: 'none',
+                            background: 'transparent',
+                            padding: '0.25rem',
+                            height: 'auto',
+                            width: 'auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--muted-foreground)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   
