@@ -331,9 +331,10 @@ const DiagramInner = ({
                 .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
                 .map(d => (
                   <div key={d.id} style={{ 
-                    fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
-                    background: 'rgba(0,0,0,0.05)', color: 'var(--muted-foreground)', 
-                    border: '1px solid rgba(0,0,0,0.1)', whiteSpace: 'nowrap'
+                    fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
+                    background: 'var(--accent)', color: 'var(--foreground)', 
+                    border: '1px solid var(--border)', whiteSpace: 'nowrap',
+                    fontWeight: 500
                   }}>
                     {d.label}: {String(meta[d.fieldName])}
                   </div>
@@ -455,9 +456,10 @@ const DiagramInner = ({
               .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
-                  fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
-                  background: 'rgba(0,0,0,0.05)', color: 'var(--muted-foreground)', 
-                  border: '1px solid rgba(0,0,0,0.1)', whiteSpace: 'nowrap'
+                  fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
+                  background: 'var(--accent)', color: 'var(--foreground)', 
+                  border: '1px solid var(--border)', whiteSpace: 'nowrap',
+                  fontWeight: 500
                 }}>
                   {String(meta[d.fieldName])}
                 </div>
@@ -640,9 +642,10 @@ const DiagramInner = ({
               .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
-                  fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
-                  background: 'rgba(0,0,0,0.05)', color: 'var(--muted-foreground)', 
-                  border: '1px solid rgba(0,0,0,0.1)', whiteSpace: 'nowrap'
+                  fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
+                  background: 'var(--accent)', color: 'var(--foreground)', 
+                  border: '1px solid var(--border)', whiteSpace: 'nowrap',
+                  fontWeight: 500
                 }}>
                   {String(meta[d.fieldName])}
                 </div>
