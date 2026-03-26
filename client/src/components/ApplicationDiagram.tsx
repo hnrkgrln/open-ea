@@ -207,6 +207,46 @@ const DiagramInner = ({
   const appCritDef = metaDefs.find(d => d.fieldName === 'criticality' && d.entityType === 'Application');
   const appOverlayDef = metaDefs.find(d => d.fieldName === activeOverlay && d.entityType === 'Application');
 
+  const getCustomLabels = (entity: any, entityType: string) => {
+    try {
+      if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
+      const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
+      return metaDefs
+        .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
+        .map(d => {
+          const valStr = String(meta[d.fieldName]);
+          let bg = 'var(--accent)';
+          let text = 'var(--foreground)';
+          
+          if (d.fieldType === 'range') {
+            const colors = getOverlayColor(valStr, d, picklists || []);
+            bg = colors.bg;
+            text = colors.text;
+          } else {
+            const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+            if (picklist) {
+              const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+              if (opt && opt.color) {
+                bg = opt.color;
+                text = getContrastColor(bg);
+              }
+            }
+          }
+          
+          return (
+            <div key={d.id} style={{ 
+              fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
+              background: bg, color: text, 
+              border: '1px solid var(--border)', whiteSpace: 'nowrap',
+              fontWeight: 500
+            }}>
+              {d.label}: {valStr}
+            </div>
+          );
+        });
+    } catch (e) { return []; }
+  };
+
   useEffect(() => {
     if (!apps || !capabilities || !metaDefs || !picklists || apps.length === 0 || capabilities.length === 0) return;
 
@@ -323,45 +363,7 @@ const DiagramInner = ({
             }
           }
 
-          const getCustomLabels = (entity: any, entityType: string) => {
-            try {
-              if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-              const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
-              return dbMetaDefs
-                .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
-                .map(d => {
-                  const valStr = String(meta[d.fieldName]);
-                  let bg = 'var(--accent)';
-                  let text = 'var(--foreground)';
-                  
-                  if (d.fieldType === 'range') {
-                    const colors = getOverlayColor(valStr, d, picklists || []);
-                    bg = colors.bg;
-                    text = colors.text;
-                  } else {
-                    const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
-                    if (picklist) {
-                      const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
-                      if (opt && opt.color) {
-                        bg = opt.color;
-                        text = getContrastColor(bg);
-                      }
-                    }
-                  }
-                  
-                  return (
-                    <div key={d.id} style={{ 
-                      fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
-                      background: bg, color: text, 
-                      border: '1px solid var(--border)', whiteSpace: 'nowrap',
-                      fontWeight: 500
-                    }}>
-                      {d.label}: {valStr}
-                    </div>
-                  );
-                });
-            } catch (e) { return []; }
-          };
+
 
           islandNodes.push({
             id: app.id,
@@ -469,45 +471,7 @@ const DiagramInner = ({
 
         if (children.length > 0) totalHeight = currentYOffset;
 
-        const getCustomLabels = (entity: any, entityType: string) => {
-          try {
-            if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-            const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
-            return dbMetaDefs
-              .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
-              .map(d => {
-                const valStr = String(meta[d.fieldName]);
-                let bg = 'var(--accent)';
-                let text = 'var(--foreground)';
-                
-                if (d.fieldType === 'range') {
-                  const colors = getOverlayColor(valStr, d, picklists || []);
-                  bg = colors.bg;
-                  text = colors.text;
-                } else {
-                  const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
-                  if (picklist) {
-                    const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
-                    if (opt && opt.color) {
-                      bg = opt.color;
-                      text = getContrastColor(bg);
-                    }
-                  }
-                }
-                
-                return (
-                  <div key={d.id} style={{ 
-                    fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
-                    background: bg, color: text, 
-                    border: '1px solid var(--border)', whiteSpace: 'nowrap',
-                    fontWeight: 500
-                  }}>
-                    {d.label}: {valStr}
-                  </div>
-                );
-              });
-          } catch (e) { return []; }
-        };
+
 
         associatedApps.forEach((app, i) => {
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
@@ -632,9 +596,14 @@ const DiagramInner = ({
             id: `app-unassigned-${app.id}`, parentNode: 'cap-unassigned',
             data: { 
               label: (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Database size={12} />
-                  <span>{app.name}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Database size={12} />
+                    <span>{app.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'center' }}>
+                    {getCustomLabels(app, 'Application')}
+                  </div>
                 </div>
               ), 
               type: 'app', 
@@ -676,45 +645,7 @@ const DiagramInner = ({
           }
         }
 
-        const getCustomLabels = (entity: any, entityType: string) => {
-          try {
-            if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-            const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
-            return dbMetaDefs
-              .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
-              .map(d => {
-                const valStr = String(meta[d.fieldName]);
-                let bg = 'var(--accent)';
-                let text = 'var(--foreground)';
-                
-                if (d.fieldType === 'range') {
-                  const colors = getOverlayColor(valStr, d, picklists || []);
-                  bg = colors.bg;
-                  text = colors.text;
-                } else {
-                  const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
-                  if (picklist) {
-                    const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
-                    if (opt && opt.color) {
-                      bg = opt.color;
-                      text = getContrastColor(bg);
-                    }
-                  }
-                }
-                
-                return (
-                  <div key={d.id} style={{ 
-                    fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
-                    background: bg, color: text, 
-                    border: '1px solid var(--border)', whiteSpace: 'nowrap',
-                    fontWeight: 500
-                  }}>
-                    {d.label}: {valStr}
-                  </div>
-                );
-              });
-          } catch (e) { return []; }
-        };
+
 
         appNodes.push({
           id: `app-container-${app.id}`, 
