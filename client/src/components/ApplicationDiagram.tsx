@@ -329,16 +329,29 @@ const DiagramInner = ({
               const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
               return dbMetaDefs
                 .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
-                .map(d => (
-                  <div key={d.id} style={{ 
-                    fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
-                    background: 'var(--accent)', color: 'var(--foreground)', 
-                    border: '1px solid var(--border)', whiteSpace: 'nowrap',
-                    fontWeight: 500
-                  }}>
-                    {d.label}: {String(meta[d.fieldName])}
-                  </div>
-                ));
+                .map(d => {
+                  const valStr = String(meta[d.fieldName]);
+                  let bg = 'var(--accent)';
+                  let text = 'var(--foreground)';
+                  const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+                  if (picklist) {
+                    const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+                    if (opt && opt.color) {
+                      bg = opt.color;
+                      text = getContrastColor(bg);
+                    }
+                  }
+                  return (
+                    <div key={d.id} style={{ 
+                      fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
+                      background: bg, color: text, 
+                      border: '1px solid var(--border)', whiteSpace: 'nowrap',
+                      fontWeight: 500
+                    }}>
+                      {d.label}: {valStr}
+                    </div>
+                  );
+                });
             } catch (e) { return []; }
           };
 
@@ -454,16 +467,29 @@ const DiagramInner = ({
             const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
             return dbMetaDefs
               .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
-              .map(d => (
-                <div key={d.id} style={{ 
-                  fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
-                  background: 'var(--accent)', color: 'var(--foreground)', 
-                  border: '1px solid var(--border)', whiteSpace: 'nowrap',
-                  fontWeight: 500
-                }}>
-                  {String(meta[d.fieldName])}
-                </div>
-              ));
+              .map(d => {
+                const valStr = String(meta[d.fieldName]);
+                let bg = 'var(--accent)';
+                let text = 'var(--foreground)';
+                const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+                if (picklist) {
+                  const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+                  if (opt && opt.color) {
+                    bg = opt.color;
+                    text = getContrastColor(bg);
+                  }
+                }
+                return (
+                  <div key={d.id} style={{ 
+                    fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
+                    background: bg, color: text, 
+                    border: '1px solid var(--border)', whiteSpace: 'nowrap',
+                    fontWeight: 500
+                  }}>
+                    {d.label}: {valStr}
+                  </div>
+                );
+              });
           } catch (e) { return []; }
         };
 
@@ -640,16 +666,29 @@ const DiagramInner = ({
             const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
             return dbMetaDefs
               .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
-              .map(d => (
-                <div key={d.id} style={{ 
-                  fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
-                  background: 'var(--accent)', color: 'var(--foreground)', 
-                  border: '1px solid var(--border)', whiteSpace: 'nowrap',
-                  fontWeight: 500
-                }}>
-                  {String(meta[d.fieldName])}
-                </div>
-              ));
+              .map(d => {
+                const valStr = String(meta[d.fieldName]);
+                let bg = 'var(--accent)';
+                let text = 'var(--foreground)';
+                const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+                if (picklist) {
+                  const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+                  if (opt && opt.color) {
+                    bg = opt.color;
+                    text = getContrastColor(bg);
+                  }
+                }
+                return (
+                  <div key={d.id} style={{ 
+                    fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
+                    background: bg, color: text, 
+                    border: '1px solid var(--border)', whiteSpace: 'nowrap',
+                    fontWeight: 500
+                  }}>
+                    {d.label}: {valStr}
+                  </div>
+                );
+              });
           } catch (e) { return []; }
         };
 
