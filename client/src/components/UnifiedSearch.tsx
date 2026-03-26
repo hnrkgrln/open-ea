@@ -74,7 +74,7 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
       <button 
         onClick={() => setOpen(true)}
         className="secondary"
-        style={{ height: '2.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0 1rem', width: '240px', justifyContent: 'space-between' }}
+        style={{ height: '2.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', padding: '0 1rem', width: '320px', justifyContent: 'space-between' }}
       >
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Search size={16} />
