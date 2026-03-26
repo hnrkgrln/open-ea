@@ -153,48 +153,47 @@ const AppContent = () => {
   if (selectedAppId) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <header className="header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-            <button onClick={() => setSelectedAppId(null)} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
-            <nav className="nav">
-              <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
-              <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
-              <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('diagrams'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
-              <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('settings'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
-            </nav>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-            <ThemeToggle />
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <UnifiedSearch onSelectApp={(app) => { setSelectedAppId(app.id); }} onSelectCapability={(cap) => { setSelectedAppId(null); setActiveTab('capabilities'); setEditingCapability(cap); }} />
-            </div>
-          </div>
-          </header>
+    <header className="header">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 1 }}>
+        <button onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
+        <nav className="nav">
+          <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
+          <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
+          <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('diagrams'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
+          <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('settings'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
+        </nav>
+      </div>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        <UnifiedSearch onSelectApp={(app) => { setSelectedAppId(app.id); }} onSelectCapability={(cap) => { setSelectedAppId(null); setActiveTab('capabilities'); setEditingCapability(cap); }} />
+      </div>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
+        <ThemeToggle />
+      </div>
+    </header>
           <AppDetailsView appId={selectedAppId} onBack={() => setSelectedAppId(null)} onRefresh={handleRefresh} />
           </div>
           );
           }
 
           return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <header className="header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
-          <button onClick={() => setActiveTab('inventory')} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
-          <nav className="nav">
-            <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
-            <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
-            <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => setActiveTab('diagrams')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
-            <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
-          </nav>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <ThemeToggle />
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <UnifiedSearch onSelectApp={(app) => setSelectedAppId(app.id)} onSelectCapability={(cap) => setEditingCapability(cap)} />
-          </div>
-          </div>
-          </header>
-
+            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <header className="header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 1 }}>
+                  <button onClick={() => setActiveTab('inventory')} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
+                  <nav className="nav">
+                    <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
+                    <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
+                    <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => setActiveTab('diagrams')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
+                    <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
+                  </nav>
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+                  <UnifiedSearch onSelectApp={(app) => setSelectedAppId(app.id)} onSelectCapability={(cap) => setEditingCapability(cap)} />
+                </div>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
+                  <ThemeToggle />
+                </div>
+              </header>
           <main className={isFullWidth ? "main-full" : "main-container"}>
           <div style={{ display: activeTab === 'inventory' ? 'block' : 'none' }}>
           <InventoryView 
