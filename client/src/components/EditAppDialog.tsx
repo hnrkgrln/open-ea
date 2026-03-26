@@ -261,14 +261,17 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
       )}
       <Dialog.Portal>
         <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)', zIndex: 100 }} />
-        <Dialog.Content style={{ 
+        <Dialog.Content style={{
           position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           width: '90vw', maxWidth: '800px', maxHeight: '90vh', overflow: 'hidden',
-          background: 'var(--card)', color: 'var(--card-foreground)', 
+          background: 'var(--card)', color: 'var(--card-foreground)',
           borderRadius: '32px', zIndex: 150, border: '1px solid var(--border)',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           display: 'flex', flexDirection: 'column'
         }}>
+          <Dialog.Title style={{ display: 'none' }}>Edit Application</Dialog.Title>
+          <Dialog.Description style={{ display: 'none' }}>Update application details and metadata.</Dialog.Description>
+
           {/* Header */}
           <div style={{ padding: '2rem 2.5rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--muted)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>

@@ -1,4 +1,3 @@
-import React from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Check, ChevronDown, X } from 'lucide-react';
 

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { X, Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight } from 'lucide-react';
+import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { LifecycleBadge } from './LifecycleBadge';
 import { EditAppDialog } from './EditAppDialog';

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Edit2, Plus, CheckCircle2, Trash2, Search, Boxes, Info, Share2, Database } from 'lucide-react';
+import { X, Edit2, CheckCircle2, Trash2, Search, Boxes, Info, Share2, Database } from 'lucide-react';
 
 interface Capability {
   id: string;
@@ -217,8 +217,8 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
                         <label className="label" style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Business Criticality</label>
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '2px' }}>How vital is this capability to the organization?</div>
                       </div>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 800, color: criticalityOptions.find(o => o.value === formData.criticality)?.color, background: 'var(--card)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                        {criticalityOptions.find(o => o.value === formData.criticality)?.label}
+                      <div style={{ fontSize: '0.875rem', fontWeight: 800, color: criticalityOptions.find((o: any) => o.value === formData.criticality)?.color, background: 'var(--card)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        {criticalityOptions.find((o: any) => o.value === formData.criticality)?.label}
                       </div>
                     </div>
                     <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('importance'), height: '10px' }} value={formData.criticality} onChange={e => setFormData({...formData, criticality: e.target.value})} />

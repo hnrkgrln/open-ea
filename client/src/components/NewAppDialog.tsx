@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { X, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, PlusCircle } from 'lucide-react';
+import { X, Plus, Trash2, CheckCircle2, ArrowRight, Search, PlusCircle } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -93,10 +93,6 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
 
   const addOutgoing = () => {
     setOutgoingRelations([...outgoingRelations, { sourceId: '', targetId: '', type: integrationTypeOptions[0]?.value || 'API', name: '' }]);
-  };
-
-  const addIncoming = () => {
-    setIncomingRelations([...incomingRelations, { sourceId: '', targetId: '', type: integrationTypeOptions[0]?.value || 'API', name: '' }]);
   };
   const removeRelation = (index: number, isOutgoing: boolean) => {
     const setter = isOutgoing ? setOutgoingRelations : setIncomingRelations;
@@ -205,8 +201,8 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
                   <div className="field" style={{ margin: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <label className="label" style={{ margin: 0, fontSize: '0.7rem' }}>Business Criticality</label>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: criticalityOptions.find(o => o.value === formData.criticality)?.color }}>
-                        {criticalityOptions.find(o => o.value === formData.criticality)?.label}
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: criticalityOptions.find((o: any) => o.value === formData.criticality)?.color }}>
+                        {criticalityOptions.find((o: any) => o.value === formData.criticality)?.label}
                       </span>
                     </div>
                     <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('importance'), height: '6px' }} value={formData.criticality} onChange={e => setFormData({...formData, criticality: e.target.value})} />
@@ -215,20 +211,19 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
                   <div className="field" style={{ margin: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <label className="label" style={{ margin: 0, fontSize: '0.7rem' }}>Functional Fit</label>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: techFitOptions.find(o => o.value === formData.functionalFit)?.color }}>
-                        {funcFitOptions.find(o => o.value === formData.functionalFit)?.label}
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: techFitOptions.find((o: any) => o.value === formData.functionalFit)?.color }}>
+                        {funcFitOptions.find((o: any) => o.value === formData.functionalFit)?.label}
                       </span>
-                    </div>
-                    <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('bad-good'), height: '6px' }} value={formData.functionalFit} onChange={e => setFormData({...formData, functionalFit: e.target.value})} />
-                  </div>
+                      </div>
+                      <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('bad-good'), height: '6px' }} value={formData.functionalFit} onChange={e => setFormData({...formData, functionalFit: e.target.value})} />
+                      </div>
 
-                  <div className="field" style={{ margin: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div className="field" style={{ margin: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <label className="label" style={{ margin: 0, fontSize: '0.7rem' }}>Technical Fit</label>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: techFitOptions.find(o => o.value === formData.technicalFit)?.color }}>
-                        {techFitOptions.find(o => o.value === formData.technicalFit)?.label}
-                      </span>
-                    </div>
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: techFitOptions.find((o: any) => o.value === formData.technicalFit)?.color }}>
+                        {techFitOptions.find((o: any) => o.value === formData.technicalFit)?.label}
+                      </span>                    </div>
                     <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('bad-good'), height: '6px' }} value={formData.technicalFit} onChange={e => setFormData({...formData, technicalFit: e.target.value})} />
                   </div>
                 </div>
@@ -311,8 +306,8 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', maxHeight: '120px', overflowY: 'auto' }}>
                     {outgoingRelations.map((rel, index) => (
                       <div key={index} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 24px', gap: '0.25rem' }}>
-                        <input value={rel.name} onChange={e => updateRelation(index, 'name', e.target.value)} placeholder="Integration Name..." style={{ fontSize: '0.7rem', padding: '0.25rem' }} />
-                        <select value={rel.targetId} onChange={e => updateRelation(index, 'targetId', e.target.value)} style={{ fontSize: '0.7rem', padding: '0.25rem' }}>
+                        <input value={rel.name} onChange={e => updateRelation(index, true, 'name', e.target.value)} placeholder="Integration Name..." style={{ fontSize: '0.7rem', padding: '0.25rem' }} />
+                        <select value={rel.targetId} onChange={e => updateRelation(index, true, 'targetId', e.target.value)} style={{ fontSize: '0.7rem', padding: '0.25rem' }}>
                           <option value="">Target...</option>
                           {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
                         </select>

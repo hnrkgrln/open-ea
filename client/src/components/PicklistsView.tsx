@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, GripVertical, FileCode, Edit2, Sliders, ShieldCheck, Palette } from 'lucide-react';
+import { Plus, Trash2, Settings2, FileCode, ShieldCheck, Palette } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
@@ -9,7 +9,7 @@ interface PicklistOption {
   id: string;
   value: string;
   label: string;
-  color?: string;
+  color: string;
   order: number;
 }
 

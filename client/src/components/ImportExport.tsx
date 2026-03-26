@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Download, Upload, FileText, AlertCircle } from 'lucide-react';
+import { Download, Upload, AlertCircle } from 'lucide-react';
 
 interface ImportExportProps {
   type: 'applications' | 'capabilities';

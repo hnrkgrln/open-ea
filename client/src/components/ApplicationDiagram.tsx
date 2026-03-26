@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -13,7 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { Database, Boxes, ArrowUpRight } from 'lucide-react';
+import { Database, Boxes } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -717,6 +717,7 @@ const DiagramInner = ({
       nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick}
       nodesDraggable={true} nodesConnectable={false} elementsSelectable={true} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
       nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes}
+      style={{ width: '100%', height: '100%' }}
     >
       <Background color="var(--border)" gap={20} />
       <Controls showInteractive={false} />

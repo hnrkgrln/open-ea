@@ -197,15 +197,13 @@ const AppContent = () => {
 
           <main className={isFullWidth ? "main-full" : "main-container"}>
           <div style={{ display: activeTab === 'inventory' ? 'block' : 'none' }}>
-          <InventoryView 
-            apps={apps || []} 
-            onRefresh={handleRefresh} 
-            onSelectApp={(id) => setSelectedAppId(id)} 
-            onEditApp={setEditingApp} 
-            onNewApp={<NewAppDialog onSuccess={handleRefresh} />}
-          />
+            <InventoryView 
+              apps={apps || []} 
+              onSelectApp={(id) => setSelectedAppId(id)} 
+              onEditApp={setEditingApp} 
+              onNewApp={<NewAppDialog onSuccess={handleRefresh} />}
+            />
           </div>
-
         <div style={{ display: activeTab === 'capabilities' ? 'block' : 'none' }}>
           <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
         </div>
@@ -215,8 +213,6 @@ const AppContent = () => {
             capabilities={capabilities || []}
             onEditApp={(id) => setSelectedAppId(id)} 
             onEditCapability={(cap) => setEditingCapability(cap)} 
-            brandName={brandName} 
-            onUpdateBrand={setBrandName} 
             isVisible={activeTab === 'diagrams'}
           />
         </div>
@@ -246,7 +242,7 @@ const AppContent = () => {
   );
 };
 
-const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp, onNewApp }: { apps: Application[], onRefresh: () => void, onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
+const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Application[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
@@ -385,13 +381,13 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp, onNewApp }: { 
             <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
 
             {/* Custom Field Filters */}
-            {appMetaDefs.filter(d => !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)).map(def => (
+            {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
               <MultiSelect 
                 key={def.id} 
                 label={def.label} 
                 options={getCustomOptions(def.fieldName)} 
-                selectedValues={filters.custom[def.fieldName] || []} 
-                onChange={(val) => setFilters({...filters, custom: { ...filters.custom, [def.fieldName]: val }})} 
+                selectedValues={(filters.custom || {})[def.fieldName] || []} 
+                onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
                 placeholder={`All ${def.label}s`} 
               />
             ))}
@@ -699,7 +695,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   );
 };
 
-const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], capabilities: Capability[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
+const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisible }: { apps: Application[], capabilities: Capability[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, isVisible: boolean }) => {
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
     owner: [] as string[], 
@@ -730,7 +726,6 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, brandNa
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
-  const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   
   const scoreFields = [
     { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
@@ -862,8 +857,8 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, brandNa
                 key={def.id} 
                 label={def.label} 
                 options={getCustomOptions(def.fieldName)} 
-                selectedValues={filters.custom[def.fieldName] || []} 
-                onChange={(val) => setFilters({...filters, custom: { ...filters.custom, [def.fieldName]: val }})} 
+                selectedValues={(filters.custom || {})[def.fieldName] || []} 
+                onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
                 placeholder={`All ${def.label}s`} 
               />
             ))}
