@@ -167,19 +167,18 @@ const AppContent = () => {
             <ThemeToggle />
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <UnifiedSearch onSelectApp={(app) => { setSelectedAppId(app.id); }} onSelectCapability={(cap) => { setSelectedAppId(null); setActiveTab('capabilities'); setEditingCapability(cap); }} />
-              <NewAppDialog onSuccess={handleRefresh} />
             </div>
           </div>
-        </header>
-        <AppDetailsView appId={selectedAppId} onBack={() => setSelectedAppId(null)} onRefresh={handleRefresh} />
-      </div>
-    );
-  }
+          </header>
+          <AppDetailsView appId={selectedAppId} onBack={() => setSelectedAppId(null)} onRefresh={handleRefresh} />
+          </div>
+          );
+          }
 
-  return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <header className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          return (
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+          <header className="header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
           <button onClick={() => setActiveTab('inventory')} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
           <nav className="nav">
             <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
@@ -187,20 +186,26 @@ const AppContent = () => {
             <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => setActiveTab('diagrams')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
             <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={16} /> Settings</button>
           </nav>
-        </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          </div>
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <ThemeToggle />
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <UnifiedSearch onSelectApp={(app) => setSelectedAppId(app.id)} onSelectCapability={(cap) => setEditingCapability(cap)} />
-            <NewAppDialog onSuccess={handleRefresh} />
           </div>
-        </div>
-      </header>
+          </div>
+          </header>
 
-      <main className={isFullWidth ? "main-full" : "main-container"}>
-        <div style={{ display: activeTab === 'inventory' ? 'block' : 'none' }}>
-          <InventoryView apps={apps || []} onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} onEditApp={setEditingApp} />
-        </div>
+          <main className={isFullWidth ? "main-full" : "main-container"}>
+          <div style={{ display: activeTab === 'inventory' ? 'block' : 'none' }}>
+          <InventoryView 
+            apps={apps || []} 
+            onRefresh={handleRefresh} 
+            onSelectApp={(id) => setSelectedAppId(id)} 
+            onEditApp={setEditingApp} 
+            onNewApp={<NewAppDialog onSuccess={handleRefresh} />}
+          />
+          </div>
+
         <div style={{ display: activeTab === 'capabilities' ? 'block' : 'none' }}>
           <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
         </div>
@@ -241,7 +246,7 @@ const AppContent = () => {
   );
 };
 
-const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Application[], onRefresh: () => void, onSelectApp: (id: string) => void, onEditApp: (app: any) => void }) => {
+const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp, onNewApp }: { apps: Application[], onRefresh: () => void, onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
@@ -324,12 +329,13 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Database size={32} /> Application Inventory</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
           </div>
+          {onNewApp}
         </div>
       </div>
       {showFilters && (
