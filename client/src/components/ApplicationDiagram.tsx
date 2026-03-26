@@ -77,6 +77,7 @@ interface Props {
   picklists: Picklist[];
   mode?: 'network' | 'landscape' | 'app-landscape';
   activeOverlay?: string | null;
+  activeCustomOverlays?: string[];
   showApplications?: boolean;
   showCriticality?: boolean;
   relationSearch?: string;
@@ -182,6 +183,7 @@ const DiagramInner = ({
   picklists, 
   mode = 'landscape', 
   activeOverlay = 'lifecycle', 
+  activeCustomOverlays = [],
   showApplications = true, 
   showCriticality = true, 
   relationSearch = '',
@@ -323,9 +325,10 @@ const DiagramInner = ({
 
           const getCustomLabels = (app: Application) => {
             try {
+              if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
               const meta = app.metadata ? JSON.parse(app.metadata) : {};
               return dbMetaDefs
-                .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName])
+                .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
                 .map(d => (
                   <div key={d.id} style={{ 
                     fontSize: '9px', padding: '1px 4px', borderRadius: '4px', 
@@ -446,9 +449,10 @@ const DiagramInner = ({
 
         const getCustomLabels = (app: Application) => {
           try {
+            if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
             const meta = app.metadata ? JSON.parse(app.metadata) : {};
             return dbMetaDefs
-              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName])
+              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
                   fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 
@@ -625,9 +629,10 @@ const DiagramInner = ({
 
         const getCustomLabels = (app: Application) => {
           try {
+            if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
             const meta = app.metadata ? JSON.parse(app.metadata) : {};
             return dbMetaDefs
-              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName])
+              .filter(d => d.entityType === 'Application' && d.fieldType !== 'range' && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
               .map(d => (
                 <div key={d.id} style={{ 
                   fontSize: '8px', padding: '0px 3px', borderRadius: '3px', 

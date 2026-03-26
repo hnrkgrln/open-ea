@@ -701,20 +701,19 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
     owner: [] as string[], 
     lifecycle: [] as string[], 
     type: [] as string[],
-    capabilityId: [] as string[],
-    custom: {} as Record<string, string[]>
+    capabilityId: [] as string[]
   });
   
   // Auto-show filters if any are active
   const isAnyFilterActive = useMemo(() => {
-    const hasCustom = Object.values(filters.custom || {}).some(vals => vals.length > 0);
-    return filters.search !== '' || filters.owner.length > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.capabilityId.length > 0 || hasCustom;
+    return filters.search !== '' || filters.owner.length > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.capabilityId.length > 0;
   }, [filters]);
 
   const [showFilters, setShowFilters] = useState(isAnyFilterActive);
 
   const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openea_diagram_mode', 'landscape');
   const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openea_diagram_overlay', 'lifecycle');
+  const [activeCustomOverlays, setActiveCustomOverlays] = useLocalStorage<string[]>('openea_diagram_custom_overlays', []);
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
 
@@ -768,38 +767,9 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
         matchSearch = appMatches || integrationMatches;
       }
 
-      // Custom Meta Filters
-      let matchCustom = true;
-      if (filters.custom) {
-        const appMeta = app.metadata ? JSON.parse(app.metadata) : {};
-        for (const [fieldName, selectedVals] of Object.entries(filters.custom)) {
-          if (selectedVals.length > 0) {
-            const val = String(appMeta[fieldName] || '');
-            if (!selectedVals.includes(val)) {
-              matchCustom = false;
-              break;
-            }
-          }
-        }
-      }
-
-      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap && matchCustom;
+      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap;
     });
   }, [apps, filters, capabilities, integrations]);
-
-  const getCustomOptions = (fieldName: string) => {
-    if (!apps) return [];
-    const values = new Set<string>();
-    apps.forEach(app => {
-      try {
-        const meta = app.metadata ? JSON.parse(app.metadata) : {};
-        if (meta[fieldName] !== undefined && meta[fieldName] !== null && meta[fieldName] !== '') {
-          values.add(String(meta[fieldName]));
-        }
-      } catch (e) { /* ignore */ }
-    });
-    return Array.from(values).sort().map(v => ({ value: v, label: v }));
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -840,7 +810,19 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
             )}
           </div>
           
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.5rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
+          {appMetaDefs.filter(d => d.fieldType !== 'range').length > 0 && (
+            <div style={{ width: '180px' }}>
+              <MultiSelect 
+                label=""
+                options={appMetaDefs.filter(d => d.fieldType !== 'range').map(d => ({ value: d.fieldName, label: d.label }))}
+                selectedValues={activeCustomOverlays}
+                onChange={setActiveCustomOverlays}
+                placeholder="Custom Labels..."
+              />
+            </div>
+          )}
+
+          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.5rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', marginTop: '0.25rem' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
         </div>
       </div>
       {showFilters && (
@@ -851,19 +833,7 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
             <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
             <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
             
-            {/* Custom Field Filters */}
-            {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
-              <MultiSelect 
-                key={def.id} 
-                label={def.label} 
-                options={getCustomOptions(def.fieldName)} 
-                selectedValues={(filters.custom || {})[def.fieldName] || []} 
-                onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
-                placeholder={`All ${def.label}s`} 
-              />
-            ))}
-
-            <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], custom: {} })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [] })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
         </div>
       )}
@@ -879,6 +849,7 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
           picklists={picklists || []}
           mode={mode} 
           activeOverlay={activeOverlay} 
+          activeCustomOverlays={activeCustomOverlays}
           showApplications={showApplications} 
           showCriticality={showCriticality} 
           relationSearch={filters.search} 
