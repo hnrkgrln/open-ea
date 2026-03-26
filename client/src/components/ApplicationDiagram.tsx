@@ -713,8 +713,7 @@ const DiagramInner = ({
       });
       setNodes(appNodes); setEdges([]);
     }
-  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
-
+  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
   useEffect(() => {
     if (nodes.length > 0 && visible) {
       const timer = setTimeout(() => { fitView({ padding: 0.2, duration: 800 }); }, 150);
