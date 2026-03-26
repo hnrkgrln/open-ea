@@ -333,14 +333,22 @@ const DiagramInner = ({
                   const valStr = String(meta[d.fieldName]);
                   let bg = 'var(--accent)';
                   let text = 'var(--foreground)';
-                  const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
-                  if (picklist) {
-                    const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
-                    if (opt && opt.color) {
-                      bg = opt.color;
-                      text = getContrastColor(bg);
+                  
+                  if (d.fieldType === 'range') {
+                    const colors = getOverlayColor(valStr, d, picklists || []);
+                    bg = colors.bg;
+                    text = colors.text;
+                  } else {
+                    const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+                    if (picklist) {
+                      const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+                      if (opt && opt.color) {
+                        bg = opt.color;
+                        text = getContrastColor(bg);
+                      }
                     }
                   }
+                  
                   return (
                     <div key={d.id} style={{ 
                       fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
@@ -471,14 +479,22 @@ const DiagramInner = ({
                 const valStr = String(meta[d.fieldName]);
                 let bg = 'var(--accent)';
                 let text = 'var(--foreground)';
-                const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
-                if (picklist) {
-                  const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
-                  if (opt && opt.color) {
-                    bg = opt.color;
-                    text = getContrastColor(bg);
+                
+                if (d.fieldType === 'range') {
+                  const colors = getOverlayColor(valStr, d, picklists || []);
+                  bg = colors.bg;
+                  text = colors.text;
+                } else {
+                  const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+                  if (picklist) {
+                    const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+                    if (opt && opt.color) {
+                      bg = opt.color;
+                      text = getContrastColor(bg);
+                    }
                   }
                 }
+                
                 return (
                   <div key={d.id} style={{ 
                     fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
@@ -670,14 +686,22 @@ const DiagramInner = ({
                 const valStr = String(meta[d.fieldName]);
                 let bg = 'var(--accent)';
                 let text = 'var(--foreground)';
-                const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
-                if (picklist) {
-                  const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
-                  if (opt && opt.color) {
-                    bg = opt.color;
-                    text = getContrastColor(bg);
+                
+                if (d.fieldType === 'range') {
+                  const colors = getOverlayColor(valStr, d, picklists || []);
+                  bg = colors.bg;
+                  text = colors.text;
+                } else {
+                  const picklist = picklists?.find(p => p.name === d.fieldName || p.name === d.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase());
+                  if (picklist) {
+                    const opt = picklist.options.find((o: any) => o.value === valStr || o.label === valStr);
+                    if (opt && opt.color) {
+                      bg = opt.color;
+                      text = getContrastColor(bg);
+                    }
                   }
                 }
+                
                 return (
                   <div key={d.id} style={{ 
                     fontSize: '10px', padding: '2px 6px', borderRadius: '4px', 
