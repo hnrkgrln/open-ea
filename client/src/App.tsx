@@ -11,6 +11,7 @@ import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
 import { SearchInput, MultiSelect } from './components/FilterControls';
+import { ImportExport, ImportExportSettings } from './components/ImportExport';
 
 // Custom hook for persisted state
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
@@ -140,6 +141,14 @@ const AppContent = () => {
     }
   });
 
+  const { data: capabilities } = useQuery({
+    queryKey: ['capabilities'],
+    queryFn: async () => {
+      const res = await fetch('/api/capabilities');
+      return res.json() as Promise<Capability[]>;
+    }
+  });
+
   const isFullWidth = activeTab === 'diagrams';
 
   if (selectedAppId) {
@@ -194,11 +203,12 @@ const AppContent = () => {
           <InventoryView apps={apps || []} onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} onEditApp={setEditingApp} />
         </div>
         <div style={{ display: activeTab === 'capabilities' ? 'block' : 'none' }}>
-          <CapabilitiesView onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
+          <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
         </div>
         <div style={{ display: activeTab === 'diagrams' ? 'block' : 'none', height: '100%' }}>
           <DiagramsView 
             apps={apps || []} 
+            capabilities={capabilities || []}
             onEditApp={(id) => setSelectedAppId(id)} 
             onEditCapability={(cap) => setEditingCapability(cap)} 
             brandName={brandName} 
@@ -208,6 +218,7 @@ const AppContent = () => {
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
           <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} />
+          <ImportExportSettings onRefresh={handleRefresh} apps={apps || []} capabilities={capabilities || []} />
         </div>
       </main>
 
@@ -315,7 +326,9 @@ const InventoryView = ({ apps, onRefresh, onSelectApp, onEditApp }: { apps: Appl
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Database size={32} /> Application Inventory</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <ImportExport type="applications" data={apps || []} onImportSuccess={onRefresh} />
+          <div style={{ width: '1px', height: '1.5rem', background: 'var(--border)', margin: '0 0.5rem' }} />
           <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
@@ -557,7 +570,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
   );
 };
 
-const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, onSelectApp: (id: string) => void }) => {
+const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabilities: Capability[], onRefresh: () => void, onSelectApp: (id: string) => void }) => {
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   
   const { data: picklists } = useQuery<any[]>({
@@ -570,31 +583,29 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
 
   const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
 
-  const { data: flatCapabilities, isLoading } = useQuery<Capability[]>({ queryKey: ['capabilities'], queryFn: async () => { const res = await fetch('/api/capabilities'); return res.json(); } });
-  
   const capabilityTree = useMemo(() => {
-    if (!flatCapabilities) return [];
+    if (!capabilities) return [];
     const map = new Map<string, Capability>();
     const roots: Capability[] = [];
-    flatCapabilities.forEach(cap => map.set(cap.id, { ...cap, children: [] }));
+    capabilities.forEach(cap => map.set(cap.id, { ...cap, children: [] }));
     map.forEach(cap => { 
       const parentId = cap.parentId === '' ? null : cap.parentId;
       if (parentId && map.has(parentId)) map.get(parentId)!.children!.push(cap); 
       else roots.push(cap); 
     });
     return roots;
-  }, [flatCapabilities]);
-
-  if (isLoading) return <div>Loading capabilities...</div>;
+  }, [capabilities]);
 
   return (
     <div>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Boxes size={32} /> Business Capabilities</h1>
-          <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{flatCapabilities?.length || 0}</strong> areas.</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <ImportExport type="capabilities" data={capabilities || []} onImportSuccess={onRefresh} />
+          <div style={{ width: '1px', height: '1.5rem', background: 'var(--border)', margin: '0 0.5rem' }} />
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
@@ -642,7 +653,7 @@ const CapabilitiesView = ({ onRefresh, onSelectApp }: { onRefresh: () => void, o
   );
 };
 
-const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
+const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, brandName, onUpdateBrand, isVisible }: { apps: Application[], capabilities: Capability[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, brandName: string, onUpdateBrand: (val: string) => void, isVisible: boolean }) => {
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
     owner: [] as string[], 
@@ -665,7 +676,6 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
-  const { data: flatCapabilities } = useQuery<Capability[]>({ queryKey: ['capabilities'], queryFn: async () => { const res = await fetch('/api/capabilities'); return res.json(); } });
   const { data: integrations } = useQuery<Integration[]>({ queryKey: ['integrations'], queryFn: async () => { const res = await fetch('/api/integrations'); return res.json(); } });
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
@@ -687,16 +697,11 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
       const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
       const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
-      // Effective Criticality calculation for filtering
-      const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
-        ? String(Math.max(...app.capabilities.map(c => Number(c.criticality || 1))))
-        : app.criticality;
-
       // Capability Filter Logic
       let matchCap = true;
       if (filters.capabilityId.length > 0) {
         const getDescendantIds = (id: string): string[] => {
-          const children = flatCapabilities?.filter(c => c.parentId === id) || [];
+          const children = capabilities?.filter(c => c.parentId === id) || [];
           return [id, ...children.flatMap(c => getDescendantIds(c.id))];
         };
         const allTargetIds = filters.capabilityId.flatMap(id => getDescendantIds(id));
@@ -720,7 +725,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
 
       return matchSearch && matchOwner && matchLifecycle && matchType && matchCap;
     });
-  }, [apps, filters, flatCapabilities, integrations]);
+  }, [apps, filters, capabilities, integrations]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -769,7 +774,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
             <SearchInput label="Diagram Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="App or Integration name..." />
             <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
-            <MultiSelect label="Capability Area" options={flatCapabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
+            <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
             <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
             
             <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [] })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
@@ -783,7 +788,7 @@ const DiagramsView = ({ apps, onEditApp, onEditCapability, brandName, onUpdateBr
           apps={apps || []}
           filteredApps={filteredApps}
           integrations={integrations || []}
-          capabilities={flatCapabilities || []}
+          capabilities={capabilities || []}
           metaDefs={metaDefs || []}
           picklists={picklists || []}
           mode={mode} 
