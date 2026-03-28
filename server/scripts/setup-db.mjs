@@ -70,6 +70,13 @@ try {
     throw err;
   }
 
+  console.log('Initializing standard metamodel (picklists and scores)...');
+  execSync('npx tsx src/seed.ts', { 
+    cwd: path.join(__dirname, '..'), 
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: databaseUrl }
+  });
+
   console.log('Database setup complete!');
 } catch (err) {
   console.error('Database setup failed:', err);
