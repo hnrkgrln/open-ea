@@ -214,8 +214,23 @@ export const ImportExportSettings = ({ onRefresh, apps, capabilities, integratio
           <ImportExport type="integrations" data={integrations} onImportSuccess={onRefresh} />
         </div>
       </div>
-      <div style={{ marginTop: '1.5rem', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-        <AlertCircle size={20} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} />
+      <div style={{ marginTop: '1.5rem', padding: '1.25rem', borderRadius: 'var(--radius)', background: 'var(--accent)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <AlertCircle size={20} style={{ color: 'var(--primary)' }} />
+          <strong style={{ fontSize: '0.875rem' }}>Recommended Import Sequence</strong>
+        </div>
+        <div style={{ fontSize: '0.875rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
+          To correctly restore all relationships between your data, please import files in this specific order:
+          <ol style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+            <li><strong>Capabilities</strong> (Initial hierarchy)</li>
+            <li><strong>Applications</strong> (Links apps to existing capabilities)</li>
+            <li><strong>Integrations</strong> (Links apps to each other)</li>
+            <li><strong>Capabilities</strong> (Optional second pass: links capabilities back to apps)</li>
+          </ol>
+        </div>
+      </div>
+
+      <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
         <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
           <strong>Pro tip:</strong> To update existing records, include the <code>id</code> column in your CSV. To create new records, leave the <code>id</code> empty or omit the column.
         </div>
