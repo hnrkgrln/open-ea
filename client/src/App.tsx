@@ -167,8 +167,14 @@ const AppContent = () => {
     }
   });
 
+  const { data: integrations } = useQuery({
+    queryKey: ['integrations'],
+    queryFn: async () => {
+      const res = await fetch('/api/integrations');
+      return res.json() as Promise<Integration[]>;
+    }
+  });
   const isFullWidth = activeTab === 'diagrams';
-
   if (selectedAppId) {
     return (
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -230,13 +236,14 @@ const AppContent = () => {
           <DiagramsView 
             apps={apps || []} 
             capabilities={capabilities || []}
+            integrations={integrations || []}
             onEditApp={(id) => setSelectedAppId(id)} 
             onEditCapability={(cap) => setEditingCapability(cap)} 
             isVisible={activeTab === 'diagrams'}
           />
         </div>
         <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
-          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} onRefresh={handleRefresh} />
+          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} integrations={integrations || []} onRefresh={handleRefresh} />
         </div>
       </main>
 
@@ -714,7 +721,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   );
 };
 
-const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisible }: { apps: Application[], capabilities: Capability[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, isVisible: boolean }) => {
+const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapability, isVisible }: { apps: Application[], capabilities: Capability[], integrations: any[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, isVisible: boolean }) => {
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
     search: '', 
     owner: [] as string[], 
@@ -738,7 +745,6 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
-  const { data: integrations } = useQuery<Integration[]>({ queryKey: ['integrations'], queryFn: async () => { const res = await fetch('/api/integrations'); return res.json(); } });
 
   const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
 
@@ -865,6 +871,7 @@ const DiagramsView = ({ apps, capabilities, onEditApp, onEditCapability, isVisib
           capabilities={capabilities || []}
           metaDefs={metaDefs || []}
           picklists={picklists || []}
+
           mode={mode} 
           activeOverlay={activeOverlay} 
           activeCustomOverlays={activeCustomOverlays}

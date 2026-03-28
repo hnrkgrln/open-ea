@@ -37,10 +37,11 @@ interface Props {
   onUpdateBrand: (val: string) => void;
   apps: any[];
   capabilities: any[];
+  integrations: any[];
   onRefresh: () => void;
 }
 
-export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, onRefresh }: Props) => {
+export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, integrations, onRefresh }: Props) => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'strategic' | 'picklists' | 'metadata' | 'branding' | 'import-export'>('strategic');
   const [selectedPicklistId, setSelectedPicklistId] = useState<string | null>(null);
@@ -536,7 +537,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
               </div>
             </div>
           ) : activeTab === 'import-export' ? (
-            <ImportExportSettings apps={apps} capabilities={capabilities} onRefresh={onRefresh} />
+            <ImportExportSettings apps={apps} capabilities={capabilities} integrations={integrations} onRefresh={onRefresh} />
           ) : (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--muted-foreground)' }}>
               Select a category from the sidebar to manage configuration.

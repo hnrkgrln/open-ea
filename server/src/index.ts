@@ -243,13 +243,28 @@ server.get('/integrations', async () => {
 server.post('/integrations', {
   schema: {
     body: z.object({
+      id: z.string().optional(),
       name: z.string().optional(),
       sourceAppId: z.string(),
       targetAppId: z.string(),
       type: z.string().optional(),
     }),
   },
-}, async (request) => {
+}, async (request, reply) => {
+  const { sourceAppId, targetAppId } = request.body;
+  const [source, target] = await Promise.all([
+    prisma.application.findUnique({ where: { id: sourceAppId } }),
+    prisma.application.findUnique({ where: { id: targetAppId } })
+  ]);
+
+  if (!source || !target) {
+    return reply.status(400).send({ 
+      error: 'One or both applications do not exist. Integration cannot be created.',
+      sourceExists: !!source,
+      targetExists: !!target
+    });
+  }
+
   return prisma.integration.create({
     data: request.body,
   });
@@ -265,7 +280,20 @@ server.put('/integrations/:id', {
       type: z.string().optional(),
     }),
   },
-}, async (request) => {
+}, async (request, reply) => {
+  const { sourceAppId, targetAppId } = request.body;
+  
+  if (sourceAppId || targetAppId) {
+    const checks = [];
+    if (sourceAppId) checks.push(prisma.application.findUnique({ where: { id: sourceAppId } }));
+    if (targetAppId) checks.push(prisma.application.findUnique({ where: { id: targetAppId } }));
+    
+    const results = await Promise.all(checks);
+    if (results.some(r => !r)) {
+      return reply.status(400).send({ error: 'One or more specified applications do not exist.' });
+    }
+  }
+
   return prisma.integration.update({
     where: { id: request.params.id },
     data: request.body,

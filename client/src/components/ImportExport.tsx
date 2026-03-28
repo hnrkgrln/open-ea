@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { Download, Upload, AlertCircle } from 'lucide-react';
 
 interface ImportExportProps {
-  type: 'applications' | 'capabilities';
+  type: 'applications' | 'capabilities' | 'integrations';
   onImportSuccess: () => void;
   data: any[];
 }
@@ -16,8 +16,10 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
     let headers: string[] = [];
     if (type === 'applications') {
       headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'type', 'criticality', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
-    } else {
+    } else if (type === 'capabilities') {
       headers = ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'];
+    } else {
+      headers = ['id', 'name', 'sourceAppId', 'targetAppId', 'type'];
     }
 
     const csvRows = data.map(item => {
@@ -182,14 +184,14 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
   );
 };
 
-export const ImportExportSettings = ({ onRefresh, apps, capabilities }: { onRefresh: () => void, apps: any[], capabilities: any[] }) => {
+export const ImportExportSettings = ({ onRefresh, apps, capabilities, integrations }: { onRefresh: () => void, apps: any[], capabilities: any[], integrations: any[] }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Data Portability</h2>
         <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Bulk import and export of your architecture artifacts.</p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
         <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Applications</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
@@ -203,6 +205,13 @@ export const ImportExportSettings = ({ onRefresh, apps, capabilities }: { onRefr
             Import or export your business capability map. Maintain hierarchy using parentId.
           </p>
           <ImportExport type="capabilities" data={capabilities} onImportSuccess={onRefresh} />
+        </div>
+        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Integrations</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+            Import or export system dependencies. Requires sourceAppId and targetAppId.
+          </p>
+          <ImportExport type="integrations" data={integrations} onImportSuccess={onRefresh} />
         </div>
       </div>
       <div style={{ marginTop: '1.5rem', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
