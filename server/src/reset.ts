@@ -33,7 +33,7 @@ async function main() {
     { value: '5', label: '5 - Mission Critical', color: '#311b92', order: 5 },
   ];
 
-  console.log('🌱 Initializing standard metamodel...');
+  console.log('🌱 Initializing standard meta-model...');
 
   await prisma.picklist.create({
     data: {

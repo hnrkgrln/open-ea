@@ -196,7 +196,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
           </div>
 
           <div className="card" style={{ padding: '0.5rem' }}>
-            <div style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Standard Picklists</div>
+            <div style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Standard Meta-model</div>
             {standardPicklists?.map(p => (
               <button
                 key={p.id}

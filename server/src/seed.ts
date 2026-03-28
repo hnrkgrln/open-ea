@@ -10,7 +10,7 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     return;
   }
 
-  console.log(`Creating standard picklist: ${name}`);
+  console.log(`Creating standard meta-model: ${name}`);
   await prisma.picklist.create({
     data: {
       name,
@@ -25,9 +25,9 @@ async function seedPicklist(name: string, label: string, options: any[]) {
       }
     }
   });
-}
+  }
 
-async function main() {
+  async function main() {
   // Create Standard Score Picklists (1-5)
   const fitOptions = [
     { value: '1', label: '1 - Low', color: '#c92a2a' },
@@ -58,11 +58,13 @@ async function main() {
   ]);
 
   await seedPicklist('owner', 'Application Owner', []);
+
   await seedPicklist('application_type', 'Application Type', [
     { value: 'Business Application', label: 'Business Application' },
     { value: 'Infrastructure Service', label: 'Infrastructure Service' },
     { value: 'Platform', label: 'Platform' },
   ]);
+
   await seedPicklist('integration_type', 'Integration Type', [
     { value: 'API', label: 'API' },
     { value: 'Batch', label: 'Batch' },
@@ -70,8 +72,9 @@ async function main() {
     { value: 'Manual', label: 'Manual' },
   ]);
 
-  console.log('Standard configuration and picklists check complete.');
-}
+  console.log('Standard Meta-model check complete.');
+  }
+
 
 main()
   .catch((e) => {

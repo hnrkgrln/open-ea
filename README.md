@@ -60,7 +60,7 @@ OpenEA is a modern, high-density enterprise architecture tool designed for small
    # Create a .env file in the server directory and set:
    # DATABASE_URL="postgresql://johndoe:mypassword@localhost:5432/mydb?schema=public"
    
-   # Run initial setup (auto-detects engine and ensures standard metamodel exists)
+   # Run initial setup (auto-detects engine and ensures standard meta-model exists)
    npm run setup
    
    # FACTORY RESET (WARNING: Wipes all data!)
