@@ -742,6 +742,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   const [activeCustomOverlays, setActiveCustomOverlays] = useLocalStorage<string[]>('openea_diagram_custom_overlays', []);
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
+  const [hideOrphanApps, setHideOrphanApps] = useLocalStorage<boolean>('meat_diagram_hide_orphans', true);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
@@ -832,6 +833,15 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
                 Apps
               </button>
             )}
+            {mode === 'network' && (
+              <button 
+                onClick={() => setHideOrphanApps(!hideOrphanApps)} 
+                style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: hideOrphanApps ? 'var(--background)' : 'transparent', boxShadow: hideOrphanApps ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: hideOrphanApps ? 'var(--primary)' : 'var(--muted-foreground)' }}
+              >
+                {hideOrphanApps ? <EyeOff size={16} style={{ marginRight: '0.5rem' }} /> : <Eye size={16} style={{ marginRight: '0.5rem' }} />}
+                Hide Orphans
+              </button>
+            )}
           </div>
           
           {overlayMetaDefs.length > 0 && (
@@ -876,6 +886,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
           activeOverlay={activeOverlay} 
           activeCustomOverlays={activeCustomOverlays}
           showApplications={showApplications} 
+          hideOrphanApps={hideOrphanApps}
           showCriticality={showCriticality} 
           relationSearch={filters.search} 
           visible={isVisible}

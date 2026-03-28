@@ -96,6 +96,7 @@ interface Props {
   activeOverlay?: string | null;
   activeCustomOverlays?: string[];
   showApplications?: boolean;
+  hideOrphanApps?: boolean;
   showCriticality?: boolean;
   relationSearch?: string;
   visible?: boolean;
@@ -202,6 +203,7 @@ const DiagramInner = ({
   activeOverlay = 'lifecycle', 
   activeCustomOverlays = [],
   showApplications = true, 
+  hideOrphanApps = true,
   showCriticality = true, 
   relationSearch = '',
   visible = false
@@ -301,9 +303,11 @@ const DiagramInner = ({
         return visibleAppIds.has(i.sourceAppId) && visibleAppIds.has(i.targetAppId);
       });
 
+      const appsWithIntegrations = new Set(filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]));
+
       const finalAppIds = Array.from(new Set([
-        ...filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]),
-        ...filteredApps.map(a => a.id)
+        ...Array.from(appsWithIntegrations),
+        ...(hideOrphanApps ? [] : filteredApps.map(a => a.id))
       ]));
 
       const adj = new Map<string, string[]>();
@@ -724,7 +728,7 @@ const DiagramInner = ({
       });
       setNodes(appNodes); setEdges([]);
     }
-  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
+  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
   useEffect(() => {
     if (nodes.length > 0 && visible) {
       const timer = setTimeout(() => { fitView({ padding: 0.2, duration: 800 }); }, 150);
