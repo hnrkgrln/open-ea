@@ -730,7 +730,7 @@ const DiagramInner = ({
       });
       setNodes(appNodes); setEdges([]);
     }
-  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
+  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, showApplications, hideOrphanApps, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
   useEffect(() => {
     if (nodes.length > 0 && visible && viewportWidth > 0) {
       const timer = setTimeout(() => {
@@ -765,7 +765,7 @@ const DiagramInner = ({
       }, 200); // Slightly longer timeout to ensure styles are applied
       return () => clearTimeout(timer);
     }
-  }, [nodes, mode, visible, setViewport, getNodes, viewportWidth]);
+  }, [nodes, visible, setViewport, getNodes]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
