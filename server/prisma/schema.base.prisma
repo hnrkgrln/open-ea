@@ -1,0 +1,76 @@
+model Application {
+  id            String        @id @default(uuid())
+  name          String
+  description   String?
+  owner         String?
+  lifecycle     String?       @default("Planning")
+  type          String?
+  criticality   String?       @default("3")
+  functionalFit String?       @default("3")
+  technicalFit  String?       @default("3")
+  metadata      String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  targetOf      Integration[] @relation("targetApp")
+  sourceOf      Integration[] @relation("sourceApp")
+  capabilities  Capability[]  @relation("ApplicationToCapability")
+}
+
+model Capability {
+  id           String        @id @default(uuid())
+  name         String
+  description  String?
+  criticality  String?       @default("3")
+  metadata     String?
+  parentId     String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  parent       Capability?   @relation("CapabilityToCapability", fields: [parentId], references: [id], onDelete: Cascade)
+  children     Capability[]  @relation("CapabilityToCapability")
+  applications Application[] @relation("ApplicationToCapability")
+}
+
+model Integration {
+  id          String      @id @default(uuid())
+  name        String?
+  sourceAppId String
+  targetAppId String
+  type        String?
+  protocol    String?
+  dataFormat  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  targetApp   Application @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)
+  sourceApp   Application @relation("sourceApp", fields: [sourceAppId], references: [id], onDelete: Cascade)
+}
+
+model MetadataDefinition {
+  id         String   @id @default(uuid())
+  entityType String
+  fieldName  String
+  fieldType  String
+  label      String
+  required   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  max        Int?     @default(100)
+  min        Int?     @default(0)
+  scaleType  String?
+}
+
+model Picklist {
+  id      String           @id @default(uuid())
+  name    String           @unique
+  label   String
+  options PicklistOption[]
+}
+
+model PicklistOption {
+  id         String   @id @default(uuid())
+  value      String
+  label      String
+  color      String?
+  order      Int      @default(0)
+  picklistId String
+  picklist   Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+}
