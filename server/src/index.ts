@@ -55,11 +55,22 @@ server.post('/applications', {
   },
 }, async (request) => {
   const { capabilityIds, ...data } = request.body;
+  
+  // Filter for only existing capability IDs to prevent Prisma crash (P2025)
+  let validIds: string[] = [];
+  if (capabilityIds && capabilityIds.length > 0) {
+    const existing = await prisma.capability.findMany({
+      where: { id: { in: capabilityIds } },
+      select: { id: true }
+    });
+    validIds = existing.map(c => c.id);
+  }
+
   return prisma.application.create({
     data: {
       ...data,
-      capabilities: capabilityIds ? {
-        connect: capabilityIds.map(id => ({ id }))
+      capabilities: validIds.length > 0 ? {
+        connect: validIds.map(id => ({ id }))
       } : undefined
     },
   });
@@ -84,12 +95,22 @@ server.put('/applications/:id', {
 }, async (request) => {
   const { id } = request.params;
   const { capabilityIds, ...data } = request.body;
+
+  let validIds: string[] = [];
+  if (capabilityIds && capabilityIds.length > 0) {
+    const existing = await prisma.capability.findMany({
+      where: { id: { in: capabilityIds } },
+      select: { id: true }
+    });
+    validIds = existing.map(c => c.id);
+  }
+
   return prisma.application.update({
     where: { id },
     data: {
       ...data,
       capabilities: capabilityIds ? {
-        set: capabilityIds.map(id => ({ id }))
+        set: validIds.map(id => ({ id }))
       } : undefined
     },
   });
@@ -130,11 +151,21 @@ server.post('/capabilities', {
 }, async (request) => {
   const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
+
+  let validIds: string[] = [];
+  if (applicationIds && applicationIds.length > 0) {
+    const existing = await prisma.application.findMany({
+      where: { id: { in: applicationIds } },
+      select: { id: true }
+    });
+    validIds = existing.map(a => a.id);
+  }
+
   return prisma.capability.create({
     data: {
       ...data,
-      applications: applicationIds ? {
-        connect: applicationIds.map(id => ({ id }))
+      applications: validIds.length > 0 ? {
+        connect: validIds.map(id => ({ id }))
       } : undefined
     },
   });
@@ -156,12 +187,22 @@ server.put('/capabilities/:id', {
   const { id } = request.params;
   const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
+
+  let validIds: string[] = [];
+  if (applicationIds && applicationIds.length > 0) {
+    const existing = await prisma.application.findMany({
+      where: { id: { in: applicationIds } },
+      select: { id: true }
+    });
+    validIds = existing.map(a => a.id);
+  }
+
   return prisma.capability.update({
     where: { id },
     data: {
       ...data,
       applications: applicationIds ? {
-        set: applicationIds.map(id => ({ id }))
+        set: validIds.map(id => ({ id }))
       } : undefined
     },
   });
