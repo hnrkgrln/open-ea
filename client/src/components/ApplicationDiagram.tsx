@@ -777,7 +777,7 @@ const DiagramInner = ({
   return (
     <ReactFlow
       nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick}
-      nodesDraggable={true} nodesConnectable={false} elementsSelectable={true} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
+      nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
       nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes}
       style={{ width: '100%', height: '100%' }}
     >
