@@ -4,6 +4,15 @@ import { useQuery } from '@tanstack/react-query';
 import { LifecycleBadge } from './LifecycleBadge';
 import { EditAppDialog } from './EditAppDialog';
 
+const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 interface Props {
   appId: string;
   onBack: () => void;
@@ -38,7 +47,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
 
   if (isLoading || !app) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading application details...</div>;
 
-  const meta = app.metadata ? JSON.parse(app.metadata) : {};
+  const meta = safeJsonParse(app.metadata);
   
   const getPicklistInfo = (picklistName: string, value: string) => {
     const list = picklists?.find(p => p.name === picklistName);

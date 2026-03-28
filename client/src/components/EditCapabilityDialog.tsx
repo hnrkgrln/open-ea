@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Edit2, CheckCircle2, Trash2, Search, Boxes, Info, Share2, Database } from 'lucide-react';
 
+const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 interface Capability {
   id: string;
   name: string;
@@ -67,7 +76,7 @@ export const EditCapabilityDialog = ({ capability, onSuccess, parentId, trigger,
       });
 
       try {
-        setDynamicValues(capability?.metadata ? JSON.parse(capability.metadata) : {});
+        setDynamicValues(safeJsonParse(capability?.metadata));
       } catch (e) {
         setDynamicValues({});
       }

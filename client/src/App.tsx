@@ -12,6 +12,17 @@ import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
 import { SearchInput, MultiSelect } from './components/FilterControls';
 
+// Helper for safe JSON parsing
+const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    console.error('JSON Parse Error:', e, 'for string:', str);
+    return fallback;
+  }
+};
+
 // Custom hook for persisted state
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -316,7 +327,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
       // Custom Meta Filters
       let matchCustom = true;
       if (filters.custom) {
-        const appMeta = app.metadata ? JSON.parse(app.metadata) : {};
+        const appMeta = safeJsonParse(app.metadata);
         for (const [fieldName, selectedVals] of Object.entries(filters.custom)) {
           if (selectedVals.length > 0) {
             const val = String(appMeta[fieldName] || '');
@@ -343,7 +354,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
     const values = new Set<string>();
     apps.forEach(app => {
       try {
-        const meta = app.metadata ? JSON.parse(app.metadata) : {};
+        const meta = safeJsonParse(app.metadata);
         if (meta[fieldName] !== undefined && meta[fieldName] !== null && meta[fieldName] !== '') {
           values.add(String(meta[fieldName]));
         }
@@ -399,7 +410,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
       {viewMode === 'grid' ? (
         <div className="grid">
           {filteredApps.map(app => {
-            const meta = app.metadata ? JSON.parse(app.metadata) : {};
+            const meta = safeJsonParse(app.metadata);
             const isInherited = app.capabilities && app.capabilities.length > 0;
             const inheritedCrit = isInherited 
               ? String(Math.max(...app.capabilities!.map(c => Number(c.criticality || 1))))
@@ -454,7 +465,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Name</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Owner</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Type</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Status</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Lifecycle</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Capabilities</th><th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>{filteredApps.map(app => {
-              const meta = app.metadata ? JSON.parse(app.metadata) : {};
+              const meta = safeJsonParse(app.metadata);
               const isInherited = app.capabilities && app.capabilities.length > 0;
               const inheritedCrit = isInherited 
                 ? String(Math.max(...app.capabilities!.map(c => Number(c.criticality || 1))))

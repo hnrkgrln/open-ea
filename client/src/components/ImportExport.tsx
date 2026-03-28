@@ -62,14 +62,23 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
       const rows = lines.slice(1).filter(line => line.trim() !== '');
 
       const importedData = rows.map(line => {
-        // Simple CSV parser that handles quotes
         const values: any[] = [];
         let current = '';
         let inQuotes = false;
+        
         for (let i = 0; i < line.length; i++) {
           const char = line[i];
+          const nextChar = line[i + 1];
+
           if (char === '"') {
-            inQuotes = !inQuotes;
+            if (inQuotes && nextChar === '"') {
+              // Escaped quote: "" -> "
+              current += '"';
+              i++; // Skip the next quote
+            } else {
+              // Toggle quote mode
+              inQuotes = !inQuotes;
+            }
           } else if (char === ',' && !inQuotes) {
             values.push(current.trim());
             current = '';
@@ -81,7 +90,11 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
         const obj: any = {};
         headers.forEach((header, index) => {
-          const val = values[index]?.replace(/^"|"$/g, '').replace(/""/g, '"');
+          let val = values[index];
+          // Remove wrapping quotes if they exist
+          if (val && val.startsWith('"') && val.endsWith('"')) {
+            val = val.substring(1, val.length - 1);
+          }
           obj[header] = val;
         });
 

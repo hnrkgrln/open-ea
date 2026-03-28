@@ -2,6 +2,15 @@ import React, { useState, useEffect, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity, ArrowUpRight } from 'lucide-react';
 
+const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 interface Application {
   id: string;
   name: string;
@@ -99,7 +108,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
       }
 
       try {
-        setDynamicValues(app.metadata ? JSON.parse(app.metadata) : {});
+        setDynamicValues(safeJsonParse(app.metadata));
       } catch (e) {
         setDynamicValues({});
       }

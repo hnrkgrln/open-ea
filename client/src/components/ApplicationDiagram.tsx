@@ -15,6 +15,15 @@ import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { Database, Boxes } from 'lucide-react';
 
+const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
+  if (!str) return fallback;
+  try {
+    return JSON.parse(str);
+  } catch (e) {
+    return fallback;
+  }
+};
+
 interface Application {
   id: string;
   name: string;
@@ -210,7 +219,7 @@ const DiagramInner = ({
   const getCustomLabels = (entity: any, entityType: string) => {
     try {
       if (!activeCustomOverlays || activeCustomOverlays.length === 0) return [];
-      const meta = entity.metadata ? JSON.parse(entity.metadata) : {};
+      const meta = safeJsonParse(entity.metadata);
       return metaDefs
         .filter(d => d.entityType === entityType && meta[d.fieldName] && activeCustomOverlays.includes(d.fieldName))
         .map(d => {
@@ -264,7 +273,7 @@ const DiagramInner = ({
         return Math.max(...capScores);
       }
       if (!def) return 0;
-      return (app as any)[fieldName] || (app.metadata ? JSON.parse(app.metadata)[fieldName] : def.min);
+      return (app as any)[fieldName] || safeJsonParse(app.metadata)[fieldName] || def.min;
     };
 
     if (mode === 'network') {
@@ -515,7 +524,7 @@ const DiagramInner = ({
         let capTextColor = 'var(--foreground)';
         
         if (showCriticality && critDef) {
-          const val = (cap as any).criticality || (cap.metadata ? JSON.parse(cap.metadata).criticality : critDef.min);
+          const val = (cap as any).criticality || safeJsonParse(cap.metadata).criticality || critDef.min;
           const colors = getOverlayColor(val, critDef, picklists);
           capBg = colors.bg; capTextColor = colors.text;
         }

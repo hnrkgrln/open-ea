@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = "file:./dev.db"
+  provider = "postgresql"
+  url      = "postgresql://openea:openea@localhost:5432/openea?schema=public"
 }
 
 model Application {
