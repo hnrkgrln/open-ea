@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "setup": "node scripts/setup-db.js",
+    "setup": "node scripts/setup-db.mjs",
     "predev": "npm run setup",
     "dev": "tsx watch src/index.ts",
     "seed": "tsx src/seed.ts",
@@ -13,7 +13,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
+  "type": "commonjs",
   "dependencies": {
     "@fastify/cors": "^11.2.0",
     "@prisma/client": "^6.19.2",

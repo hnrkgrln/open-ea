@@ -1,0 +1,3 @@
+
+DATABASE_URL="postgresql://openea:openea@localhost:5432/openea?schema=public"
+

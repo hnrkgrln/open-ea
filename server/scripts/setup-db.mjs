@@ -27,7 +27,7 @@ const header = `generator client {
 
 datasource db {
   provider = "${provider}"
-  url      = env("DATABASE_URL")
+  url      = "${databaseUrl}"
 }
 
 `;
@@ -38,11 +38,19 @@ try {
   console.log('Successfully generated schema.prisma');
 
   console.log('Generating Prisma Client...');
-  execSync('npx prisma generate', { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
+  execSync('npx prisma generate', { 
+    cwd: path.join(__dirname, '..'), 
+    stdio: 'inherit',
+    env: { ...process.env, DATABASE_URL: databaseUrl }
+  });
 
   console.log('Pushing database schema...');
   try {
-    execSync('npx prisma db push', { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
+    execSync('npx prisma db push', { 
+      cwd: path.join(__dirname, '..'), 
+      stdio: 'inherit',
+      env: { ...process.env, DATABASE_URL: databaseUrl }
+    });
   } catch (err) {
     if (err.message && err.message.includes('permission denied to create database')) {
       console.error('\n❌ ERROR: Prisma tried to create the database but failed due to missing permissions.');
