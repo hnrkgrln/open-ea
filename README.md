@@ -1,4 +1,4 @@
-# OpenEA - Open Enterprise Architecture Tool
+# OpenEA - Enterprise Architecture Tool
 
 OpenEA is a modern, high-density enterprise architecture tool designed for small-to-medium organizations to manage their application inventory, business capabilities, and system integrations with a focus on visual health and strategic alignment.
 
