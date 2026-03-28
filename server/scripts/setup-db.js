@@ -51,6 +51,13 @@ try {
       console.error('1. Double-check your .env file for typos in the DATABASE_URL.');
       console.error('2. Ensure the database actually exists in your PostgreSQL instance.');
       console.error('3. If the database exists, ensure your user has full privileges on it.\n');
+    } else if (err.message && err.message.includes('permission denied for schema public')) {
+      console.error('\n❌ ERROR: Permission denied for schema "public".');
+      console.error('Your PostgreSQL user does not have permission to create tables in the public schema.');
+      console.error('\nAction required:');
+      console.error('Run the following SQL command as a superuser (e.g., using psql or pgAdmin) on your "openea" database:');
+      console.error('GRANT ALL ON SCHEMA public TO <your_user>;');
+      console.error('\nNote: Replace <your_user> with the username defined in your DATABASE_URL.\n');
     }
     throw err;
   }
