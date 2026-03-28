@@ -31,12 +31,12 @@ OpenEA is a modern, high-density enterprise architecture tool designed for small
 
 - **Frontend:** React (TypeScript), Vite, [React Flow](https://reactflow.dev/) (Visualizations), [Radix UI](https://www.radix-ui.com/) (Primitives), [Lucide React](https://lucide.dev/) (Icons), [TanStack Query](https://tanstack.com/query/latest).
 - **Backend:** Node.js, [Fastify](https://www.fastify.io/), [Prisma 6](https://www.prisma.io/) (ORM), [Zod](https://zod.dev/) (Validation).
-- **Database:** SQLite.
+- **Database:** SQLite (default) or PostgreSQL (optional).
 
 ## 🏁 Getting Started
 
 ### Prerequisites
-- Node.js (v18+)
+- Node.js (v20+)
 - npm or yarn
 
 ### Installation
@@ -51,9 +51,21 @@ OpenEA is a modern, high-density enterprise architecture tool designed for small
    ```bash
    cd server
    npm install
-   # Initialize the database and seed it
-   npx prisma migrate dev --name init
+   
+   # DATABASE SETUP:
+   # Option A: SQLite (Default)
+   # No environment variables needed.
+   
+   # Option B: PostgreSQL
+   # Create a .env file in the server directory and set:
+   # DATABASE_URL="postgresql://johndoe:mypassword@localhost:5432/mydb?schema=public"
+   
+   # Run initial setup (auto-detects engine from DATABASE_URL)
+   npm run setup
+   
+   # (Optional) Seed the database with sample data
    npm run seed
+   
    npm run dev
    ```
 
