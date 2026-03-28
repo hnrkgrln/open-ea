@@ -70,7 +70,7 @@ try {
     throw err;
   }
 
-  console.log('Initializing standard meta-model (picklists and scores)...');
+  console.log('Initializing standard meta model (picklists and scores)...');
   try {
     execSync('npx tsx src/seed.ts', { 
       cwd: path.join(__dirname, '..'), 

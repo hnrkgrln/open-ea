@@ -21,7 +21,7 @@ OpenEA is a modern, high-density enterprise architecture tool designed for small
 - **Heat Map Overlays:** Switch between **Business Criticality**, **Functional Fit**, and **Technical Fit** to visualize your architecture's health using semantic color palettes.
 - **Unified Search:** A single powerful search bar with keyboard navigation (`⌘K`) that matches App Names, Descriptions, and Integration keywords.
 
-### Meta-model Configuration
+### Meta model Configuration
 - **Custom Picklists:** Manage global dropdowns with custom color schemes for visual consistency.
 - **Bulk Range Generator:** Quickly create 1-5 scales with pre-defined color palettes (Good-to-Bad, Low-to-High, etc.) for standardized scoring.
 - **Global Branding:** Customize the application identity/logo text directly from the settings.
@@ -60,7 +60,7 @@ OpenEA is a modern, high-density enterprise architecture tool designed for small
    # Create a .env file in the server directory and set:
    # DATABASE_URL="postgresql://johndoe:mypassword@localhost:5432/mydb?schema=public"
    
-   # Run initial setup (auto-detects engine and ensures standard meta-model exists)
+   # Run initial setup (auto-detects engine and ensures standard meta model exists)
    npm run setup
    
    # FACTORY RESET (WARNING: Wipes all data!)

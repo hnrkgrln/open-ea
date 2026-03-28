@@ -167,7 +167,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
     <div>
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.875rem', fontWeight: 700 }}>Picklists & Configuration</h1>
-        <p style={{ color: 'var(--muted-foreground)' }}>Manage the allowed values and custom fields for your meta-model.</p>
+        <p style={{ color: 'var(--muted-foreground)' }}>Manage the allowed values and custom fields for your meta model.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '2rem' }}>
@@ -196,7 +196,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
           </div>
 
           <div className="card" style={{ padding: '0.5rem' }}>
-            <div style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Standard Meta-model</div>
+            <div style={{ padding: '0.5rem 1rem', fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Standard Meta model</div>
             {standardPicklists?.map(p => (
               <button
                 key={p.id}
@@ -236,7 +236,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
                 alignItems: 'center'
               }}
             >
-              <FileCode size={16} /> Custom Meta-model
+              <FileCode size={16} /> Custom Meta model
             </button>
             <button
               onClick={() => setActiveTab('branding')}
@@ -416,7 +416,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, on
           ) : activeTab === 'metadata' ? (
             <div className="card">
               <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Custom Meta-model</h2>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Custom Meta model</h2>
                 <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Add dynamically rendered fields to Applications or Capabilities.</p>
               </div>
 

@@ -10,7 +10,7 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     return;
   }
 
-  console.log(`Creating standard meta-model: ${name}`);
+  console.log(`Creating standard meta model: ${name}`);
   await prisma.picklist.create({
     data: {
       name,
@@ -72,7 +72,7 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: 'Manual', label: 'Manual' },
   ]);
 
-  console.log('Standard Meta-model check complete.');
+  console.log('Standard Meta model check complete.');
   }
 
 
