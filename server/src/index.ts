@@ -92,7 +92,7 @@ server.put('/applications/:id', {
       capabilityIds: z.array(z.string()).optional(),
     }),
   },
-}, async (request) => {
+}, async (request, reply) => {
   const { id } = request.params;
   const { capabilityIds, ...data } = request.body;
 
@@ -105,25 +105,35 @@ server.put('/applications/:id', {
     validIds = existing.map(c => c.id);
   }
 
-  return prisma.application.update({
-    where: { id },
-    data: {
-      ...data,
-      capabilities: capabilityIds ? {
-        set: validIds.map(id => ({ id }))
-      } : undefined
-    },
-  });
+  try {
+    return await prisma.application.update({
+      where: { id },
+      data: {
+        ...data,
+        capabilities: capabilityIds ? {
+          set: validIds.map(id => ({ id }))
+        } : undefined
+      },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Application not found' });
+    throw err;
+  }
 });
 
 server.delete('/applications/:id', {
   schema: {
     params: z.object({ id: z.string() }),
   },
-}, async (request) => {
-  return prisma.application.delete({
-    where: { id: request.params.id },
-  });
+}, async (request, reply) => {
+  try {
+    return await prisma.application.delete({
+      where: { id: request.params.id },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Application not found' });
+    throw err;
+  }
 });
 
 // Capabilities API
@@ -189,7 +199,7 @@ server.put('/capabilities/:id', {
       applicationIds: z.array(z.string()).optional(),
     }),
   },
-}, async (request) => {
+}, async (request, reply) => {
   const { id } = request.params;
   const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
@@ -209,25 +219,35 @@ server.put('/capabilities/:id', {
     validIds = existing.map(a => a.id);
   }
 
-  return prisma.capability.update({
-    where: { id },
-    data: {
-      ...data,
-      applications: applicationIds ? {
-        set: validIds.map(id => ({ id }))
-      } : undefined
-    },
-  });
+  try {
+    return await prisma.capability.update({
+      where: { id },
+      data: {
+        ...data,
+        applications: applicationIds ? {
+          set: validIds.map(id => ({ id }))
+        } : undefined
+      },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Capability not found' });
+    throw err;
+  }
 });
 
 server.delete('/capabilities/:id', {
   schema: {
     params: z.object({ id: z.string() }),
   },
-}, async (request) => {
-  return prisma.capability.delete({
-    where: { id: request.params.id },
-  });
+}, async (request, reply) => {
+  try {
+    return await prisma.capability.delete({
+      where: { id: request.params.id },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Capability not found' });
+    throw err;
+  }
 });
 
 // Integrations API
@@ -294,20 +314,30 @@ server.put('/integrations/:id', {
     }
   }
 
-  return prisma.integration.update({
-    where: { id: request.params.id },
-    data: request.body,
-  });
+  try {
+    return await prisma.integration.update({
+      where: { id: request.params.id },
+      data: request.body,
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Integration not found' });
+    throw err;
+  }
 });
 
 server.delete('/integrations/:id', {
   schema: {
     params: z.object({ id: z.string() }),
   },
-}, async (request) => {
-  return prisma.integration.delete({
-    where: { id: request.params.id },
-  });
+}, async (request, reply) => {
+  try {
+    return await prisma.integration.delete({
+      where: { id: request.params.id },
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Integration not found' });
+    throw err;
+  }
 });
 
 // Picklists API
