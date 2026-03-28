@@ -888,6 +888,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
           showApplications={showApplications} 
           hideOrphanApps={hideOrphanApps}
           showCriticality={showCriticality} 
+          filters={filters}
           relationSearch={filters.search} 
           visible={isVisible}
         />

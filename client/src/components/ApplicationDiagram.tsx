@@ -99,6 +99,7 @@ interface Props {
   showApplications?: boolean;
   hideOrphanApps?: boolean;
   showCriticality?: boolean;
+  filters?: any;
   relationSearch?: string;
   visible?: boolean;
 }
@@ -206,6 +207,7 @@ const DiagramInner = ({
   showApplications = true, 
   hideOrphanApps = true,
   showCriticality = true, 
+  filters = {},
   relationSearch = '',
   visible = false
 }: Props) => {
@@ -730,7 +732,65 @@ const DiagramInner = ({
       });
       setNodes(appNodes); setEdges([]);
     }
-  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, showApplications, hideOrphanApps, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
+
+    // Add Filter Container if filters are active
+    const activeCategoricalFilters: string[] = [];
+    if (filters.lifecycle?.length > 0) activeCategoricalFilters.push(`Lifecycle: ${filters.lifecycle.join(', ')}`);
+    if (filters.owner?.length > 0) activeCategoricalFilters.push(`Owner: ${filters.owner.join(', ')}`);
+    if (filters.type?.length > 0) activeCategoricalFilters.push(`Type: ${filters.type.join(', ')}`);
+    if (filters.capabilityId?.length > 0) {
+      const capNames = filters.capabilityId.map((id: string) => capabilities.find(c => c.id === id)?.name).filter(Boolean);
+      activeCategoricalFilters.push(`Capabilities: ${capNames.join(', ')}`);
+    }
+
+    if (activeCategoricalFilters.length > 0 && (mode === 'landscape' || mode === 'app-landscape')) {
+      setNodes(prev => {
+        if (prev.length === 0) return prev;
+        
+        // Find bounding box of current nodes
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        prev.forEach(n => {
+          const x = n.position.x;
+          const y = n.position.y;
+          const w = n.width || (typeof n.style?.width === 'number' ? n.style.width : 300);
+          const h = n.height || (typeof n.style?.height === 'number' ? n.style.height : 200);
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x + w);
+          maxY = Math.max(maxY, y + h);
+        });
+
+        const padding = 60;
+        const containerId = 'filter-container';
+        
+        const containerNode: Node = {
+          id: containerId,
+          data: { 
+            label: (
+              <div style={{ padding: '10px 20px', textAlign: 'left' }}>
+                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.6, marginBottom: '4px' }}>Active Filters</div>
+                <div style={{ fontSize: '18px', fontWeight: 900, color: 'var(--primary)' }}>
+                  {activeCategoricalFilters.join(' • ')}
+                </div>
+              </div>
+            )
+          },
+          position: { x: minX - padding, y: minY - padding - 40 },
+          style: {
+            width: (maxX - minX) + padding * 2,
+            height: (maxY - minY) + padding * 2 + 40,
+            background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+            border: '2px solid var(--primary)',
+            borderRadius: '24px',
+            pointerEvents: 'none',
+            zIndex: -100
+          }
+        };
+
+        return [containerNode, ...prev];
+      });
+    }
+  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, showApplications, hideOrphanApps, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters]);
   useEffect(() => {
     if (nodes.length > 0 && visible && viewportWidth > 0) {
       const timer = setTimeout(() => {
