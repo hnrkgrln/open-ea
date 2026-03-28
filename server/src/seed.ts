@@ -57,12 +57,7 @@ async function main() {
     { value: 'Decommissioned', label: 'Decommissioned' },
   ]);
 
-  await seedPicklist('owner', 'Application Owner', [
-    { value: 'IT Department', label: 'IT Department' },
-    { value: 'Finance', label: 'Finance' },
-    { value: 'Sales Operations', label: 'Sales Operations' },
-    { value: 'HR', label: 'HR' },
-  ]);
+  await seedPicklist('owner', 'Application Owner', []);
 
   await seedPicklist('application_type', 'Application Type', [
     { value: 'Business Application', label: 'Business Application' },
