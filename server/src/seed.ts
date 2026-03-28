@@ -58,19 +58,8 @@ async function main() {
   ]);
 
   await seedPicklist('owner', 'Application Owner', []);
-
-  await seedPicklist('application_type', 'Application Type', [
-    { value: 'Business Application', label: 'Business Application' },
-    { value: 'Infrastructure Service', label: 'Infrastructure Service' },
-    { value: 'Platform', label: 'Platform' },
-  ]);
-
-  await seedPicklist('integration_type', 'Integration Type', [
-    { value: 'API', label: 'API' },
-    { value: 'Batch', label: 'Batch' },
-    { value: 'Messaging', label: 'Messaging' },
-    { value: 'Manual', label: 'Manual' },
-  ]);
+  await seedPicklist('application_type', 'Application Type', []);
+  await seedPicklist('integration_type', 'Integration Type', []);
 
   console.log('Standard configuration and picklists check complete.');
 }
