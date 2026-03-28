@@ -40,6 +40,7 @@ server.get('/applications', async () => {
 server.post('/applications', {
   schema: {
     body: z.object({
+      id: z.string().optional(),
       name: z.string(),
       description: z.string().optional(),
       owner: z.string().optional(),
@@ -117,6 +118,7 @@ server.get('/capabilities', async (request) => {
 server.post('/capabilities', {
   schema: {
     body: z.object({
+      id: z.string().optional(),
       name: z.string(),
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),

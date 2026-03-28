@@ -97,23 +97,46 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
           const { id, ...payload } = item;
           
           // Handle specific transformations
-          if (type === 'applications' && payload.capabilityIds) {
-            payload.capabilityIds = payload.capabilityIds.split(';').filter((id: string) => id !== '');
-          } else if (type === 'capabilities' && payload.applicationIds) {
-            payload.applicationIds = payload.applicationIds.split(';').filter((id: string) => id !== '');
+          if (type === 'applications') {
+            payload.capabilityIds = payload.capabilityIds ? payload.capabilityIds.split(';').filter((id: string) => id !== '') : [];
+          } else if (type === 'capabilities') {
+            payload.applicationIds = payload.applicationIds ? payload.applicationIds.split(';').filter((id: string) => id !== '') : [];
+            if (payload.parentId === '') payload.parentId = null;
           }
 
-          const method = id ? 'PUT' : 'POST';
-          const url = id ? `/api/${type}/${id}` : `/api/${type}`;
+          // Decide method and handle potentially missing records
+          let res;
+          if (id && id.trim() !== '') {
+            // Try update first
+            res = await fetch(`/api/${type}/${id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
 
-          const res = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
+            // If not found, try to create with this ID
+            if (res.status === 404 || !res.ok) {
+              res = await fetch(`/api/${type}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...payload, id }),
+              });
+            }
+          } else {
+            // Standard create
+            res = await fetch(`/api/${type}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+            });
+          }
 
           if (res.ok) successCount++;
-          else errorCount++;
+          else {
+            const errBody = await res.text();
+            console.error(`Import failed for item: ${item.name || item.id}`, errBody);
+            errorCount++;
+          }
         } catch (err) {
           console.error('Import error for item:', item, err);
           errorCount++;
