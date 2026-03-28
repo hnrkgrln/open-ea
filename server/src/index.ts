@@ -152,6 +152,12 @@ server.post('/capabilities', {
   const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
 
+  // Resilience: Check if parent exists
+  if (data.parentId) {
+    const parent = await prisma.capability.findUnique({ where: { id: data.parentId } });
+    if (!parent) data.parentId = null;
+  }
+
   let validIds: string[] = [];
   if (applicationIds && applicationIds.length > 0) {
     const existing = await prisma.application.findMany({
@@ -187,6 +193,12 @@ server.put('/capabilities/:id', {
   const { id } = request.params;
   const { applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
+
+  // Resilience: Check if parent exists
+  if (data.parentId) {
+    const parent = await prisma.capability.findUnique({ where: { id: data.parentId } });
+    if (!parent) data.parentId = null;
+  }
 
   let validIds: string[] = [];
   if (applicationIds && applicationIds.length > 0) {

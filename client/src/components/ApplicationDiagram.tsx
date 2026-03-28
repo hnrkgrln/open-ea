@@ -20,7 +20,15 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   try {
     return JSON.parse(str);
   } catch (e) {
-    return fallback;
+    // Try to heal simple unquoted JSON
+    try {
+      const healed = str
+        .replace(/([{,])\s*([a-zA-Z0-9._-]+)\s*:/g, '$1"$2":')
+        .replace(/:\s*([^",}\s][^,}\s]*)\s*([,}])/g, ':"$1"$2');
+      return JSON.parse(healed);
+    } catch (e2) {
+      return fallback;
+    }
   }
 };
 

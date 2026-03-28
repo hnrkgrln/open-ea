@@ -18,8 +18,16 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   try {
     return JSON.parse(str);
   } catch (e) {
-    console.error('JSON Parse Error:', e, 'for string:', str);
-    return fallback;
+    // Try to heal simple unquoted JSON like {key:value} or {key:"value"}
+    try {
+      const healed = str
+        .replace(/([{,])\s*([a-zA-Z0-9._-]+)\s*:/g, '$1"$2":') // Quote keys
+        .replace(/:\s*([^",}\s][^,}\s]*)\s*([,}])/g, ':"$1"$2'); // Quote unquoted values
+      return JSON.parse(healed);
+    } catch (e2) {
+      console.error('JSON Parse Error:', e, 'for string:', str);
+      return fallback;
+    }
   }
 };
 
