@@ -7,6 +7,7 @@ import ReactFlow, {
   useEdgesState,
   MarkerType,
   useReactFlow,
+  useStore,
   type Node,
   type Edge,
   ReactFlowProvider
@@ -210,7 +211,8 @@ const DiagramInner = ({
 }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const { fitView } = useReactFlow();
+  const { setViewport, getNodes } = useReactFlow();
+  const viewportWidth = useStore((s) => s.width);
 
   const metaDefs = useMemo(() => {
     const defs = [...(dbMetaDefs || [])];
@@ -730,11 +732,40 @@ const DiagramInner = ({
     }
   }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef]);
   useEffect(() => {
-    if (nodes.length > 0 && visible) {
-      const timer = setTimeout(() => { fitView({ padding: 0.2, duration: 800 }); }, 150);
+    if (nodes.length > 0 && visible && viewportWidth > 0) {
+      const timer = setTimeout(() => {
+        const currentNodes = getNodes();
+        if (currentNodes.length === 0) return;
+
+        // Calculate bounding box based on positions and known/styled widths
+        let minX = Infinity;
+        let maxX = -Infinity;
+
+        currentNodes.forEach(n => {
+          const x = n.position.x;
+          // Try to get width from measured width, then style width, then fallback
+          const w = n.width || (typeof n.style?.width === 'number' ? n.style.width : parseInt(n.style?.width as string)) || 200;
+          
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x + w);
+        });
+
+        const contentWidth = maxX - minX;
+        const padding = 60;
+        const availableWidth = viewportWidth - padding * 2;
+        
+        // Zoom to fit width, but don't zoom in more than 1.0
+        const zoom = Math.min(1, availableWidth / contentWidth);
+        
+        // Center horizontally, start from top
+        const x = (viewportWidth - contentWidth * zoom) / 2 - minX * zoom;
+        const y = 50; 
+
+        setViewport({ x, y, zoom }, { duration: 800 });
+      }, 200); // Slightly longer timeout to ensure styles are applied
       return () => clearTimeout(timer);
     }
-  }, [nodes.length, mode, visible, fitView]);
+  }, [nodes, mode, visible, setViewport, getNodes, viewportWidth]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
