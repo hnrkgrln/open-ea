@@ -8,6 +8,7 @@
     "predev": "npm run setup",
     "dev": "tsx watch src/index.ts",
     "seed": "tsx src/seed.ts",
+    "reset": "tsx src/reset.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
