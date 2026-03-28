@@ -1,14 +1,57 @@
-import React, { useRef } from 'react';
-import { Download, Upload, AlertCircle } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Download, Upload, AlertCircle, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+
+interface Application {
+  id: string;
+  name: string;
+  capabilities?: { id: string }[];
+  metadata?: string;
+  lifecycle: string;
+  [key: string]: any;
+}
+
+interface Capability {
+  id: string;
+  name: string;
+  applications?: { id: string }[];
+  metadata?: string;
+  [key: string]: any;
+}
+
+interface Integration {
+  id: string;
+  sourceAppId: string;
+  targetAppId: string;
+  name?: string;
+  type?: string;
+  [key: string]: any;
+}
 
 interface ImportExportProps {
   type: 'applications' | 'capabilities' | 'integrations';
   onImportSuccess: () => void;
-  data: any[];
+  data: (Application | Capability | Integration)[];
+}
+
+interface ImportStatus {
+  total: number;
+  current: number;
+  success: number;
+  error: number;
+  isFinished: boolean;
 }
 
 export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showStatus, setShowStatus] = useState(false);
+  const [status, setStatus] = useState<ImportStatus>({
+    total: 0,
+    current: 0,
+    success: 0,
+    error: 0,
+    isFinished: false
+  });
 
   const exportToCSV = () => {
     if (!data || data.length === 0) return;
@@ -24,13 +67,13 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
     const csvRows = data.map(item => {
       return headers.map(header => {
-        let val = item[header];
+        let val = (item as any)[header];
         
         // Handle special fields
         if (header === 'capabilityIds' && type === 'applications') {
-          val = (item.capabilities || []).map((c: any) => c.id).join(';');
+          val = ((item as Application).capabilities || []).map(c => c.id).join(';');
         } else if (header === 'applicationIds' && type === 'capabilities') {
-          val = (item.applications || []).map((a: any) => a.id).join(';');
+          val = ((item as Capability).applications || []).map(a => a.id).join(';');
         }
         
         const escaped = ('' + (val || '')).replace(/"/g, '""');
@@ -103,11 +146,22 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
         return obj;
       });
 
+      // Initialize status
+      setStatus({
+        total: importedData.length,
+        current: 0,
+        success: 0,
+        error: 0,
+        isFinished: false
+      });
+      setShowStatus(true);
+
       // Process imports
       let successCount = 0;
       let errorCount = 0;
 
-      for (const item of importedData) {
+      for (let i = 0; i < importedData.length; i++) {
+        const item = importedData[i];
         try {
           const { id, ...payload } = item;
           
@@ -156,31 +210,121 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
           console.error('Import error for item:', item, err);
           errorCount++;
         }
+
+        // Update progress
+        setStatus(prev => ({
+          ...prev,
+          current: i + 1,
+          success: successCount,
+          error: errorCount
+        }));
       }
 
-      alert(`Import complete! Success: ${successCount}, Errors: ${errorCount}`);
+      setStatus(prev => ({ ...prev, isFinished: true }));
       onImportSuccess();
       if (fileInputRef.current) fileInputRef.current.value = '';
     };
     reader.readAsText(file);
   };
 
+  const progressPercentage = status.total > 0 ? Math.round((status.current / status.total) * 100) : 0;
+
   return (
-    <div style={{ display: 'flex', gap: '0.5rem' }}>
-      <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-        <Download size={14} /> Export CSV
-      </button>
-      <button onClick={() => fileInputRef.current?.click()} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-        <Upload size={14} /> Import CSV
-      </button>
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleImport}
-        accept=".csv"
-        style={{ display: 'none' }}
-      />
-    </div>
+    <>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <Download size={14} /> Export CSV
+        </button>
+        <button onClick={() => fileInputRef.current?.click()} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <Upload size={14} /> Import CSV
+        </button>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImport}
+          accept=".csv"
+          style={{ display: 'none' }}
+        />
+      </div>
+
+      <Dialog.Root open={showStatus} onOpenChange={(open) => { if (!open && status.isFinished) setShowStatus(false); }}>
+        <Dialog.Portal>
+          <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
+          <Dialog.Content style={{ 
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            width: '90vw', maxWidth: '400px', background: 'var(--card)', color: 'var(--card-foreground)', 
+            padding: '1.5rem', borderRadius: 'var(--radius)', zIndex: 250, border: '1px solid var(--border)',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <Dialog.Title style={{ fontWeight: 700, fontSize: '1.125rem' }}>
+                {status.isFinished ? 'Import Complete' : `Importing ${type}...`}
+              </Dialog.Title>
+              {status.isFinished && (
+                <Dialog.Close asChild>
+                  <button style={{ border: 'none', background: 'transparent', padding: '0.25rem', cursor: 'pointer' }}><X size={18} /></button>
+                </Dialog.Close>
+              )}
+            </div>
+            <Dialog.Description style={{ display: 'none' }}>Data import progress and summary.</Dialog.Description>
+
+            {!status.isFinished ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+                  <span>Processing item {status.current} of {status.total}</span>
+                  <span>{progressPercentage}%</span>
+                </div>
+                <div style={{ height: '8px', background: 'var(--secondary)', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div 
+                    style={{ 
+                      height: '100%', 
+                      background: 'var(--primary)', 
+                      width: `${progressPercentage}%`, 
+                      transition: 'width 0.2s ease-out' 
+                    }} 
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
+                  <Loader2 size={16} className="spin" />
+                  <span>Please wait, do not close this window...</span>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                      <CheckCircle2 size={20} />
+                      <strong style={{ fontSize: '1.25rem' }}>{status.success}</strong>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted-foreground)' }}>Success</span>
+                  </div>
+                  <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: status.error > 0 ? 'var(--destructive)' : 'var(--muted-foreground)', marginBottom: '0.5rem' }}>
+                      <XCircle size={20} />
+                      <strong style={{ fontSize: '1.25rem' }}>{status.error}</strong>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted-foreground)' }}>Failed</span>
+                  </div>
+                </div>
+                {status.error > 0 && (
+                  <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', textAlign: 'center' }}>
+                    Check the browser console for details on failed items.
+                  </p>
+                )}
+                <button 
+                  onClick={() => setShowStatus(false)} 
+                  className="primary" 
+                  style={{ width: '100%', marginTop: '0.5rem' }}
+                >
+                  Close
+                </button>
+              </div>
+            )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
   );
 };
 
