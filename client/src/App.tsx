@@ -743,6 +743,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
   const [hideOrphanApps, setHideOrphanApps] = useLocalStorage<boolean>('meat_diagram_hide_orphans', true);
+  const [groupingField, setGroupingField] = useLocalStorage<string | null>('openea_diagram_grouping', null);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
@@ -812,6 +813,23 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
             <button onClick={() => setMode('app-landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={16} style={{ marginRight: '0.5rem' }} /> Application Landscape</button>
             <button onClick={() => setMode('network')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={16} style={{ marginRight: '0.5rem' }} /> Integrations</button>
           </div>
+
+          {(mode === 'landscape' || mode === 'app-landscape') && (
+            <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.5rem', opacity: 0.6 }}>Group By</span>
+              <select 
+                value={groupingField || ''} 
+                onChange={(e) => setGroupingField(e.target.value || null)}
+                style={{ height: '2rem', background: groupingField ? 'var(--background)' : 'transparent', border: 'none', borderRadius: '4px', fontSize: '12px', padding: '0 0.5rem', cursor: 'pointer', color: groupingField ? 'var(--primary)' : 'inherit' }}
+              >
+                <option value="">None</option>
+                <option value="lifecycle">Lifecycle</option>
+                <option value="criticality">Business Criticality</option>
+                <option value="functionalFit">Functional Fit</option>
+                <option value="technicalFit">Technical Fit</option>
+              </select>
+            </div>
+          )}
 
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             {allRangeFields.filter(def => (mode === 'network' || mode === 'app-landscape') || def.fieldName !== 'criticality').map(def => (
@@ -895,6 +913,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
           hideOrphanApps={hideOrphanApps}
           showCriticality={showCriticality} 
           filters={filters}
+          groupingField={groupingField}
           relationSearch={filters.search} 
           visible={isVisible}
         />
