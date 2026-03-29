@@ -518,12 +518,12 @@ server.get('/search', {
     prisma.application.findMany({
       where: {
         OR: [
-          { name: { contains: q } },
-          { description: { contains: q } },
-          { owner: { contains: q } },
-          { lifecycle: { contains: q } },
-          { type: { contains: q } },
-          { metadata: { contains: q } },
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { owner: { contains: q, mode: 'insensitive' } },
+          { lifecycle: { contains: q, mode: 'insensitive' } },
+          { type: { contains: q, mode: 'insensitive' } },
+          { metadata: { contains: q, mode: 'insensitive' } },
         ],
       },
       include: { capabilities: true },
@@ -532,9 +532,9 @@ server.get('/search', {
     prisma.capability.findMany({
       where: {
         OR: [
-          { name: { contains: q } },
-          { description: { contains: q } },
-          { metadata: { contains: q } },
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { metadata: { contains: q, mode: 'insensitive' } },
         ],
       },
       take: 10,
