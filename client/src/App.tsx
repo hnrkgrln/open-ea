@@ -796,6 +796,11 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
     });
   }, [apps, filters, capabilities, integrations]);
 
+  const orphanCount = useMemo(() => {
+    const appsWithIntegrations = new Set(integrations?.flatMap(i => [i.sourceAppId, i.targetAppId]));
+    return filteredApps.filter(a => !appsWithIntegrations.has(a.id)).length;
+  }, [filteredApps, integrations]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -836,10 +841,11 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
             {mode === 'network' && (
               <button 
                 onClick={() => setHideOrphanApps(!hideOrphanApps)} 
+                title={hideOrphanApps ? `Currently hiding ${orphanCount} apps without integrations` : "Show apps without integrations"}
                 style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: hideOrphanApps ? 'var(--background)' : 'transparent', boxShadow: hideOrphanApps ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: hideOrphanApps ? 'var(--primary)' : 'var(--muted-foreground)' }}
               >
                 {hideOrphanApps ? <EyeOff size={16} style={{ marginRight: '0.5rem' }} /> : <Eye size={16} style={{ marginRight: '0.5rem' }} />}
-                Hide Orphans
+                Hide Orphans {hideOrphanApps && orphanCount > 0 ? `(${orphanCount})` : ''}
               </button>
             )}
           </div>
