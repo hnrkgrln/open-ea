@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import ReactFlow, { 
   Background, 
   Controls, 
@@ -216,6 +216,33 @@ const DiagramInner = ({
   const { setViewport, getNodes } = useReactFlow();
   const viewportWidth = useStore((s) => s.width);
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+  const [legendPos, setLegendPos] = useState({ x: 20, y: 20 });
+  const isDraggingLegend = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0 });
+
+  const onLegendMouseDown = (e: React.MouseEvent) => {
+    isDraggingLegend.current = true;
+    dragStart.current = { x: e.clientX - legendPos.x, y: e.clientY - legendPos.y };
+    e.stopPropagation();
+  };
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isDraggingLegend.current) return;
+      setLegendPos({
+        x: e.clientX - dragStart.current.x,
+        y: e.clientY - dragStart.current.y
+      });
+    };
+    const onMouseUp = () => { isDraggingLegend.current = false; };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [legendPos]);
 
   const metaDefs = useMemo(() => {
     const defs = [...(dbMetaDefs || [])];
@@ -636,7 +663,24 @@ const DiagramInner = ({
         <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
         <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
       </Panel>
-      <Panel position="top-left" style={{ background: 'var(--card)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)', fontSize: '11px', color: 'var(--foreground)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', maxWidth: '220px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <Panel position="top-left" style={{ 
+        background: 'var(--card)', 
+        padding: '12px', 
+        borderRadius: '12px', 
+        border: '1px solid var(--border)', 
+        fontSize: '11px', 
+        color: 'var(--foreground)', 
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
+        maxWidth: '220px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '16px',
+        margin: 0,
+        transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
+        cursor: 'grab',
+        userSelect: 'none',
+        zIndex: 1000
+      }} onMouseDown={onLegendMouseDown}>
         <div>
           <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
