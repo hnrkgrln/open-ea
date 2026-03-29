@@ -782,17 +782,39 @@ const DiagramInner = ({
       };
 
       if (primaryGroup) {
-        let currentContainerY = 0;
         const containerPadding = 60;
         const containerGap = 80;
+        const colGap = 80;
+        
+        // Filter values that actually have apps to avoid empty containers in the grid
+        const validValues = primaryGroup.values.filter(val => 
+          filteredApps.some(app => String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === val.toLowerCase())
+        );
 
-        primaryGroup.values.forEach((groupVal) => {
-          const groupApps = filteredApps.filter(app => {
-            const val = String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase();
-            return val === groupVal.toLowerCase();
-          });
+        const rowHeights = [0, 0]; // Track max height for row 1 and row 2
+        const colWidths = [0, 0, 0]; // Track max width for each of the 3 columns
 
-          if (groupApps.length === 0) return;
+        // First pass: Calculate all sizes and positions
+        const groupsData = validValues.map((groupVal, idx) => {
+          const groupApps = filteredApps.filter(app => 
+            String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === groupVal.toLowerCase()
+          );
+
+          const containerId = `group-${primaryGroup.field}-${groupVal}`;
+          
+          // Determine grid position (3-2 manner)
+          // 0 1 2 (Row 0)
+          // 3 4   (Row 1)
+          const row = idx < 3 ? 0 : 1;
+          const col = idx < 3 ? idx : idx - 3;
+
+          // Render content to get size
+          const contentSize = renderLandscapeContent(groupApps, containerId, containerPadding, 80);
+          const containerWidth = contentSize.width + containerPadding;
+          const containerHeight = contentSize.height + 80 + containerPadding;
+
+          rowHeights[row] = Math.max(rowHeights[row], containerHeight);
+          colWidths[col] = Math.max(colWidths[col], containerWidth);
 
           let groupColor = 'var(--primary)';
           if (primaryGroup.field === 'lifecycle') {
@@ -812,24 +834,35 @@ const DiagramInner = ({
             }
           }
 
-          const containerId = `group-${primaryGroup.field}-${groupVal}`;
-          const contentSize = renderLandscapeContent(groupApps, containerId, containerPadding, 80);
-          const containerWidth = contentSize.width + containerPadding;
-          const containerHeight = contentSize.height + 80 + containerPadding;
+          return { containerId, groupVal, groupColor, containerWidth, containerHeight, row, col };
+        });
+
+        // Second pass: Update positions based on row/col max dimensions and push nodes
+        groupsData.forEach((group) => {
+          const currentX = colWidths.slice(0, group.col).reduce((sum, w) => sum + w + colGap, 0);
+          const currentY = group.row === 0 ? 0 : rowHeights[0] + containerGap;
+
+          // Update positions of the content nodes already added by first pass renderLandscapeContent
+          // Actually, we should only render the nodes in this second pass to get correct positions
+          const groupApps = filteredApps.filter(app => 
+            String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === group.groupVal.toLowerCase()
+          );
+          
+          // Re-render at correct final position
+          renderLandscapeContent(groupApps, group.containerId, currentX + containerPadding, currentY + 80);
 
           landscapeNodes.push({
-            id: containerId,
-            data: { label: `${primaryGroup.field.toUpperCase()}: ${groupVal}` },
-            position: { x: 0, y: currentContainerY },
+            id: group.containerId,
+            data: { label: `${primaryGroup.field.toUpperCase()}: ${group.groupVal}` },
+            position: { x: currentX, y: currentY },
             style: {
               background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-              border: `4px solid ${groupColor}`, borderRadius: '32px',
-              width: containerWidth, height: containerHeight,
-              pointerEvents: 'none', zIndex: -100, fontSize: '24px', fontWeight: 900, color: groupColor,
+              border: `4px solid ${group.groupColor}`, borderRadius: '32px',
+              width: group.containerWidth, height: group.containerHeight,
+              pointerEvents: 'none', zIndex: -100, fontSize: '24px', fontWeight: 900, color: group.groupColor,
               textAlign: 'left', paddingLeft: '40px', paddingTop: '20px'
             }
           });
-          currentContainerY += containerHeight + containerGap;
         });
       } else {
         renderLandscapeContent(filteredApps);
