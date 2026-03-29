@@ -384,9 +384,25 @@ const DiagramInner = ({
         filteredIntegrations.forEach(i => {
           if (islandAppIds.includes(i.sourceAppId)) {
             islandEdges.push({
-              id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId, label: i.name || i.type, type: 'default',
-              labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600, textAnchor: 'middle' }, labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
-              labelBgPadding: [4, 2], labelBgBorderRadius: 4, style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
+              id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId, 
+              label: (
+                <div style={{ 
+                  background: 'var(--card)', 
+                  padding: '2px 6px', 
+                  borderRadius: '4px', 
+                  fontSize: '10px', 
+                  fontWeight: 600, 
+                  color: textColor,
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                  whiteSpace: 'nowrap',
+                  pointerEvents: 'none',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                }}>
+                  {i.name || i.type}
+                </div>
+              ),
+              type: 'default',
+              style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
               markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
             });
           }
