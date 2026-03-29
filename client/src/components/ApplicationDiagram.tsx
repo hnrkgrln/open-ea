@@ -8,8 +8,10 @@ import ReactFlow, {
   MarkerType,
   useReactFlow,
   useStore,
+  getBezierPath,
   type Node,
   type Edge,
+  type EdgeProps,
   ReactFlowProvider
 } from 'reactflow';
 import 'reactflow/dist/style.css';
@@ -161,6 +163,66 @@ const getScaleColors = (scaleType: string) => {
   }
 };
 
+const CenteredEdge = ({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  style = {},
+  markerEnd,
+  label,
+}: EdgeProps) => {
+  const [edgePath, labelX, labelY] = getBezierPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+  });
+
+  return (
+    <>
+      <path
+        id={id}
+        style={style}
+        className="react-flow__edge-path"
+        d={edgePath}
+        markerEnd={markerEnd}
+      />
+      {label && (
+        <foreignObject
+          width={200}
+          height={40}
+          x={labelX - 100}
+          y={labelY - 20}
+          style={{ pointerEvents: 'none' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', height: '100%' }}>
+            <div style={{
+              background: 'var(--card)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'var(--foreground)',
+              border: '1px solid var(--border)',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+              pointerEvents: 'none'
+            }}>
+              {label}
+            </div>
+          </div>
+        </foreignObject>
+      )}
+    </>
+  );
+};
+
 const getOverlayColor = (value: string | number, def: MetadataDefinition, picklists: Picklist[]) => {
   const targetName = def.fieldName.replace(/([A-Z])/g, '_$1').toLowerCase();
   const picklist = picklists.find(p => p.name === targetName || p.name === def.fieldName);
@@ -189,7 +251,9 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
 };
 
 const initialNodeTypes = {};
-const initialEdgeTypes = {};
+const initialEdgeTypes = {
+  centered: CenteredEdge
+};
 
 const DiagramInner = ({ 
   onNodeClick, 
@@ -294,7 +358,6 @@ const DiagramInner = ({
 
     const borderColor = 'var(--border)';
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
-    const textColor = 'var(--foreground)';
 
     const getAppScore = (app: Application, fieldName: string, def?: MetadataDefinition) => {
       if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
@@ -385,23 +448,8 @@ const DiagramInner = ({
           if (islandAppIds.includes(i.sourceAppId)) {
             islandEdges.push({
               id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId, 
-              label: (
-                <div style={{ 
-                  background: 'var(--card)', 
-                  padding: '2px 6px', 
-                  borderRadius: '4px', 
-                  fontSize: '10px', 
-                  fontWeight: 600, 
-                  color: textColor,
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-                  whiteSpace: 'nowrap',
-                  pointerEvents: 'none',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                }}>
-                  {i.name || i.type}
-                </div>
-              ),
-              type: 'default',
+              label: i.name || i.type,
+              type: 'centered',
               style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
               markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
             });
