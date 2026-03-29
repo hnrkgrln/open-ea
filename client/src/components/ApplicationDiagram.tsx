@@ -16,7 +16,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { Database, Boxes } from 'lucide-react';
+import { Database, Boxes, Lock, Unlock } from 'lucide-react';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -280,6 +280,7 @@ const DiagramInner = ({
   const { setViewport, getNodes } = useReactFlow();
   const viewportWidth = useStore((s) => s.width);
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const [lockNodes, setLockNodes] = useState(true);
 
   const [legendPos, setLegendPos] = useState({ x: 20, y: 20 });
   const isDraggingLegend = useRef(false);
@@ -759,12 +760,51 @@ const DiagramInner = ({
   };
 
   return (
-    <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick} nodesDraggable={false} nodesConnectable={false} elementsSelectable={false} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4} nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes} style={{ width: '100%', height: '100%' }}>
-      <Background color="var(--border)" gap={20} />
+    <ReactFlow
+      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick}
+      nodesDraggable={!lockNodes} nodesConnectable={false} elementsSelectable={!lockNodes} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
+      nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes}
+      style={{ width: '100%', height: '100%' }}
+    >      <Background color="var(--border)" gap={20} />
       <Controls showInteractive={false} />
-      <Panel position="top-right" style={{ background: 'var(--card)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--foreground)', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
-        <div style={{ marginTop: '4px', fontSize: '10px' }}>Click objects to edit • Drag to pan</div>
+      <Panel position="top-right" style={{ 
+        background: 'var(--card)', 
+        padding: '10px 14px', 
+        borderRadius: '10px', 
+        border: '1px solid var(--border)', 
+        fontSize: '12px', 
+        color: 'var(--foreground)', 
+        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        minWidth: '180px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
+          <button 
+            onClick={() => setLockNodes(!lockNodes)}
+            title={lockNodes ? "Unlock nodes to move them" : "Lock nodes in place"}
+            style={{
+              background: lockNodes ? 'transparent' : 'var(--primary)',
+              color: lockNodes ? 'var(--muted-foreground)' : 'var(--primary-foreground)',
+              border: `1px solid ${lockNodes ? 'var(--border)' : 'var(--primary)'}`,
+              borderRadius: '6px',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            {lockNodes ? <Lock size={14} /> : <Unlock size={14} />}
+          </button>
+        </div>
+        <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
+          {lockNodes ? 'Click objects to edit • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
+        </div>
       </Panel>
       <Panel position="top-left" style={{ 
         background: 'var(--card)', 
