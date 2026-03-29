@@ -794,6 +794,24 @@ const DiagramInner = ({
 
           if (groupApps.length === 0) return;
 
+          let groupColor = 'var(--primary)';
+          if (primaryGroup.field === 'lifecycle') {
+            const stage = LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === groupVal.toLowerCase());
+            if (stage) groupColor = stage.color;
+          } else {
+            const targetName = primaryGroup.field.replace(/([A-Z])/g, '_$1').toLowerCase();
+            const picklist = picklists?.find(p => p.name === targetName || p.name === primaryGroup.field);
+            const opt = picklist?.options.find(o => o.value === groupVal || o.label === groupVal);
+            if (opt) groupColor = opt.color;
+            else {
+              const def = metaDefs.find(d => d.fieldName === primaryGroup.field && d.entityType === 'Application');
+              if (def && def.fieldType === 'range') {
+                const colors = getOverlayColor(groupVal, def, picklists);
+                groupColor = colors.bg;
+              }
+            }
+          }
+
           const containerId = `group-${primaryGroup.field}-${groupVal}`;
           const contentSize = renderLandscapeContent(groupApps, containerId, containerPadding, 80);
           const containerWidth = contentSize.width + containerPadding;
@@ -805,9 +823,9 @@ const DiagramInner = ({
             position: { x: 0, y: currentContainerY },
             style: {
               background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-              border: `4px solid var(--primary)`, borderRadius: '32px',
+              border: `4px solid ${groupColor}`, borderRadius: '32px',
               width: containerWidth, height: containerHeight,
-              pointerEvents: 'none', zIndex: -100, fontSize: '24px', fontWeight: 900, color: 'var(--primary)',
+              pointerEvents: 'none', zIndex: -100, fontSize: '24px', fontWeight: 900, color: groupColor,
               textAlign: 'left', paddingLeft: '40px', paddingTop: '20px'
             }
           });

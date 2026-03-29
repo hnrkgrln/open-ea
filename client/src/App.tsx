@@ -820,7 +820,18 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
               <select 
                 value={groupingField || ''} 
                 onChange={(e) => setGroupingField(e.target.value || null)}
-                style={{ height: '2rem', background: groupingField ? 'var(--background)' : 'transparent', border: 'none', borderRadius: '4px', fontSize: '12px', padding: '0 0.5rem', cursor: 'pointer', color: groupingField ? 'var(--primary)' : 'inherit' }}
+                style={{ 
+                  height: '2rem', 
+                  background: 'var(--background)', 
+                  border: '1px solid var(--border)', 
+                  borderRadius: '4px', 
+                  fontSize: '12px', 
+                  padding: '0 0.5rem', 
+                  cursor: 'pointer', 
+                  color: groupingField ? 'var(--primary)' : 'var(--foreground)',
+                  fontWeight: groupingField ? 600 : 400,
+                  outline: 'none'
+                }}
               >
                 <option value="">None</option>
                 <option value="lifecycle">Lifecycle</option>
