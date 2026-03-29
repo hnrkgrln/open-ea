@@ -401,6 +401,20 @@ const DiagramInner = ({
           const val = (app as any)[groupingField] || safeJsonParse(app.metadata)[groupingField];
           return val ? String(val) : 'Unspecified';
         })));
+
+        // Sort unique values logically
+        uniqueValues.sort((a, b) => {
+          if (groupingField === 'lifecycle') {
+            const order = LIFECYCLE_STAGES.map(s => s.label.toLowerCase());
+            return order.indexOf(a.toLowerCase()) - order.indexOf(b.toLowerCase());
+          }
+          // Numeric sort for range fields (criticality, functionalFit, technicalFit)
+          const numA = parseFloat(a);
+          const numB = parseFloat(b);
+          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+          return a.localeCompare(b);
+        });
+
         activeFilterGroups.push({ field: groupingField, values: uniqueValues });
       } else {
         if (filters.lifecycle?.length > 0) activeFilterGroups.push({ field: 'lifecycle', values: filters.lifecycle });
@@ -587,13 +601,23 @@ const DiagramInner = ({
 
       if (primaryGroup) {
         const validValues = primaryGroup.values.filter(val => filteredApps.some(app => String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === val.toLowerCase()));
-        const rowMaxH = [0, 0]; const colMaxW = [0, 0, 0];
+
+        // Calculate dynamic grid based on 3 columns
+        const colCount = 3;
+        const rowMaxH: number[] = [];
+        const colMaxW: number[] = new Array(colCount).fill(0);
+
         const groups = validValues.map((groupVal, idx) => {
           const groupApps = filteredApps.filter(app => String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === groupVal.toLowerCase());
           const containerId = `group-${primaryGroup.field}-${groupVal}`;
           const content = renderGroupContentNodes(groupApps, containerId, 40, 40);
-          const row = idx < 3 ? 0 : 1; const col = idx < 3 ? idx : idx - 3;
-          rowMaxH[row] = Math.max(rowMaxH[row], content.height); colMaxW[col] = Math.max(colMaxW[col], content.width);
+
+          const row = Math.floor(idx / colCount);
+          const col = idx % colCount;
+
+          rowMaxH[row] = Math.max(rowMaxH[row] || 0, content.height);
+          colMaxW[col] = Math.max(colMaxW[col], content.width);
+
           let color = 'var(--primary)';
           if (primaryGroup.field === 'lifecycle') color = LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === groupVal.toLowerCase())?.color || color;
           else {
@@ -602,9 +626,11 @@ const DiagramInner = ({
           }
           return { containerId, groupVal, color, row, col, width: content.width, height: content.height, nodes: content.nodes };
         });
+
         groups.forEach(g => {
           const currentX = colMaxW.slice(0, g.col).reduce((sum, w) => sum + w + 80, 0);
-          const currentY = g.row === 0 ? 0 : rowMaxH[0] + 80;
+          const currentY = rowMaxH.slice(0, g.row).reduce((sum, h) => sum + h + 80, 0);
+
           allFinalNodes.push({
             id: g.containerId, data: { label: `${primaryGroup.field.toUpperCase()}: ${g.groupVal}` },
             position: { x: currentX, y: currentY },
