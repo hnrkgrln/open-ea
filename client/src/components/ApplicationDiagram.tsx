@@ -790,16 +790,20 @@ const DiagramInner = ({
               color: lockNodes ? 'var(--muted-foreground)' : 'var(--primary-foreground)',
               border: `1px solid ${lockNodes ? 'var(--border)' : 'var(--primary)'}`,
               borderRadius: '6px',
-              width: '28px',
+              padding: '0 8px',
               height: '28px',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: '6px',
               cursor: 'pointer',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase'
             }}
           >
-            {lockNodes ? <Lock size={14} /> : <Unlock size={14} />}
+            {lockNodes ? <Lock size={12} /> : <Unlock size={12} />}
+            {lockNodes ? 'Locked' : 'Unlocked'}
           </button>
         </div>
         <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
