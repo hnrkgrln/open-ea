@@ -326,7 +326,14 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
   const filteredApps = useMemo(() => {
     if (!apps) return [];
     return apps.filter(app => {
-      const matchSearch = !filters.search || app.name.toLowerCase().includes(filters.search.toLowerCase()) || app.description?.toLowerCase().includes(filters.search.toLowerCase());
+      const matchSearch = !filters.search || 
+        app.name.toLowerCase().includes(filters.search.toLowerCase()) || 
+        app.description?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.owner?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.lifecycle?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.type?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.capabilities?.some(c => c.name.toLowerCase().includes(filters.search.toLowerCase())) ||
+        app.metadata?.toLowerCase().includes(filters.search.toLowerCase());
       const matchOwner = filters.owner.length === 0 || filters.owner.includes(app.owner) || filters.owner.includes(app.owner?.toLowerCase());
       const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
       const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
@@ -782,7 +789,13 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
       let matchSearch = true;
       if (filters.search) {
         const query = filters.search.toLowerCase();
-        const appMatches = app.name.toLowerCase().includes(query) || app.description?.toLowerCase().includes(query);
+        const appMatches = app.name.toLowerCase().includes(query) || 
+          app.description?.toLowerCase().includes(query) ||
+          app.owner?.toLowerCase().includes(query) ||
+          app.lifecycle?.toLowerCase().includes(query) ||
+          app.type?.toLowerCase().includes(query) ||
+          app.capabilities?.some(c => c.name.toLowerCase().includes(query)) ||
+          app.metadata?.toLowerCase().includes(query);
         
         // Also match if any of the app's integrations match the query
         const integrationMatches = integrations?.some(i => 

@@ -520,16 +520,21 @@ server.get('/search', {
         OR: [
           { name: { contains: q } },
           { description: { contains: q } },
+          { owner: { contains: q } },
+          { lifecycle: { contains: q } },
+          { type: { contains: q } },
+          { metadata: { contains: q } },
         ],
       },
       include: { capabilities: true },
-      take: 10,
+      take: 15,
     }),
     prisma.capability.findMany({
       where: {
         OR: [
           { name: { contains: q } },
           { description: { contains: q } },
+          { metadata: { contains: q } },
         ],
       },
       take: 10,
