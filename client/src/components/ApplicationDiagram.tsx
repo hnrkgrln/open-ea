@@ -385,7 +385,7 @@ const DiagramInner = ({
           if (islandAppIds.includes(i.sourceAppId)) {
             islandEdges.push({
               id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId, label: i.name || i.type, type: 'default',
-              labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600 }, labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
+              labelStyle: { fill: textColor, fontSize: 10, fontWeight: 600, textAnchor: 'middle' }, labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.9 },
               labelBgPadding: [4, 2], labelBgBorderRadius: 4, style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
               markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
             });
