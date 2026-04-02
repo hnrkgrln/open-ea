@@ -166,10 +166,35 @@ const getScaleColors = (scaleType: string) => {
 };
 
 const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
-  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.05 : 0.03 }}>
+  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.06 : 0.04 }}>
     <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-      <path d="M0 600 C 300 500 600 700 900 550 C 1100 450 1200 500 1200 500 L 1200 800 L 0 800 Z" fill="currentColor" />
-      <path d="M0 700 C 400 600 800 800 1200 650 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.5" />
+      {/* Subtle Sun/Moon */}
+      <circle cx="1000" cy="150" r="60" fill="currentColor" opacity="0.4" />
+      
+      {/* Distant Mountains */}
+      <path d="M0 500 C 200 400 400 600 600 450 C 800 300 1000 500 1200 400 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.2" />
+      
+      {/* Mid-range Mountains */}
+      <path d="M0 600 C 300 500 600 700 900 550 C 1100 450 1200 500 1200 500 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.4" />
+      
+      {/* Nearer Ridge */}
+      <path d="M0 700 C 400 600 800 800 1200 650 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.6" />
+      
+      {/* Foreground Details (Trees on the nearest ridge) */}
+      <g opacity="0.8">
+        <path d="M150 680 L 155 660 L 160 680 Z" fill="currentColor" />
+        <path d="M170 685 L 175 665 L 180 685 Z" fill="currentColor" />
+        <path d="M800 710 L 805 690 L 810 710 Z" fill="currentColor" />
+        <path d="M830 715 L 835 695 L 840 715 Z" fill="currentColor" />
+      </g>
+
+      {/* Tiny Birds */}
+      <g opacity="0.5">
+        <path d="M200 200 Q 205 190 210 200 Q 215 190 220 200" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M240 220 Q 245 210 250 220 Q 255 210 260 220" fill="none" stroke="currentColor" strokeWidth="2" />
+      </g>
+
+      {/* Ground Layer */}
       <path d="M0 750 C 600 700 1000 850 1200 750 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.3" />
     </svg>
   </div>
