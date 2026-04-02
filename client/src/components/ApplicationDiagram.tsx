@@ -1055,6 +1055,30 @@ const DiagramInner = ({
               {mode === 'landscape' && !showCriticality ? ( <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div> ) : ( picklists?.find(p => p.name === 'criticality')?.options.map(opt => ( <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{opt.label}</span></div> )) )}
             </div>
           </div>
+
+          {groupingField && (
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--primary)' }}>Grouped By: {groupingField === 'lifecycle' ? 'Lifecycle' : (groupingField === 'criticality' ? 'Business Criticality' : (groupingField === 'functionalFit' ? 'Functional Fit' : 'Technical Fit'))}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {groupingField === 'lifecycle' ? (
+                  LIFECYCLE_STAGES.map(stage => (
+                    <div key={stage.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? stage.color : stage.lightColor, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                      <span>{stage.label}</span>
+                    </div>
+                  ))
+                ) : (
+                  picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === groupingField?.toLowerCase())?.options.map(opt => (
+                    <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                      <span>{opt.label}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
           <div>
             <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Application {activeOverlay === 'lifecycle' ? 'Lifecycle' : (activeOverlay === 'criticality' ? 'Business Criticality' : (activeOverlay === 'functionalFit' ? 'Functional Fit' : (activeOverlay === 'technicalFit' ? 'Technical Fit' : 'Overlay')))}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
