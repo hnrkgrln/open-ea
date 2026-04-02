@@ -165,6 +165,16 @@ const getScaleColors = (scaleType: string) => {
   }
 };
 
+const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
+  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.05 : 0.03 }}>
+    <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0 600 C 300 500 600 700 900 550 C 1100 450 1200 500 1200 500 L 1200 800 L 0 800 Z" fill="currentColor" />
+      <path d="M0 700 C 400 600 800 800 1200 650 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.5" />
+      <path d="M0 750 C 600 700 1000 850 1200 750 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.3" />
+    </svg>
+  </div>
+);
+
 const CenteredEdge = ({
   id,
   sourceX,
@@ -884,7 +894,9 @@ const DiagramInner = ({
       nodesDraggable={!lockNodes} nodesConnectable={false} elementsSelectable={!lockNodes} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
       nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes}
       style={{ width: '100%', height: '100%' }}
-    >      <Background color="var(--border)" gap={20} />
+    >
+      {(mode === 'landscape' || mode === 'app-landscape') && <LandscapeArt isDark={isDark} />}
+      <Background color="var(--border)" gap={20} />
       <Controls showInteractive={false} />
       <Panel position="top-right" style={{ 
         background: 'var(--card)', 
