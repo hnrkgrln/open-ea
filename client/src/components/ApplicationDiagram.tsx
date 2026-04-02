@@ -711,35 +711,60 @@ const DiagramInner = ({
           const roots = capabilities.filter(c => !c.parentId);
           const dynamicColCount = Math.max(2, Math.floor((window.innerWidth - 120) / 280));
           const colCount = containerId ? 2 : dynamicColCount;
-          const colHeights = new Array(colCount).fill(0); const colWidths = new Array(colCount).fill(280);
-          roots.forEach(root => {
-            if (!isRelevant(root.id)) return;
-            const minH = Math.min(...colHeights); const cIdx = colHeights.indexOf(minH);
+          const colHeights = new Array(colCount).fill(0); 
+          const colWidths = new Array(colCount).fill(280);
+          
+          // First pass: Assign to columns and calculate widths/heights
+          const nodeAssignments = roots.filter(r => isRelevant(r.id)).map(root => {
+            const minH = Math.min(...colHeights); 
+            const cIdx = colHeights.indexOf(minH);
             const layout = renderCap(root.id, containerId, 0, 0, 0, colWidths[cIdx]);
-            const nodeIdx = groupNodes.findIndex(n => n.id === `cap-${containerId || 'main'}-${root.id}`);
-            if (nodeIdx !== -1) {
-              const xPos = colWidths.slice(0, cIdx).reduce((sum, w) => sum + w + 60, 0);
-              groupNodes[nodeIdx].position = { x: xPos + baseOffsetX, y: minH + baseOffsetY + 80 };
-              colWidths[cIdx] = Math.max(colWidths[cIdx], layout.width); colHeights[cIdx] += layout.height + 60;
+            
+            colWidths[cIdx] = Math.max(colWidths[cIdx], layout.width);
+            const currentY = colHeights[cIdx];
+            colHeights[cIdx] += layout.height + 60;
+            
+            return { root, cIdx, currentY, layout };
+          });
+
+          // Second pass: Position based on final colWidths
+          nodeAssignments.forEach(asgn => {
+            const nIdx = groupNodes.findIndex(n => n.id === `cap-${containerId || 'main'}-${asgn.root.id}`);
+            if (nIdx !== -1) {
+              const xPos = colWidths.slice(0, asgn.cIdx).reduce((sum, w) => sum + w + 60, 0);
+              groupNodes[nIdx].position = { x: xPos + baseOffsetX + 60, y: asgn.currentY + baseOffsetY + 80 };
             }
           });
-          return { nodes: groupNodes, width: colWidths.reduce((sum, w) => sum + w + 60, 0) + 60, height: Math.max(...colHeights) + 160 };
+
+          const totalW = colWidths.reduce((sum, w) => sum + w + 60, 0) + 60;
+          return { nodes: groupNodes, width: Math.max(totalW, 400), height: Math.max(...colHeights) + 160 };
         } else {
           const colCount = Math.max(1, Math.floor((window.innerWidth - 120) / 350));
           const colHeights = new Array(colCount).fill(0);
           const colWidths = new Array(colCount).fill(300);
           
-          targetApps.forEach((app) => {
-            const minH = Math.min(...colHeights); const cIdx = colHeights.indexOf(minH);
+          // First pass for apps
+          const appAssignments = targetApps.map(app => {
+            const minH = Math.min(...colHeights); 
+            const cIdx = colHeights.indexOf(minH);
             const layout = renderAppInGrid(app);
-            const nIdx = groupNodes.findIndex(n => n.id === `app-node-${containerId || 'main'}-${app.id}`);
+            
+            colWidths[cIdx] = Math.max(colWidths[cIdx], layout.width);
+            const currentY = colHeights[cIdx];
+            colHeights[cIdx] += layout.height + 60;
+            
+            return { app, cIdx, currentY, layout };
+          });
+
+          // Second pass for apps
+          appAssignments.forEach(asgn => {
+            const nIdx = groupNodes.findIndex(n => n.id === `app-node-${containerId || 'main'}-${asgn.app.id}`);
             if (nIdx !== -1) {
-              const xPos = colWidths.slice(0, cIdx).reduce((sum, w) => sum + w + 60, 0);
-              groupNodes[nIdx].position = { x: xPos + baseOffsetX, y: minH + baseOffsetY + 80 };
-              colWidths[cIdx] = Math.max(colWidths[cIdx], layout.width);
-              colHeights[cIdx] += layout.height + 60;
+              const xPos = colWidths.slice(0, asgn.cIdx).reduce((sum, w) => sum + w + 60, 0);
+              groupNodes[nIdx].position = { x: xPos + baseOffsetX + 60, y: asgn.currentY + baseOffsetY + 80 };
             }
           });
+
           const totalW = colWidths.reduce((sum, w) => sum + w + 60, 0) + 120;
           return { nodes: groupNodes, width: totalW, height: Math.max(...colHeights) + 160 };
         }
