@@ -825,25 +825,36 @@ const DiagramInner = ({
       } else {
         allFinalNodes.push(...renderGroupContentNodes(filteredApps, undefined, 0, 0).nodes);
       }
-      setNodes(allFinalNodes); setEdges([]);
+
+      // Restore activeCategoricalFilters calculation
+      const activeCategoricalFilters: string[] = [];
+      if (!groupingField) {
+        if (filters.lifecycle?.length > 0) activeCategoricalFilters.push(`Lifecycle: ${filters.lifecycle.join(', ')}`);
+        if (filters.owner?.length > 0) activeCategoricalFilters.push(`Owner: ${filters.owner.join(', ')}`);
+        if (filters.type?.length > 0) activeCategoricalFilters.push(`Type: ${filters.type.join(', ')}`);
+        if (filters.capabilityId?.length > 0) {
+          const capNames = filters.capabilityId.map((id: string) => capabilities.find(c => c.id === id)?.name).filter(Boolean);
+          activeCategoricalFilters.push(`Capabilities: ${capNames.join(', ')}`);
+        }
+      }
+
+      if (activeCategoricalFilters.length > 0 && (mode === 'landscape' || mode === 'app-landscape')) {
+
+      // Find bounding box of current nodes
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      allFinalNodes.forEach(n => {
+        const x = n.position.x; const y = n.position.y;
+        const w = n.width || (typeof n.style?.width === 'number' ? n.style.width : 300);
+        const h = n.height || (typeof n.style?.height === 'number' ? n.style.height : 200);
+        minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+      });
+      const p = 60;
+      allFinalNodes.unshift({ id: 'filter-container', data: { label: 'Filtered Inventory' }, position: { x: minX - p, y: minY - p - 40 }, style: { width: (maxX - minX) + p * 2, height: (maxY - minY) + p * 2 + 40, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } });
     }
 
-    if (!groupingField && (filters.lifecycle?.length > 0 || filters.owner?.length > 0 || filters.type?.length > 0)) {
-      setNodes(prev => {
-        if (prev.length === 0) return prev;
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        prev.forEach(n => {
-          const x = n.position.x; const y = n.position.y;
-          const w = n.width || (typeof n.style?.width === 'number' ? n.style.width : 300);
-          const h = n.height || (typeof n.style?.height === 'number' ? n.style.height : 200);
-          minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
-        });
-        const p = 60;
-        return [{ id: 'filter-container', data: { label: 'Filtered Inventory' }, position: { x: minX - p, y: minY - p - 40 }, style: { width: (maxX - minX) + p * 2, height: (maxY - minY) + p * 2 + 40, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } }, ...prev];
-      });
+    setNodes(allFinalNodes); setEdges([]);
     }
-  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, showApplications, showCapabilities, hideOrphanApps, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
-  
+    }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
   useEffect(() => {
     if (nodes.length > 0 && visible && viewportWidth > 0) {
       const timer = setTimeout(() => {
