@@ -16,7 +16,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { Database, Boxes, Lock, Unlock } from 'lucide-react';
+import { Database, Boxes, Lock, Unlock, Maximize, Minimize } from 'lucide-react';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -105,6 +105,7 @@ interface Props {
   groupingField?: string | null;
   relationSearch?: string;
   visible?: boolean;
+  containerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const STANDARD_DEFS: MetadataDefinition[] = [
@@ -275,7 +276,8 @@ const DiagramInner = ({
   filters = {},
   groupingField = null,
   relationSearch = '',
-  visible = false
+  visible = false,
+  containerRef
 }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -283,6 +285,24 @@ const DiagramInner = ({
   const viewportWidth = useStore((s) => s.width);
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const [lockNodes, setLockNodes] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!containerRef?.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+      });
+    } else {
+      document.exitFullscreen();
+    }
+  };
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
 
   const [legendPos, setLegendPos] = useState({ x: 20, y: 20 });
   const isDraggingLegend = useRef(false);
@@ -838,71 +858,103 @@ const DiagramInner = ({
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
-          <button 
-            onClick={() => setLockNodes(!lockNodes)}
-            title={lockNodes ? "Unlock nodes to move them" : "Lock nodes in place"}
-            style={{
-              background: lockNodes ? 'transparent' : 'var(--primary)',
-              color: lockNodes ? 'var(--muted-foreground)' : 'var(--primary-foreground)',
-              border: `1px solid ${lockNodes ? 'var(--border)' : 'var(--primary)'}`,
-              borderRadius: '6px',
-              padding: '0 8px',
-              height: '28px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontSize: '10px',
-              fontWeight: 700,
-              textTransform: 'uppercase'
-            }}
-          >
-            {lockNodes ? <Lock size={12} /> : <Unlock size={12} />}
-            {lockNodes ? 'Locked' : 'Unlocked'}
-          </button>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button 
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit Presentation Mode" : "Presentation Mode (Fullscreen)"}
+              style={{
+                background: isFullscreen ? 'var(--primary)' : 'transparent',
+                color: isFullscreen ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+                border: `1px solid ${isFullscreen ? 'var(--primary)' : 'var(--border)'}`,
+                borderRadius: '6px',
+                padding: '0 8px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontSize: '10px',
+                fontWeight: 700,
+                textTransform: 'uppercase'
+              }}
+            >
+              {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
+              {isFullscreen ? 'Exit' : 'Present'}
+            </button>
+            <button 
+              onClick={() => setLockNodes(!lockNodes)}
+              title={lockNodes ? "Unlock nodes to move them" : "Lock nodes in place"}
+              style={{
+                background: lockNodes ? 'transparent' : 'var(--primary)',
+                color: lockNodes ? 'var(--muted-foreground)' : 'var(--primary-foreground)',
+                border: `1px solid ${lockNodes ? 'var(--border)' : 'var(--primary)'}`,
+                borderRadius: '6px',
+                padding: '0 8px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontSize: '10px',
+                fontWeight: 700,
+                textTransform: 'uppercase'
+              }}
+            >
+              {lockNodes ? <Lock size={12} /> : <Unlock size={12} />}
+              {lockNodes ? 'Locked' : 'Unlocked'}
+            </button>
+          </div>
         </div>
         <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
           {lockNodes ? 'Click objects to edit • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
         </div>
       </Panel>
-      <Panel position="top-left" style={{ 
-        background: 'var(--card)', 
-        padding: '12px', 
-        borderRadius: '12px', 
-        border: '1px solid var(--border)', 
-        fontSize: '11px', 
-        color: 'var(--foreground)', 
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-        maxWidth: '220px', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '16px',
-        margin: 0,
-        transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
-        cursor: 'grab',
-        userSelect: 'none',
-        zIndex: 1000
-      }} onMouseDown={onLegendMouseDown}>
-        <div>
-          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {mode === 'landscape' && !showCriticality ? ( <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div> ) : ( picklists?.find(p => p.name === 'criticality')?.options.map(opt => ( <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{opt.label}</span></div> )) )}
+      {!isFullscreen && (
+        <Panel position="top-left" style={{ 
+          background: 'var(--card)', 
+          padding: '12px', 
+          borderRadius: '12px', 
+          border: '1px solid var(--border)', 
+          fontSize: '11px', 
+          color: 'var(--foreground)', 
+          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
+          maxWidth: '220px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '16px',
+          margin: 0,
+          transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
+          cursor: 'grab',
+          userSelect: 'none',
+          zIndex: 1000
+        }} onMouseDown={onLegendMouseDown}>
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {mode === 'landscape' && !showCriticality ? ( <div style={{ fontStyle: 'italic', color: 'var(--muted-foreground)', fontSize: '10px' }}>Toggled Off</div> ) : ( picklists?.find(p => p.name === 'criticality')?.options.map(opt => ( <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{opt.label}</span></div> )) )}
+            </div>
           </div>
-        </div>
-        <div>
-          <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Application {activeOverlay === 'lifecycle' ? 'Lifecycle' : (activeOverlay === 'criticality' ? 'Business Criticality' : (activeOverlay === 'functionalFit' ? 'Functional Fit' : (activeOverlay === 'technicalFit' ? 'Technical Fit' : 'Overlay')))}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {activeOverlay === 'lifecycle' ? ( LIFECYCLE_STAGES.map(stage => ( <div key={stage.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? stage.color : stage.lightColor, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{stage.label}</span></div> )) ) : ( picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === activeOverlay?.toLowerCase())?.options.map(opt => ( <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{opt.label}</span></div> )) )}
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Application {activeOverlay === 'lifecycle' ? 'Lifecycle' : (activeOverlay === 'criticality' ? 'Business Criticality' : (activeOverlay === 'functionalFit' ? 'Functional Fit' : (activeOverlay === 'technicalFit' ? 'Technical Fit' : 'Overlay')))}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {activeOverlay === 'lifecycle' ? ( LIFECYCLE_STAGES.map(stage => ( <div key={stage.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? stage.color : stage.lightColor, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{stage.label}</span></div> )) ) : ( picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === activeOverlay?.toLowerCase())?.options.map(opt => ( <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{opt.label}</span></div> )) )}
+            </div>
           </div>
-        </div>
-      </Panel>
+        </Panel>
+      )}
     </ReactFlow>
   );
 };
 
-export const ApplicationDiagram = (props: Props) => (
-  <div style={{ width: '100%', height: '100%' }}>
-    <ReactFlowProvider><DiagramInner {...props} /></ReactFlowProvider>
-  </div>
-);
+export const ApplicationDiagram = (props: Props) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: '100%', background: 'var(--background)' }}>
+      <ReactFlowProvider>
+        <DiagramInner {...props} containerRef={containerRef} />
+      </ReactFlowProvider>
+    </div>
+  );
+};

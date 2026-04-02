@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Presentation } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
@@ -731,9 +731,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
 };
 
 const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapability, isVisible }: { apps: Application[], capabilities: Capability[], integrations: any[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, isVisible: boolean }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
- 
     search: '', 
     owner: [] as string[], 
     lifecycle: [] as string[], 
@@ -758,19 +756,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
 
   const [groupingField, setGroupingField] = useLocalStorage<string | null>('openea_diagram_grouping', null);
 
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  };
-
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
-
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
 
   const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
@@ -834,9 +820,8 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   }, [filteredApps, integrations]);
 
   return (
-    <div ref={containerRef} style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', background: 'var(--background)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-
         <div><h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MapIcon size={24} /> Landscape Diagrams</h1><p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           
@@ -844,15 +829,8 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
             <button onClick={() => setMode('landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={16} style={{ marginRight: '0.5rem' }} /> Capability Landscape</button>
             <button onClick={() => setMode('app-landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={16} style={{ marginRight: '0.5rem' }} /> Application Landscape</button>
             <button onClick={() => setMode('network')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={16} style={{ marginRight: '0.5rem' }} /> Integrations</button>
-            <button 
-              onClick={toggleFullscreen} 
-              title="Presentation Mode (Fullscreen)"
-              style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: 'transparent', color: 'var(--muted-foreground)' }}
-            >
-              <Presentation size={16} style={{ marginRight: '0.5rem' }} /> 
-              Presentation
-            </button>
           </div>
+
           {(mode === 'landscape' || mode === 'app-landscape') && (
             <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem', alignItems: 'center' }}>
               <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.5rem', opacity: 0.6 }}>Group By</span>
