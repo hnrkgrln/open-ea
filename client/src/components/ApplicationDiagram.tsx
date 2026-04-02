@@ -727,16 +727,21 @@ const DiagramInner = ({
         } else {
           const colCount = Math.max(1, Math.floor((window.innerWidth - 120) / 350));
           const colHeights = new Array(colCount).fill(0);
+          const colWidths = new Array(colCount).fill(300);
+          
           targetApps.forEach((app) => {
             const minH = Math.min(...colHeights); const cIdx = colHeights.indexOf(minH);
             const layout = renderAppInGrid(app);
             const nIdx = groupNodes.findIndex(n => n.id === `app-node-${containerId || 'main'}-${app.id}`);
             if (nIdx !== -1) {
-              groupNodes[nIdx].position = { x: cIdx * 400 + baseOffsetX, y: minH + baseOffsetY + 80 };
+              const xPos = colWidths.slice(0, cIdx).reduce((sum, w) => sum + w + 60, 0);
+              groupNodes[nIdx].position = { x: xPos + baseOffsetX, y: minH + baseOffsetY + 80 };
+              colWidths[cIdx] = Math.max(colWidths[cIdx], layout.width);
               colHeights[cIdx] += layout.height + 60;
             }
           });
-          return { nodes: groupNodes, width: colCount * 400 + 120, height: Math.max(...colHeights) + 160 };
+          const totalW = colWidths.reduce((sum, w) => sum + w + 60, 0) + 120;
+          return { nodes: groupNodes, width: totalW, height: Math.max(...colHeights) + 160 };
         }
       };
 
