@@ -372,6 +372,22 @@ const DiagramInner = ({
       return (app as any)[fieldName] || safeJsonParse(app.metadata)[fieldName] || def.min;
     };
 
+    const getFieldValue = (app: Application, field: string) => {
+      if (field === 'criticality') {
+        return String(getAppScore(app, 'criticality', appCritDef));
+      }
+      if (field === 'functionalFit') {
+        const def = metaDefs.find(d => d.fieldName === 'functionalFit' && d.entityType === 'Application');
+        return String(getAppScore(app, 'functionalFit', def));
+      }
+      if (field === 'technicalFit') {
+        const def = metaDefs.find(d => d.fieldName === 'technicalFit' && d.entityType === 'Application');
+        return String(getAppScore(app, 'technicalFit', def));
+      }
+      const val = (app as any)[field] || safeJsonParse(app.metadata)[field];
+      return val ? String(val) : 'Unspecified';
+    };
+
     if (mode === 'network') {
       const search = (relationSearch || '').toLowerCase();
       const visibleAppIds = new Set(filteredApps.map(a => a.id));
@@ -466,10 +482,7 @@ const DiagramInner = ({
 
       const activeFilterGroups: { field: string, values: string[] }[] = [];
       if (groupingField) {
-        const uniqueValues = Array.from(new Set(filteredApps.map(app => {
-          const val = (app as any)[groupingField] || safeJsonParse(app.metadata)[groupingField];
-          return val ? String(val) : 'Unspecified';
-        })));
+        const uniqueValues = Array.from(new Set(filteredApps.map(app => getFieldValue(app, groupingField))));
 
         // Sort unique values logically
         uniqueValues.sort((a, b) => {
@@ -678,7 +691,7 @@ const DiagramInner = ({
       };
 
       if (primaryGroup) {
-        const validValues = primaryGroup.values.filter(val => filteredApps.some(app => String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === val.toLowerCase()));
+        const validValues = primaryGroup.values.filter(val => filteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase()));
 
         // Calculate dynamic grid based on 3 columns
         const colCount = 3;
@@ -686,8 +699,9 @@ const DiagramInner = ({
         const colMaxW: number[] = new Array(colCount).fill(0);
 
         const groups = validValues.map((groupVal, idx) => {
-          const groupApps = filteredApps.filter(app => String((app as any)[primaryGroup.field] || safeJsonParse(app.metadata)[primaryGroup.field] || 'Unspecified').toLowerCase() === groupVal.toLowerCase());
+          const groupApps = filteredApps.filter(app => getFieldValue(app, primaryGroup.field).toLowerCase() === groupVal.toLowerCase());
           const containerId = `group-${primaryGroup.field}-${groupVal}`;
+
           const content = renderGroupContentNodes(groupApps, containerId, 40, 40);
 
           const row = Math.floor(idx / colCount);
