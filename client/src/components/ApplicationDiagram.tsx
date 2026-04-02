@@ -166,49 +166,24 @@ const getScaleColors = (scaleType: string) => {
 };
 
 const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
-  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.15 : 0.1 }}>
+  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.07 : 0.04 }}>
     <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
       {/* Subtle Sun/Moon */}
-      <circle cx="150" cy="150" r="45" fill="currentColor" opacity="0.4" />
+      <circle cx="1000" cy="150" r="50" fill="currentColor" opacity="0.2" />
       
-      {/* Distant Sharp Peaks */}
-      <path d="M0 500 L 150 300 L 300 450 L 450 250 L 650 480 L 850 200 L 1050 450 L 1200 350 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.15" />
+      {/* Distant Ridge */}
+      <path d="M0 500 C 300 400 600 600 900 450 C 1100 350 1200 400 1200 400 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.1" />
       
-      {/* Mid-range Rugged Ridge */}
-      <path d="M0 600 L 200 450 L 400 580 L 600 400 L 850 620 L 1100 480 L 1200 550 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.25" />
+      {/* Mid Ridge */}
+      <path d="M0 600 C 400 500 800 700 1200 550 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.2" />
       
-      {/* Nearer Rolling Foothills */}
-      <path d="M0 750 Q 200 650 400 720 T 800 680 T 1200 750 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.4" />
-      
-      {/* Scattered Trees on Foothills */}
-      <g fill="currentColor" opacity="0.6">
-        <path d="M100 710 L 104 690 L 108 710 Z" />
-        <path d="M120 715 L 124 695 L 128 715 Z" />
-        <path d="M450 690 L 454 670 L 458 690 Z" />
-        <path d="M800 660 L 804 640 L 808 660 Z" />
-        <path d="M820 665 L 824 645 L 828 665 Z" />
-      </g>
+      {/* Near Ridge */}
+      <path d="M0 700 C 600 650 1000 800 1200 700 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.3" />
 
-      {/* Tiny Animal Silhouette (Deer/Elk) */}
-      <g transform="translate(480, 685) scale(0.4)" fill="currentColor" opacity="0.8">
-        {/* Body */}
-        <ellipse cx="10" cy="15" rx="8" ry="4" />
-        {/* Legs */}
-        <line x1="5" y1="18" x2="4" y2="25" stroke="currentColor" strokeWidth="2" />
-        <line x1="8" y1="19" x2="8" y2="26" stroke="currentColor" strokeWidth="2" />
-        <line x1="12" y1="19" x2="12" y2="26" stroke="currentColor" strokeWidth="2" />
-        <line x1="15" y1="18" x2="16" y2="25" stroke="currentColor" strokeWidth="2" />
-        {/* Neck & Head */}
-        <path d="M16 13 Q 22 8 20 2" stroke="currentColor" strokeWidth="2" fill="none" />
-        <circle cx="20" cy="2" r="2" />
-        {/* Antlers */}
-        <path d="M20 2 L 18 -3 M 20 2 L 23 -2" stroke="currentColor" strokeWidth="1" fill="none" />
-      </g>
-
-      {/* High-altitude Birds */}
-      <g opacity="0.5">
-        <path d="M900 150 Q 905 140 910 150 Q 915 140 920 150" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M940 170 Q 945 160 950 170 Q 955 160 960 170" fill="none" stroke="currentColor" strokeWidth="2" />
+      {/* Tiny Birds */}
+      <g opacity="0.3">
+        <path d="M200 200 Q 205 190 210 200 Q 215 190 220 200" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path d="M240 220 Q 245 210 250 220 Q 255 210 260 220" fill="none" stroke="currentColor" strokeWidth="2" />
       </g>
     </svg>
   </div>
