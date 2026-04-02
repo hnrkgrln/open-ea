@@ -112,6 +112,33 @@ export const MultiSelect = ({ label, options, selectedValues, onChange, placehol
             sideOffset={4}
           >
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {selectedValues.length > 0 && (
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onChange([]);
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: 'var(--radius)',
+                    cursor: 'pointer',
+                    fontSize: '0.875rem',
+                    color: 'var(--primary)',
+                    fontWeight: 600,
+                    borderBottom: '1px solid var(--border)',
+                    marginBottom: '4px'
+                  }}
+                  className="search-item"
+                >
+                  <div style={{ width: '1rem', display: 'flex', alignItems: 'center' }}>
+                    <X size={14} />
+                  </div>
+                  <span>Clear All</span>
+                </div>
+              )}
               {options.map((option) => (
                 <div
                   key={option.value}
