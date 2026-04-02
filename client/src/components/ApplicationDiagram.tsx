@@ -689,8 +689,9 @@ const DiagramInner = ({
 
         if (mode === 'landscape') {
           const roots = capabilities.filter(c => !c.parentId);
-          const colCount = containerId ? 2 : 4;
-          const colHeights = new Array(colCount).fill(0); const colWidths = new Array(colCount).fill(350);
+          const dynamicColCount = Math.max(2, Math.floor((window.innerWidth - 120) / 280));
+          const colCount = containerId ? 2 : dynamicColCount;
+          const colHeights = new Array(colCount).fill(0); const colWidths = new Array(colCount).fill(280);
           roots.forEach(root => {
             if (!isRelevant(root.id)) return;
             const minH = Math.min(...colHeights); const cIdx = colHeights.indexOf(minH);
@@ -704,18 +705,18 @@ const DiagramInner = ({
           });
           return { nodes: groupNodes, width: colWidths.reduce((sum, w) => sum + w + 60, 0) + 60, height: Math.max(...colHeights) + 160 };
         } else {
-          const colCount = Math.max(1, Math.floor((window.innerWidth - 120) / 500));
+          const colCount = Math.max(1, Math.floor((window.innerWidth - 120) / 350));
           const colHeights = new Array(colCount).fill(0);
           targetApps.forEach((app) => {
             const minH = Math.min(...colHeights); const cIdx = colHeights.indexOf(minH);
             const layout = renderAppInGrid(app);
             const nIdx = groupNodes.findIndex(n => n.id === `app-node-${containerId || 'main'}-${app.id}`);
             if (nIdx !== -1) {
-              groupNodes[nIdx].position = { x: cIdx * 500 + baseOffsetX, y: minH + baseOffsetY + 80 };
+              groupNodes[nIdx].position = { x: cIdx * 400 + baseOffsetX, y: minH + baseOffsetY + 80 };
               colHeights[cIdx] += layout.height + 60;
             }
           });
-          return { nodes: groupNodes, width: colCount * 500 + 120, height: Math.max(...colHeights) + 160 };
+          return { nodes: groupNodes, width: colCount * 400 + 120, height: Math.max(...colHeights) + 160 };
         }
       };
 
@@ -727,8 +728,8 @@ const DiagramInner = ({
           return filteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase());
         });
 
-        // Calculate dynamic grid based on 3 columns
-        const colCount = 3;
+        // Calculate dynamic grid based on screen width
+        const colCount = Math.max(2, Math.floor((window.innerWidth - 120) / 550));
         const rowMaxH: number[] = [];
         const colMaxW: number[] = new Array(colCount).fill(0);
 
