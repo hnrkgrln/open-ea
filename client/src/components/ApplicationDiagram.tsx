@@ -166,22 +166,22 @@ const getScaleColors = (scaleType: string) => {
 };
 
 const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
-  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.07 : 0.04 }}>
+  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.15 : 0.1 }}>
     <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
       {/* Subtle Sun/Moon */}
-      <circle cx="150" cy="150" r="45" fill="currentColor" opacity="0.3" />
+      <circle cx="150" cy="150" r="45" fill="currentColor" opacity="0.4" />
       
       {/* Distant Sharp Peaks */}
-      <path d="M0 500 L 150 300 L 300 450 L 450 250 L 650 480 L 850 200 L 1050 450 L 1200 350 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.1" />
+      <path d="M0 500 L 150 300 L 300 450 L 450 250 L 650 480 L 850 200 L 1050 450 L 1200 350 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.15" />
       
       {/* Mid-range Rugged Ridge */}
-      <path d="M0 600 L 200 450 L 400 580 L 600 400 L 850 620 L 1100 480 L 1200 550 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.2" />
+      <path d="M0 600 L 200 450 L 400 580 L 600 400 L 850 620 L 1100 480 L 1200 550 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.25" />
       
       {/* Nearer Rolling Foothills */}
-      <path d="M0 750 Q 200 650 400 720 T 800 680 T 1200 750 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.3" />
+      <path d="M0 750 Q 200 650 400 720 T 800 680 T 1200 750 L 1200 800 L 0 800 Z" fill="currentColor" opacity="0.4" />
       
       {/* Scattered Trees on Foothills */}
-      <g fill="currentColor" opacity="0.5">
+      <g fill="currentColor" opacity="0.6">
         <path d="M100 710 L 104 690 L 108 710 Z" />
         <path d="M120 715 L 124 695 L 128 715 Z" />
         <path d="M450 690 L 454 670 L 458 690 Z" />
@@ -190,7 +190,7 @@ const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
       </g>
 
       {/* Tiny Animal Silhouette (Deer/Elk) */}
-      <g transform="translate(480, 685) scale(0.4)" fill="currentColor" opacity="0.7">
+      <g transform="translate(480, 685) scale(0.4)" fill="currentColor" opacity="0.8">
         {/* Body */}
         <ellipse cx="10" cy="15" rx="8" ry="4" />
         {/* Legs */}
@@ -206,7 +206,7 @@ const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
       </g>
 
       {/* High-altitude Birds */}
-      <g opacity="0.4">
+      <g opacity="0.5">
         <path d="M900 150 Q 905 140 910 150 Q 915 140 920 150" fill="none" stroke="currentColor" strokeWidth="2" />
         <path d="M940 170 Q 945 160 950 170 Q 955 160 960 170" fill="none" stroke="currentColor" strokeWidth="2" />
       </g>
@@ -215,30 +215,39 @@ const LandscapeArt = ({ isDark }: { isDark: boolean }) => (
 );
 
 const NetworkArt = ({ isDark }: { isDark: boolean }) => (
-  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.08 : 0.05 }}>
+  <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.15 : 0.1 }}>
+    <style>{`
+      @keyframes twinkle {
+        0%, 100% { opacity: 0.3; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+      }
+      .star {
+        animation: twinkle 3s infinite ease-in-out;
+      }
+    `}</style>
     <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
-      {/* Starry background dots */}
-      <circle cx="100" cy="100" r="1.5" fill="currentColor" />
-      <circle cx="300" cy="150" r="1" fill="currentColor" />
-      <circle cx="500" cy="80" r="1.2" fill="currentColor" />
-      <circle cx="700" cy="200" r="1.5" fill="currentColor" />
-      <circle cx="900" cy="120" r="1" fill="currentColor" />
-      <circle cx="1100" cy="180" r="1.2" fill="currentColor" />
-      <circle cx="50" cy="400" r="1" fill="currentColor" />
-      <circle cx="250" cy="450" r="1.5" fill="currentColor" />
-      <circle cx="450" cy="380" r="1.2" fill="currentColor" />
-      <circle cx="650" cy="500" r="1.5" fill="currentColor" />
-      <circle cx="850" cy="420" r="1" fill="currentColor" />
-      <circle cx="1050" cy="480" r="1.2" fill="currentColor" />
-      <circle cx="150" cy="700" r="1.2" fill="currentColor" />
-      <circle cx="350" cy="750" r="1" fill="currentColor" />
-      <circle cx="550" cy="680" r="1.5" fill="currentColor" />
-      <circle cx="750" cy="780" r="1.2" fill="currentColor" />
-      <circle cx="950" cy="720" r="1.5" fill="currentColor" />
-      <circle cx="1150" cy="760" r="1" fill="currentColor" />
+      {/* Starry background dots with twinkling */}
+      <circle className="star" cx="100" cy="100" r="1.5" fill="currentColor" style={{ animationDelay: '0s' }} />
+      <circle className="star" cx="300" cy="150" r="1" fill="currentColor" style={{ animationDelay: '1.2s' }} />
+      <circle className="star" cx="500" cy="80" r="1.2" fill="currentColor" style={{ animationDelay: '0.5s' }} />
+      <circle className="star" cx="700" cy="200" r="1.5" fill="currentColor" style={{ animationDelay: '2.1s' }} />
+      <circle className="star" cx="900" cy="120" r="1" fill="currentColor" style={{ animationDelay: '0.8s' }} />
+      <circle className="star" cx="1100" cy="180" r="1.2" fill="currentColor" style={{ animationDelay: '1.5s' }} />
+      <circle className="star" cx="50" cy="400" r="1" fill="currentColor" style={{ animationDelay: '2.5s' }} />
+      <circle className="star" cx="250" cy="450" r="1.5" fill="currentColor" style={{ animationDelay: '0.3s' }} />
+      <circle className="star" cx="450" cy="380" r="1.2" fill="currentColor" style={{ animationDelay: '1.7s' }} />
+      <circle className="star" cx="650" cy="500" r="1.5" fill="currentColor" style={{ animationDelay: '0.9s' }} />
+      <circle className="star" cx="850" cy="420" r="1" fill="currentColor" style={{ animationDelay: '2.2s' }} />
+      <circle className="star" cx="1050" cy="480" r="1.2" fill="currentColor" style={{ animationDelay: '1.1s' }} />
+      <circle className="star" cx="150" cy="700" r="1.2" fill="currentColor" style={{ animationDelay: '0.6s' }} />
+      <circle className="star" cx="350" cy="750" r="1" fill="currentColor" style={{ animationDelay: '1.9s' }} />
+      <circle className="star" cx="550" cy="680" r="1.5" fill="currentColor" style={{ animationDelay: '0.4s' }} />
+      <circle className="star" cx="750" cy="780" r="1.2" fill="currentColor" style={{ animationDelay: '2.7s' }} />
+      <circle className="star" cx="950" cy="720" r="1.5" fill="currentColor" style={{ animationDelay: '1.3s' }} />
+      <circle className="star" cx="1150" cy="760" r="1" fill="currentColor" style={{ animationDelay: '0.2s' }} />
 
       {/* Interconnected constellations */}
-      <g stroke="currentColor" strokeWidth="0.5" opacity="0.3" fill="none">
+      <g stroke="currentColor" strokeWidth="0.8" opacity="0.4" fill="none">
         <path d="M100 100 L300 150 L500 80 L700 200 L900 120 L1100 180" />
         <path d="M50 400 L250 450 L450 380 L650 500 L850 420 L1050 480" />
         <path d="M150 700 L350 750 L550 680 L750 780 L950 720 L1150 760" />
