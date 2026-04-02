@@ -958,25 +958,25 @@ const DiagramInner = ({
           {lockNodes ? 'Click objects to edit • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
         </div>
       </Panel>
-      {!isFullscreen && (
-        <Panel position="top-left" style={{ 
-          background: 'var(--card)', 
-          padding: '12px', 
-          borderRadius: '12px', 
-          border: '1px solid var(--border)', 
-          fontSize: '11px', 
-          color: 'var(--foreground)', 
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-          maxWidth: '220px', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '16px',
-          margin: 0,
-          transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
-          cursor: 'grab',
-          userSelect: 'none',
-          zIndex: 1000
-        }} onMouseDown={onLegendMouseDown}>
+      <Panel position="top-left" style={{ 
+        background: 'var(--card)', 
+        padding: '12px', 
+        borderRadius: '12px', 
+        border: '1px solid var(--border)', 
+        fontSize: '11px', 
+        color: 'var(--foreground)', 
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
+        maxWidth: '220px', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '16px',
+        margin: 0,
+        transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
+        cursor: 'grab',
+        userSelect: 'none',
+        zIndex: 1000
+      }} onMouseDown={onLegendMouseDown}>
+
           <div>
             <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -990,8 +990,7 @@ const DiagramInner = ({
             </div>
           </div>
         </Panel>
-      )}
-    </ReactFlow>
+      </ReactFlow>
   );
 };
 
