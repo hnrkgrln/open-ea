@@ -98,6 +98,7 @@ interface Props {
   activeOverlay?: string | null;
   activeCustomOverlays?: string[];
   showApplications?: boolean;
+  showCapabilities?: boolean;
   hideOrphanApps?: boolean;
   showCriticality?: boolean;
   filters?: any;
@@ -268,6 +269,7 @@ const DiagramInner = ({
   activeOverlay = 'lifecycle', 
   activeCustomOverlays = [],
   showApplications = true, 
+  showCapabilities = true,
   hideOrphanApps = true,
   showCriticality = true, 
   filters = {},
@@ -636,12 +638,15 @@ const DiagramInner = ({
         };
 
         const renderAppInGrid = (app: Application) => {
-          const associatedCaps = app.capabilities || [];
+          const associatedCaps = showCapabilities ? (app.capabilities || []) : [];
           const innerCols = Math.max(1, Math.ceil(Math.sqrt(associatedCaps.length * 0.6)));
           const innerRows = Math.ceil(associatedCaps.length / innerCols);
           const childW = 220; const childH = 45; const gap = 10; const padding = 20; const headerH = 65;
           const nodeW = padding * 2 + (innerCols * childW) + (innerCols - 1) * gap;
-          const nodeH = headerH + (innerRows * childH) + (innerRows - 1) * gap + padding;
+          const nodeH = associatedCaps.length > 0 
+            ? headerH + (innerRows * childH) + (innerRows - 1) * gap + padding
+            : headerH + 15;
+
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark);
           else if (appOverlayDef) colors = getOverlayColor(getAppScore(app, activeOverlay!, appOverlayDef), appOverlayDef, picklists);
@@ -662,6 +667,7 @@ const DiagramInner = ({
           });
 
           associatedCaps.forEach((c, i) => {
+            if (!showCapabilities) return;
             const fullCap = capabilities.find(ac => ac.id === c.id);
             const col = i % innerCols; const row = Math.floor(i / innerCols);
             let capColors = { bg: 'var(--secondary)', text: 'var(--foreground)' };
@@ -785,7 +791,7 @@ const DiagramInner = ({
         return [{ id: 'filter-container', data: { label: 'Filtered Inventory' }, position: { x: minX - p, y: minY - p - 40 }, style: { width: (maxX - minX) + p * 2, height: (maxY - minY) + p * 2 + 40, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } }, ...prev];
       });
     }
-  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, showApplications, hideOrphanApps, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
+  }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, showApplications, showCapabilities, hideOrphanApps, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
   
   useEffect(() => {
     if (nodes.length > 0 && visible && viewportWidth > 0) {

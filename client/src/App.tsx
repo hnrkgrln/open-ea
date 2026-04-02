@@ -751,7 +751,9 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   const [activeCustomOverlays, setActiveCustomOverlays] = useLocalStorage<string[]>('openea_diagram_custom_overlays', []);
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
+  const [showCapabilities, setShowCapabilities] = useLocalStorage<boolean>('meat_diagram_show_caps', true);
   const [hideOrphanApps, setHideOrphanApps] = useLocalStorage<boolean>('meat_diagram_hide_orphans', true);
+
   const [groupingField, setGroupingField] = useLocalStorage<string | null>('openea_diagram_grouping', null);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
@@ -882,6 +884,16 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
                 Apps
               </button>
             )}
+            {mode === 'app-landscape' && (
+              <button 
+                onClick={() => setShowCapabilities(!showCapabilities)} 
+                style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: showCapabilities ? 'var(--background)' : 'transparent', boxShadow: showCapabilities ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCapabilities ? 'var(--primary)' : 'var(--muted-foreground)' }}
+              >
+                {showCapabilities ? <Eye size={16} style={{ marginRight: '0.5rem' }} /> : <EyeOff size={16} style={{ marginRight: '0.5rem' }} />}
+                Capabilities
+              </button>
+            )}
+
             {mode === 'network' && (
               <button 
                 onClick={() => setHideOrphanApps(!hideOrphanApps)} 
@@ -936,6 +948,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
           activeOverlay={activeOverlay} 
           activeCustomOverlays={activeCustomOverlays}
           showApplications={showApplications} 
+          showCapabilities={showCapabilities}
           hideOrphanApps={hideOrphanApps}
           showCriticality={showCriticality} 
           filters={filters}
