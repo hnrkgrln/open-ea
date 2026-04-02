@@ -899,56 +899,60 @@ const DiagramInner = ({
         gap: '8px',
         minWidth: '180px'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong>{mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}</strong>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button 
-              onClick={toggleFullscreen}
-              title={isFullscreen ? "Exit Presentation Mode" : "Presentation Mode (Fullscreen)"}
-              style={{
-                background: isFullscreen ? 'var(--primary)' : 'transparent',
-                color: isFullscreen ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
-                border: `1px solid ${isFullscreen ? 'var(--primary)' : 'var(--border)'}`,
-                borderRadius: '6px',
-                padding: '0 8px',
-                height: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase'
-              }}
-            >
-              {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
-              {isFullscreen ? 'Exit' : 'Present'}
-            </button>
-            <button 
-              onClick={() => setLockNodes(!lockNodes)}
-              title={lockNodes ? "Unlock nodes to move them" : "Lock nodes in place"}
-              style={{
-                background: lockNodes ? 'transparent' : 'var(--primary)',
-                color: lockNodes ? 'var(--muted-foreground)' : 'var(--primary-foreground)',
-                border: `1px solid ${lockNodes ? 'var(--border)' : 'var(--primary)'}`,
-                borderRadius: '6px',
-                padding: '0 8px',
-                height: '28px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                fontSize: '10px',
-                fontWeight: 700,
-                textTransform: 'uppercase'
-              }}
-            >
-              {lockNodes ? <Lock size={12} /> : <Unlock size={12} />}
-              {lockNodes ? 'Locked' : 'Unlocked'}
-            </button>
-          </div>
+        <div style={{ fontSize: '11px', fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '2px' }}>
+          {mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}
+        </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button 
+            onClick={toggleFullscreen}
+            title={isFullscreen ? "Exit Presentation Mode" : "Presentation Mode (Fullscreen)"}
+            style={{
+              background: isFullscreen ? 'var(--primary)' : 'transparent',
+              color: isFullscreen ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
+              border: `1px solid ${isFullscreen ? 'var(--primary)' : 'var(--border)'}`,
+              borderRadius: '6px',
+              padding: '0 8px',
+              height: '28px',
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase'
+            }}
+          >
+            {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
+            {isFullscreen ? 'Exit' : 'Present'}
+          </button>
+          <button 
+            onClick={() => setLockNodes(!lockNodes)}
+            title={lockNodes ? "Unlock nodes to move them" : "Lock nodes in place"}
+            style={{
+              background: lockNodes ? 'transparent' : 'var(--primary)',
+              color: lockNodes ? 'var(--muted-foreground)' : 'var(--primary-foreground)',
+              border: `1px solid ${lockNodes ? 'var(--border)' : 'var(--primary)'}`,
+              borderRadius: '6px',
+              padding: '0 8px',
+              height: '28px',
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase'
+            }}
+          >
+            {lockNodes ? <Lock size={12} /> : <Unlock size={12} />}
+            {lockNodes ? 'Locked' : 'Unlocked'}
+          </button>
         </div>
         <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
           {lockNodes ? 'Click objects to edit • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
