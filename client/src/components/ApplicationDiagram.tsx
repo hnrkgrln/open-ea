@@ -780,10 +780,10 @@ const DiagramInner = ({
 
         // Calculate dynamic grid based on screen width
         const colCount = Math.max(2, Math.floor((window.innerWidth - 120) / 550));
-        const rowMaxH: number[] = [];
-        const colMaxW: number[] = new Array(colCount).fill(0);
+        const columnHeights = new Array(colCount).fill(0);
+        const colMaxW = new Array(colCount).fill(0);
 
-        const groups = validValues.map((groupVal, idx) => {
+        const groups = validValues.map((groupVal) => {
           let groupApps = filteredApps;
           let capFilter: ((c: Capability) => boolean) | undefined = undefined;
 
@@ -796,10 +796,12 @@ const DiagramInner = ({
           const containerId = `group-${primaryGroup.field}-${groupVal}`;
           const content = renderGroupContentNodes(groupApps, containerId, 40, 40, capFilter);
 
-          const row = Math.floor(idx / colCount);
-          const col = idx % colCount;
+          // Masonry assignment: choose the shortest column
+          const minH = Math.min(...columnHeights);
+          const col = columnHeights.indexOf(minH);
+          const currentY = minH;
 
-          rowMaxH[row] = Math.max(rowMaxH[row] || 0, content.height);
+          columnHeights[col] += content.height + 80;
           colMaxW[col] = Math.max(colMaxW[col], content.width);
 
           let color = 'var(--primary)';
@@ -809,19 +811,19 @@ const DiagramInner = ({
             const def = metaDefs.find(d => d.fieldName === primaryGroup.field && d.entityType === entType);
             if (def) color = getOverlayColor(groupVal, def, picklists).bg;
           }
-          return { containerId, groupVal, color, row, col, width: content.width, height: content.height, nodes: content.nodes };
+          return { containerId, groupVal, color, col, currentY, width: content.width, height: content.height, nodes: content.nodes };
         });
+
         groups.forEach(g => {
           const currentX = colMaxW.slice(0, g.col).reduce((sum, w) => sum + w + 80, 0);
-          const currentY = rowMaxH.slice(0, g.row).reduce((sum, h) => sum + h + 80, 0);
-
           allFinalNodes.push({
             id: g.containerId, data: { label: `${primaryGroup.field.toUpperCase()}: ${g.groupVal}` },
-            position: { x: currentX, y: currentY },
+            position: { x: currentX, y: g.currentY },
             style: { background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `4px solid ${g.color}`, borderRadius: '32px', width: g.width, height: g.height, pointerEvents: 'none', zIndex: -100, fontSize: '20px', fontWeight: 900, color: g.color, textAlign: 'left', paddingLeft: '40px', paddingTop: '20px' }
           });
           allFinalNodes.push(...g.nodes);
         });
+
       } else {
         allFinalNodes.push(...renderGroupContentNodes(filteredApps, undefined, 0, 0).nodes);
       }
