@@ -361,15 +361,16 @@ const DiagramInner = ({
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
 
     const getAppScore = (app: Application, fieldName: string, def?: MetadataDefinition) => {
+      const localVal = Number((app as any)[fieldName] || safeJsonParse(app.metadata)[fieldName] || (def ? def.min : 1));
+      
       if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
         const capScores = app.capabilities.map(c => {
           const fullCap = capabilities.find(ac => ac.id === c.id);
           return Number(fullCap?.criticality || 1);
         });
-        return Math.max(...capScores);
+        return Math.max(localVal, ...capScores);
       }
-      if (!def) return 0;
-      return (app as any)[fieldName] || safeJsonParse(app.metadata)[fieldName] || def.min;
+      return localVal;
     };
 
     const getFieldValue = (app: Application, field: string) => {
@@ -386,6 +387,12 @@ const DiagramInner = ({
       }
       const val = (app as any)[field] || safeJsonParse(app.metadata)[field];
       return val ? String(val) : 'Unspecified';
+    };
+
+    const getCapFieldValue = (cap: Capability, field: string) => {
+      const def = metaDefs.find(d => d.fieldName === field && d.entityType === 'Capability');
+      const val = (cap as any)[field] || safeJsonParse(cap.metadata)[field] || (def ? def.min : 'Unspecified');
+      return String(val);
     };
 
     if (mode === 'network') {
@@ -480,32 +487,44 @@ const DiagramInner = ({
       const capsMap = new Map<string, Capability>();
       capabilities.forEach(c => capsMap.set(c.id, c));
 
-      const activeFilterGroups: { field: string, values: string[] }[] = [];
+      const activeFilterGroups: { field: string, values: string[], entityType: string }[] = [];
       if (groupingField) {
-        const uniqueValues = Array.from(new Set(filteredApps.map(app => getFieldValue(app, groupingField))));
+        const isCapField = metaDefs.some(d => d.fieldName === groupingField && d.entityType === 'Capability');
+        
+        if (isCapField && mode === 'landscape') {
+          const uniqueValues = Array.from(new Set(capabilities.map(cap => getCapFieldValue(cap, groupingField))));
+          
+          uniqueValues.sort((a, b) => {
+            const numA = parseFloat(a); const numB = parseFloat(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+          });
+          
+          activeFilterGroups.push({ field: groupingField, values: uniqueValues, entityType: 'Capability' });
+        } else {
+          const uniqueValues = Array.from(new Set(filteredApps.map(app => getFieldValue(app, groupingField))));
 
-        // Sort unique values logically
-        uniqueValues.sort((a, b) => {
-          if (groupingField === 'lifecycle') {
-            const order = LIFECYCLE_STAGES.map(s => s.label.toLowerCase());
-            return order.indexOf(a.toLowerCase()) - order.indexOf(b.toLowerCase());
-          }
-          // Numeric sort for range fields (criticality, functionalFit, technicalFit)
-          const numA = parseFloat(a);
-          const numB = parseFloat(b);
-          if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
-          return a.localeCompare(b);
-        });
+          uniqueValues.sort((a, b) => {
+            if (groupingField === 'lifecycle') {
+              const order = LIFECYCLE_STAGES.map(s => s.label.toLowerCase());
+              return order.indexOf(a.toLowerCase()) - order.indexOf(b.toLowerCase());
+            }
+            const numA = parseFloat(a);
+            const numB = parseFloat(b);
+            if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+            return a.localeCompare(b);
+          });
 
-        activeFilterGroups.push({ field: groupingField, values: uniqueValues });
+          activeFilterGroups.push({ field: groupingField, values: uniqueValues, entityType: 'Application' });
+        }
       } else {
-        if (filters.lifecycle?.length > 0) activeFilterGroups.push({ field: 'lifecycle', values: filters.lifecycle });
-        if (filters.owner?.length > 0) activeFilterGroups.push({ field: 'owner', values: filters.owner });
-        if (filters.type?.length > 0) activeFilterGroups.push({ field: 'type', values: filters.type });
+        if (filters.lifecycle?.length > 0) activeFilterGroups.push({ field: 'lifecycle', values: filters.lifecycle, entityType: 'Application' });
+        if (filters.owner?.length > 0) activeFilterGroups.push({ field: 'owner', values: filters.owner, entityType: 'Application' });
+        if (filters.type?.length > 0) activeFilterGroups.push({ field: 'type', values: filters.type, entityType: 'Application' });
       }
       const primaryGroup = activeFilterGroups[0];
 
-      const renderGroupContentNodes = (targetApps: Application[], containerId: string | undefined, baseOffsetX = 0, baseOffsetY = 0) => {
+      const renderGroupContentNodes = (targetApps: Application[], containerId: string | undefined, baseOffsetX = 0, baseOffsetY = 0, capFilter?: (c: Capability) => boolean) => {
         const groupNodes: Node[] = [];
         const appsByCap = new Map<string, Application[]>();
         const unassignedApps: Application[] = [];
@@ -522,7 +541,11 @@ const DiagramInner = ({
           if (memoRelevant.has(capId)) return memoRelevant.get(capId)!;
           const hasApps = appsByCap.has(capId) && appsByCap.get(capId)!.length > 0;
           const children = capabilities.filter(c => c.parentId === capId);
-          const res = hasApps || children.some(c => isRelevant(c.id));
+          
+          const cap = capsMap.get(capId);
+          const matchesFilter = !capFilter || (cap && capFilter(cap));
+          
+          const res = (matchesFilter && hasApps) || children.some(c => isRelevant(c.id));
           memoRelevant.set(capId, res); return res;
         };
 
@@ -691,7 +714,12 @@ const DiagramInner = ({
       };
 
       if (primaryGroup) {
-        const validValues = primaryGroup.values.filter(val => filteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase()));
+        const validValues = primaryGroup.values.filter(val => {
+          if (primaryGroup.entityType === 'Capability') {
+            return capabilities.some(c => getCapFieldValue(c, primaryGroup.field).toLowerCase() === val.toLowerCase());
+          }
+          return filteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase());
+        });
 
         // Calculate dynamic grid based on 3 columns
         const colCount = 3;
@@ -699,10 +727,17 @@ const DiagramInner = ({
         const colMaxW: number[] = new Array(colCount).fill(0);
 
         const groups = validValues.map((groupVal, idx) => {
-          const groupApps = filteredApps.filter(app => getFieldValue(app, primaryGroup.field).toLowerCase() === groupVal.toLowerCase());
-          const containerId = `group-${primaryGroup.field}-${groupVal}`;
+          let groupApps = filteredApps;
+          let capFilter: ((c: Capability) => boolean) | undefined = undefined;
 
-          const content = renderGroupContentNodes(groupApps, containerId, 40, 40);
+          if (primaryGroup.entityType === 'Capability') {
+            capFilter = (c: Capability) => getCapFieldValue(c, primaryGroup.field).toLowerCase() === groupVal.toLowerCase();
+          } else {
+            groupApps = filteredApps.filter(app => getFieldValue(app, primaryGroup.field).toLowerCase() === groupVal.toLowerCase());
+          }
+
+          const containerId = `group-${primaryGroup.field}-${groupVal}`;
+          const content = renderGroupContentNodes(groupApps, containerId, 40, 40, capFilter);
 
           const row = Math.floor(idx / colCount);
           const col = idx % colCount;
@@ -713,12 +748,12 @@ const DiagramInner = ({
           let color = 'var(--primary)';
           if (primaryGroup.field === 'lifecycle') color = LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === groupVal.toLowerCase())?.color || color;
           else {
-            const def = metaDefs.find(d => d.fieldName === primaryGroup.field && d.entityType === 'Application');
+            const entType = primaryGroup.entityType === 'Capability' ? 'Capability' : 'Application';
+            const def = metaDefs.find(d => d.fieldName === primaryGroup.field && d.entityType === entType);
             if (def) color = getOverlayColor(groupVal, def, picklists).bg;
           }
           return { containerId, groupVal, color, row, col, width: content.width, height: content.height, nodes: content.nodes };
         });
-
         groups.forEach(g => {
           const currentX = colMaxW.slice(0, g.col).reduce((sum, w) => sum + w + 80, 0);
           const currentY = rowMaxH.slice(0, g.row).reduce((sum, h) => sum + h + 80, 0);

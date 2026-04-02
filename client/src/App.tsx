@@ -338,11 +338,13 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
       const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
       const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
+      const localCrit = Number(app.criticality || 1);
       const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
-        ? String(Math.max(...app.capabilities.map(c => Number(c.criticality || 1))))
-        : app.criticality;
+        ? String(Math.max(localCrit, ...app.capabilities.map(c => Number(c.criticality || 1))))
+        : String(localCrit);
 
       const matchCrit = filters.criticality.length === 0 || filters.criticality.includes(inheritedCrit);
+
       const matchFunc = filters.functionalFit.length === 0 || filters.functionalFit.includes(app.functionalFit);
       const matchTech = filters.technicalFit.length === 0 || filters.technicalFit.includes(app.technicalFit);
       
