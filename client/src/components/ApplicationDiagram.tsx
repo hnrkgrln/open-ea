@@ -218,11 +218,11 @@ const NetworkArt = ({ isDark }: { isDark: boolean }) => (
   <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 0, opacity: isDark ? 0.15 : 0.1 }}>
     <style>{`
       @keyframes twinkle {
-        0%, 100% { opacity: 0.3; transform: scale(0.8); }
-        50% { opacity: 1; transform: scale(1.2); }
+        0%, 100% { opacity: 0.4; transform: scale(0.9); }
+        50% { opacity: 0.9; transform: scale(1.1); }
       }
       .star {
-        animation: twinkle 3s infinite ease-in-out;
+        animation: twinkle 8s infinite ease-in-out;
       }
     `}</style>
     <svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
