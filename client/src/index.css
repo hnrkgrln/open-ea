@@ -213,6 +213,12 @@ input, select, textarea {
   margin-top: 0.25rem;
   background: var(--card);
   color: var(--foreground);
+  caret-color: var(--primary);
+}
+
+.clear-all-item:hover {
+  background: var(--destructive) !important;
+  color: var(--destructive-foreground) !important;
 }
 
 .field {

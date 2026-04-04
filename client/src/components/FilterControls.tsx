@@ -17,7 +17,7 @@ export const SearchInput = ({ value, onChange, placeholder = "Search...", label 
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          style={{ paddingRight: '2rem' }}
+          style={{ paddingRight: '2rem', caretColor: 'var(--primary)' }}
         />
         {value && (
           <button
@@ -126,12 +126,13 @@ export const MultiSelect = ({ label, options, selectedValues, onChange, placehol
                     borderRadius: 'var(--radius)',
                     cursor: 'pointer',
                     fontSize: '0.875rem',
-                    color: 'var(--primary)',
-                    fontWeight: 600,
+                    color: 'var(--destructive)',
+                    fontWeight: 700,
                     borderBottom: '1px solid var(--border)',
-                    marginBottom: '4px'
+                    marginBottom: '4px',
+                    transition: 'all 0.2s'
                   }}
-                  className="search-item"
+                  className="clear-all-item"
                 >
                   <div style={{ width: '1rem', display: 'flex', alignItems: 'center' }}>
                     <X size={14} />
