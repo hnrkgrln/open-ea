@@ -55,17 +55,18 @@ interface MultiSelectProps {
   placeholder?: string;
 }
 
-export const MultiSelect = ({ label, options, selectedValues, onChange, placeholder = "Select..." }: MultiSelectProps) => {
+export const MultiSelect = ({ label, options, selectedValues = [], onChange, placeholder = "Select..." }: MultiSelectProps) => {
+  const safeSelectedValues = selectedValues || [];
   const toggleOption = (value: string) => {
-    if (selectedValues.includes(value)) {
-      onChange(selectedValues.filter(v => v !== value));
+    if (safeSelectedValues.includes(value)) {
+      onChange(safeSelectedValues.filter(v => v !== value));
     } else {
-      onChange([...selectedValues, value]);
+      onChange([...safeSelectedValues, value]);
     }
   };
 
   const selectedLabels = options
-    .filter(o => selectedValues.includes(o.value))
+    .filter(o => safeSelectedValues.includes(o.value))
     .map(o => o.label);
 
   const displayText = selectedLabels.length === 0 

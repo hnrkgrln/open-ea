@@ -95,7 +95,7 @@ export const EditAppDialog = ({ app, onSuccess, trigger, open: controlledOpen, o
         description: app.description || '',
         owner: app.owner || '',
         type: app.type || '',
-        lifecycle: app.lifecycle || '',
+        lifecycle: app.lifecycle || 'Discovery',
         criticality: app.criticality || '3',
         functionalFit: app.functionalFit || '3',
         technicalFit: app.technicalFit || '3'

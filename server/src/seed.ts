@@ -50,10 +50,10 @@ async function seedPicklist(name: string, label: string, options: any[]) {
   await seedPicklist('criticality', 'Business Criticality', criticalityOptions);
 
   await seedPicklist('lifecycle', 'Application Lifecycle', [
-    { value: 'Planning', label: 'Planning' },
-    { value: 'Deployment', label: 'Deployment' },
-    { value: 'Maintenance', label: 'Maintenance' },
-    { value: 'Sunset', label: 'Sunset' },
+    { value: 'Discovery', label: 'Discovery' },
+    { value: 'Onboarding', label: 'Onboarding' },
+    { value: 'Mainstream', label: 'Mainstream' },
+    { value: 'Legacy', label: 'Legacy' },
     { value: 'Decommissioned', label: 'Decommissioned' },
   ]);
 

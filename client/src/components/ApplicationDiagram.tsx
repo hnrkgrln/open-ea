@@ -90,6 +90,7 @@ interface Props {
   onCapabilityClick?: (cap: Capability) => void;
   apps: Application[];
   filteredApps: Application[];
+  categoricalFilteredApps: Application[];
   integrations: Integration[];
   capabilities: Capability[];
   metaDefs: MetadataDefinition[];
@@ -128,15 +129,15 @@ const getContrastColor = (hexcolor: string) => {
 };
 
 const LIFECYCLE_STAGES = [
-  { label: 'Planning', color: '#1864ab', lightColor: '#e7f5ff' },
-  { label: 'Deployment', color: '#5f3dc4', lightColor: '#f3f0ff' },
-  { label: 'Maintenance', color: '#2b8a3e', lightColor: '#ebfbee' },
-  { label: 'Sunset', color: '#d9480f', lightColor: '#fff4e6' },
-  { label: 'Decommissioned', color: '#c92a2a', lightColor: '#fff5f5' }
+  { label: 'Discovery', color: '#1864ab', lightColor: '#e7f5ff', description: 'Market research, security vetting, and business case development.' },
+  { label: 'Onboarding', color: '#5f3dc4', lightColor: '#f3f0ff', description: 'Installation, configuration, and user training.' },
+  { label: 'Mainstream', color: '#2b8a3e', lightColor: '#ebfbee', description: 'The primary solution for the given business capability.' },
+  { label: 'Legacy', color: '#d9480f', lightColor: '#fff4e6', description: 'Suboptimal solution kept for specialized needs or pending migration.' },
+  { label: 'Decommissioned', color: '#c92a2a', lightColor: '#fff5f5', description: 'Contract terminated and data archived.' }
 ];
 
 const getLifecycleColor = (lifecycle: string, isDark: boolean) => {
-  const lc = lifecycle?.toLowerCase() || 'planning';
+  const lc = lifecycle?.toLowerCase() || 'discovery';
   const stage = LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === lc) || LIFECYCLE_STAGES[0];
   const bg = isDark ? stage.color : stage.lightColor;
   return { bg, text: getContrastColor(bg) };
@@ -321,8 +322,8 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
   return { bg, text: getContrastColor(bg) };
 };
 
-const initialNodeTypes = {};
-const initialEdgeTypes = {
+const NODE_TYPES = {};
+const EDGE_TYPES = {
   centered: CenteredEdge
 };
 
@@ -331,6 +332,7 @@ const DiagramInner = ({
   onCapabilityClick, 
   apps, 
   filteredApps, 
+  categoricalFilteredApps,
   integrations, 
   capabilities, 
   metaDefs: dbMetaDefs, 
@@ -355,6 +357,9 @@ const DiagramInner = ({
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const [lockNodes, setLockNodes] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const nodeTypes = useMemo(() => NODE_TYPES, []);
+  const edgeTypes = useMemo(() => EDGE_TYPES, []);
 
   const toggleFullscreen = () => {
     if (!containerRef?.current) return;
@@ -489,14 +494,23 @@ const DiagramInner = ({
     if (mode === 'network') {
       const search = (relationSearch || '').toLowerCase();
       const visibleAppIds = new Set(filteredApps.map(a => a.id));
+      const catAppIds = new Set(categoricalFilteredApps.map(a => a.id));
+
       const filteredIntegrations = integrations.filter(i => {
+        // Categorical filters are applied first: both apps must be in the categorical set
+        if (!catAppIds.has(i.sourceAppId) || !catAppIds.has(i.targetAppId)) return false;
+
         const sourceApp = apps.find(a => a.id === i.sourceAppId);
         const targetApp = apps.find(a => a.id === i.targetAppId);
         if (!sourceApp || !targetApp) return false;
-        const iMatches = i.name?.toLowerCase().includes(search) || i.type?.toLowerCase().includes(search);
-        const sMatches = sourceApp.name.toLowerCase().includes(search);
-        const tMatches = targetApp.name.toLowerCase().includes(search);
-        if (search) return iMatches || sMatches || tMatches;
+
+        if (search) {
+          const iMatches = i.name?.toLowerCase().includes(search) || i.type?.toLowerCase().includes(search);
+          const sMatches = sourceApp.name.toLowerCase().includes(search);
+          const tMatches = targetApp.name.toLowerCase().includes(search);
+          return iMatches || sMatches || tMatches;
+        }
+
         return visibleAppIds.has(i.sourceAppId) && visibleAppIds.has(i.targetAppId);
       });
       const appsWithIntegrations = new Set(filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]));
@@ -572,6 +586,42 @@ const DiagramInner = ({
         });
         currentX += islandWidth + islandGap;
       });
+
+      // --- ADD FILTER FEEDBACK TO NETWORK VIEW ---
+      const activeCategoricalFilters: string[] = [];
+      if (!groupingField) {
+        if (filters.lifecycle?.length > 0) activeCategoricalFilters.push(`Lifecycle: ${filters.lifecycle.join(', ')}`);
+        if (filters.owner?.length > 0) activeCategoricalFilters.push(`Owner: ${filters.owner.join(', ')}`);
+        if (filters.type?.length > 0) activeCategoricalFilters.push(`Type: ${filters.type.join(', ')}`);
+        if (filters.capabilityId?.length > 0) {
+          const capNames = filters.capabilityId.map((id: string) => capabilities.find(c => c.id === id)?.name).filter(Boolean);
+          activeCategoricalFilters.push(`Capabilities: ${capNames.join(', ')}`);
+        }
+        if (filters.criticality?.length > 0) activeCategoricalFilters.push(`Criticality: ${filters.criticality.join(', ')}`);
+        if (filters.functionalFit?.length > 0) activeCategoricalFilters.push(`Functional Fit: ${filters.functionalFit.join(', ')}`);
+        if (filters.technicalFit?.length > 0) activeCategoricalFilters.push(`Technical Fit: ${filters.technicalFit.join(', ')}`);
+        if (filters.custom) {
+          Object.entries(filters.custom).forEach(([field, vals]) => {
+            if (vals && vals.length > 0) {
+              const def = metaDefs.find(d => d.fieldName === field);
+              activeCategoricalFilters.push(`${def?.label || field}: ${vals.join(', ')}`);
+            }
+          });
+        }
+      }
+
+      if (activeCategoricalFilters.length > 0 && islandNodes.length > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        islandNodes.forEach(n => {
+          const x = n.position.x; const y = n.position.y;
+          const w = n.width || 180; const h = n.height || 60;
+          minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+        });
+        const p = 60;
+        islandNodes.unshift({ id: 'filter-container', data: { label: 'Filtered Network' }, position: { x: minX - p, y: minY - p - 40 }, style: { width: (maxX - minX) + p * 2, height: (maxY - minY) + p * 2 + 40, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } });
+      }
+      // ------------------------------------------
+
       setNodes(islandNodes); setEdges(islandEdges);
     } else if (mode === 'landscape' || mode === 'app-landscape') {
       const allFinalNodes: Node[] = [];
@@ -907,6 +957,18 @@ const DiagramInner = ({
           const capNames = filters.capabilityId.map((id: string) => capabilities.find(c => c.id === id)?.name).filter(Boolean);
           activeCategoricalFilters.push(`Capabilities: ${capNames.join(', ')}`);
         }
+        if (filters.criticality?.length > 0) activeCategoricalFilters.push(`Criticality: ${filters.criticality.join(', ')}`);
+        if (filters.functionalFit?.length > 0) activeCategoricalFilters.push(`Functional Fit: ${filters.functionalFit.join(', ')}`);
+        if (filters.technicalFit?.length > 0) activeCategoricalFilters.push(`Technical Fit: ${filters.technicalFit.join(', ')}`);
+        
+        if (filters.custom) {
+          Object.entries(filters.custom).forEach(([field, vals]) => {
+            if (vals && vals.length > 0) {
+              const def = metaDefs.find(d => d.fieldName === field);
+              activeCategoricalFilters.push(`${def?.label || field}: ${vals.join(', ')}`);
+            }
+          });
+        }
       }
 
       if (activeCategoricalFilters.length > 0 && (mode === 'landscape' || mode === 'app-landscape')) {
@@ -925,7 +987,7 @@ const DiagramInner = ({
 
     setNodes(allFinalNodes); setEdges([]);
     }
-    }, [apps, filteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
+    }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
   useEffect(() => {
     if (nodes.length > 0 && visible && viewportWidth > 0) {
       const timer = setTimeout(() => {
@@ -951,7 +1013,7 @@ const DiagramInner = ({
     <ReactFlow
       nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick}
       nodesDraggable={!lockNodes} nodesConnectable={false} elementsSelectable={!lockNodes} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
-      nodeTypes={initialNodeTypes} edgeTypes={initialEdgeTypes}
+      nodeTypes={nodeTypes} edgeTypes={edgeTypes}
       style={{ width: '100%', height: '100%' }}
     >
       {(mode === 'landscape' || mode === 'app-landscape') && <LandscapeArt isDark={isDark} />}

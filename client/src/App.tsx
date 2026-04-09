@@ -736,12 +736,25 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
     owner: [] as string[], 
     lifecycle: [] as string[], 
     type: [] as string[],
-    capabilityId: [] as string[]
+    capabilityId: [] as string[],
+    criticality: [] as string[],
+    functionalFit: [] as string[],
+    technicalFit: [] as string[],
+    custom: {} as Record<string, string[]>
   });
   
   // Auto-show filters if any are active
   const isAnyFilterActive = useMemo(() => {
-    return filters.search !== '' || filters.owner.length > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.capabilityId.length > 0;
+    const hasCustom = Object.values(filters.custom || {}).some(vals => (vals?.length || 0) > 0);
+    return (filters.search !== '') || 
+      (filters.owner?.length || 0) > 0 || 
+      (filters.lifecycle?.length || 0) > 0 || 
+      (filters.type?.length || 0) > 0 || 
+      (filters.capabilityId?.length || 0) > 0 || 
+      (filters.criticality?.length || 0) > 0 || 
+      (filters.functionalFit?.length || 0) > 0 || 
+      (filters.technicalFit?.length || 0) > 0 || 
+      hasCustom;
   }, [filters]);
 
   const [showFilters, setShowFilters] = useState(isAnyFilterActive);
@@ -760,10 +773,16 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
 
   const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
+  const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
+  const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   
+  const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
+  const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
+  const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
+
   const scoreFields = [
     { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'crit', fieldName: 'criticality', label: 'Business Criticality', icon: <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} /> },
@@ -772,15 +791,40 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   ];
   const allRangeFields = [...scoreFields];
 
-  const filteredApps = useMemo(() => {
-    return apps.filter(app => {
-      const matchOwner = filters.owner.length === 0 || filters.owner.includes(app.owner) || filters.owner.includes(app.owner?.toLowerCase());
-      const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
-      const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
+  const { filteredApps, categoricalFilteredApps } = useMemo(() => {
+    if (!apps) return { filteredApps: [], categoricalFilteredApps: [] };
+
+    // 1. Categorical Filtering (Owner, Type, Lifecycle, etc.)
+    const catFiltered = apps.filter(app => {
+      const matchOwner = (filters.owner?.length || 0) === 0 || filters.owner?.includes(app.owner) || filters.owner?.includes(app.owner?.toLowerCase());
+      const matchLifecycle = (filters.lifecycle?.length || 0) === 0 || filters.lifecycle?.includes(app.lifecycle) || filters.lifecycle?.includes(app.lifecycle?.toLowerCase());
+      const matchType = (filters.type?.length || 0) === 0 || filters.type?.includes(app.type) || filters.type?.includes(app.type?.toLowerCase());
       
-      // Capability Filter Logic
+      const localCrit = Number(app.criticality || 1);
+      const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
+        ? String(Math.max(localCrit, ...app.capabilities.map(c => Number(c.criticality || 1))))
+        : String(localCrit);
+
+      const matchCrit = (filters.criticality?.length || 0) === 0 || filters.criticality?.includes(inheritedCrit);
+      const matchFunc = (filters.functionalFit?.length || 0) === 0 || filters.functionalFit?.includes(app.functionalFit);
+      const matchTech = (filters.technicalFit?.length || 0) === 0 || filters.technicalFit?.includes(app.technicalFit);
+
+      let matchCustom = true;
+      if (filters.custom) {
+        const appMeta = safeJsonParse(app.metadata);
+        for (const [fieldName, selectedVals] of Object.entries(filters.custom)) {
+          if (selectedVals && selectedVals.length > 0) {
+            const val = String(appMeta[fieldName] || '');
+            if (!selectedVals.includes(val)) {
+              matchCustom = false;
+              break;
+            }
+          }
+        }
+      }
+
       let matchCap = true;
-      if (filters.capabilityId.length > 0) {
+      if (filters.capabilityId && filters.capabilityId.length > 0) {
         const getDescendantIds = (id: string): string[] => {
           const children = capabilities?.filter(c => c.parentId === id) || [];
           return [id, ...children.flatMap(c => getDescendantIds(c.id))];
@@ -789,29 +833,38 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
         matchCap = app.capabilities?.some(c => allTargetIds.includes(c.id)) || false;
       }
 
-      // --- UNIFIED SEARCH LOGIC ---
-      let matchSearch = true;
-      if (filters.search) {
-        const query = filters.search.toLowerCase();
-        const appMatches = app.name.toLowerCase().includes(query) || 
-          app.description?.toLowerCase().includes(query) ||
-          app.owner?.toLowerCase().includes(query) ||
-          app.lifecycle?.toLowerCase().includes(query) ||
-          app.type?.toLowerCase().includes(query) ||
-          app.capabilities?.some(c => c.name.toLowerCase().includes(query)) ||
-          app.metadata?.toLowerCase().includes(query);
-        
-        // Also match if any of the app's integrations match the query
-        const integrationMatches = integrations?.some(i => 
-          (i.sourceAppId === app.id || i.targetAppId === app.id) && 
-          (i.name?.toLowerCase().includes(query) || i.type?.toLowerCase().includes(query))
-        ) || false;
-
-        matchSearch = appMatches || integrationMatches;
-      }
-
-      return matchSearch && matchOwner && matchLifecycle && matchType && matchCap;
+      return matchOwner && matchLifecycle && matchType && matchCap && matchCrit && matchFunc && matchTech && matchCustom;
     });
+
+    // 2. Search Filtering (Applied on top of categorical)
+    if (!filters.search) {
+      return { filteredApps: catFiltered, categoricalFilteredApps: catFiltered };
+    }
+
+    const query = filters.search.toLowerCase();
+    const catAppIds = new Set(catFiltered.map(a => a.id));
+
+    const finalFiltered = catFiltered.filter(app => {
+      const appMatches = app.name.toLowerCase().includes(query) || 
+        app.description?.toLowerCase().includes(query) ||
+        app.owner?.toLowerCase().includes(query) ||
+        app.lifecycle?.toLowerCase().includes(query) ||
+        app.type?.toLowerCase().includes(query) ||
+        app.capabilities?.some(c => c.name.toLowerCase().includes(query)) ||
+        app.metadata?.toLowerCase().includes(query);
+      
+      // Also match if any of the app's integrations match the query 
+      // AND those integrations connect to other apps in the categorical set
+      const integrationMatches = integrations?.some(i => 
+        (i.sourceAppId === app.id || i.targetAppId === app.id) && 
+        catAppIds.has(i.sourceAppId) && catAppIds.has(i.targetAppId) &&
+        (i.name?.toLowerCase().includes(query) || i.type?.toLowerCase().includes(query))
+      ) || false;
+
+      return appMatches || integrationMatches;
+    });
+
+    return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
   }, [apps, filters, capabilities, integrations]);
 
   const orphanCount = useMemo(() => {
@@ -925,11 +978,39 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
         <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
             <SearchInput label="Diagram Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="App or Integration name..." />
-            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
-            <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
-            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
+            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All Types" />
+            <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId || []} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
             
-            <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [] })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" />
+            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" />
+            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
+
+            {/* Custom Field Filters */}
+            {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
+              <MultiSelect 
+                key={def.id} 
+                label={def.label} 
+                options={(() => {
+                  const values = new Set<string>();
+                  apps.forEach(app => {
+                    try {
+                      const meta = safeJsonParse(app.metadata);
+                      if (meta[def.fieldName] !== undefined && meta[def.fieldName] !== null && meta[def.fieldName] !== '') {
+                        values.add(String(meta[def.fieldName]));
+                      }
+                    } catch (e) { /* ignore */ }
+                  });
+                  return Array.from(values).sort().map(v => ({ value: v, label: v }));
+                })()} 
+                selectedValues={(filters.custom || {})[def.fieldName] || []} 
+                onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
+                placeholder={`All ${def.label}s`} 
+              />
+            ))}
+
+            <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], custom: {} })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
         </div>
       )}
@@ -939,6 +1020,7 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
           onCapabilityClick={onEditCapability} 
           apps={apps || []}
           filteredApps={filteredApps}
+          categoricalFilteredApps={categoricalFilteredApps}
           integrations={integrations || []}
           capabilities={capabilities || []}
           metaDefs={metaDefs || []}

@@ -24,14 +24,14 @@
   --radius: 0.6rem;
 
   /* Lifecycle Colors */
-  --lc-planning: #e7f5ff;
-  --lc-planning-text: #1971c2;
-  --lc-deployment: #f3f0ff;
-  --lc-deployment-text: #6741d9;
-  --lc-maintenance: #ebfbee;
-  --lc-maintenance-text: #2b8a3e;
-  --lc-sunset: #fff4e6;
-  --lc-sunset-text: #e67700;
+  --lc-discovery: #e7f5ff;
+  --lc-discovery-text: #1971c2;
+  --lc-onboarding: #f3f0ff;
+  --lc-onboarding-text: #6741d9;
+  --lc-mainstream: #ebfbee;
+  --lc-mainstream-text: #2b8a3e;
+  --lc-legacy: #fff4e6;
+  --lc-legacy-text: #e67700;
   --lc-decommissioned: #fff5f5;
   --lc-decommissioned-text: #c92a2a;
 }
@@ -58,14 +58,14 @@
   --ring: #5c5f66;
 
   /* Dark Lifecycle Colors */
-  --lc-planning: #1864ab;
-  --lc-planning-text: #d0ebff;
-  --lc-deployment: #5f3dc4;
-  --lc-deployment-text: #e5dbff;
-  --lc-maintenance: #2b8a3e;
-  --lc-maintenance-text: #d3f9d8;
-  --lc-sunset: #d9480f;
-  --lc-sunset-text: #fff4e6;
+  --lc-discovery: #1864ab;
+  --lc-discovery-text: #d0ebff;
+  --lc-onboarding: #5f3dc4;
+  --lc-onboarding-text: #e5dbff;
+  --lc-mainstream: #2b8a3e;
+  --lc-mainstream-text: #d3f9d8;
+  --lc-legacy: #d9480f;
+  --lc-legacy-text: #fff4e6;
   --lc-decommissioned: #c92a2a;
   --lc-decommissioned-text: #ffe3e3;
 }
@@ -249,10 +249,10 @@ input:focus, textarea:focus, select:focus {
   text-transform: uppercase;
 }
 
-.badge-planning { background: var(--lc-planning); color: var(--lc-planning-text); }
-.badge-deployment { background: var(--lc-deployment); color: var(--lc-deployment-text); }
-.badge-maintenance { background: var(--lc-maintenance); color: var(--lc-maintenance-text); }
-.badge-sunset { background: var(--lc-sunset); color: var(--lc-sunset-text); }
+.badge-discovery { background: var(--lc-discovery); color: var(--lc-discovery-text); }
+.badge-onboarding { background: var(--lc-onboarding); color: var(--lc-onboarding-text); }
+.badge-mainstream { background: var(--lc-mainstream); color: var(--lc-mainstream-text); }
+.badge-legacy { background: var(--lc-legacy); color: var(--lc-legacy-text); }
 .badge-decommissioned { background: var(--lc-decommissioned); color: var(--lc-decommissioned-text); }
 
 /* Row Highlight */

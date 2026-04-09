@@ -12,7 +12,7 @@ model Application {
   name          String
   description   String?
   owner         String?
-  lifecycle     String?       @default("Planning")
+  lifecycle     String?       @default("Discovery")
   type          String?
   criticality   String?       @default("3")
   functionalFit String?       @default("3")

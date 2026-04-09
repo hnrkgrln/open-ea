@@ -47,7 +47,7 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
     description: '',
     owner: '',
     type: '',
-    lifecycle: 'Planning',
+    lifecycle: 'Discovery',
     criticality: '3',
     functionalFit: '3',
     technicalFit: '3'
@@ -144,7 +144,7 @@ export const NewAppDialog = ({ onSuccess }: Props) => {
         setIncomingRelations([]);
         setSelectedCapIds([]);
         setDynamicValues({});
-        setFormData({ name: '', description: '', owner: '', type: '', lifecycle: 'Planning', criticality: '3', functionalFit: '3', technicalFit: '3' });
+        setFormData({ name: '', description: '', owner: '', type: '', lifecycle: 'Discovery', criticality: '3', functionalFit: '3', technicalFit: '3' });
         onSuccess();
       }
     } catch (err) {
