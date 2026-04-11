@@ -535,7 +535,14 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
 const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], depth?: number }) => {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
-  const appCount = node.applications?.length || 0;
+  
+  const getRecursiveAppIds = (n: Capability): string[] => {
+    const ids = (n.applications || []).map(a => a.id);
+    const childIds = (n.children || []).flatMap(c => getRecursiveAppIds(c));
+    return [...new Set([...ids, ...childIds])];
+  };
+  const appCount = useMemo(() => getRecursiveAppIds(node).length, [node]);
+  
   const criticality = criticalityOptions.find(o => o.value === node.criticality);
 
   return (

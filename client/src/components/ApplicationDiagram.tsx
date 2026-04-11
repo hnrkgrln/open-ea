@@ -753,13 +753,16 @@ const DiagramInner = ({
           });
 
           const finalHeight = appsStartY + (appRows * (appHeight + appGap)) + padding;
-          let capColors = { bg: depth === 0 ? groupBg : 'rgba(0,0,0,0.03)', text: 'var(--foreground)' };
+          let capColors = { 
+            bg: depth === 0 ? groupBg : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)'), 
+            text: 'var(--foreground)' 
+          };
           if (showCriticality && critDef) {
             const colors = getOverlayColor((cap as any).criticality || safeJsonParse(cap.metadata).criticality || critDef.min, critDef, picklists);
             capColors.bg = colors.bg; capColors.text = colors.text;
           }
 
-          groupNodes.push({
+          groupNodes.unshift({
             id: `cap-${containerId || 'main'}-${capId}`, parentNode: parentNodeId,
             data: { label: (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', width: '100%', overflow: 'hidden' }}>
@@ -771,7 +774,22 @@ const DiagramInner = ({
               </div>
             ), type: 'capability', originalId: capId, original: cap },
             position: { x: rootX, y: rootY },
-            style: { background: capColors.bg, border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? '#373a40' : '#dee2e6'}`, width: maxWidth, height: finalHeight, borderRadius: depth === 0 ? '16px' : '8px', color: capColors.text, fontWeight: 800, fontSize: '14px', textAlign: 'center', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '12px' }
+            style: { 
+              background: capColors.bg, 
+              border: `2px ${depth === 0 ? 'solid' : 'dashed'} ${isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}`, 
+              width: maxWidth, 
+              height: finalHeight, 
+              borderRadius: depth === 0 ? '16px' : '12px', 
+              color: capColors.text, 
+              fontWeight: 800, 
+              fontSize: '14px', 
+              textAlign: 'center', 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'flex-start', 
+              paddingTop: '12px',
+              zIndex: 10 + depth // Ensure deeper levels are on top if needed, though unshift handles it
+            }
           });
           return { width: maxWidth, height: finalHeight };
         };
