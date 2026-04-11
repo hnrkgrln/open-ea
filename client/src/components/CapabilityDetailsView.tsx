@@ -49,16 +49,17 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
       {/* Navigation Header */}
-      <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
-        <button onClick={onBack} className="secondary" style={{ height: '2.25rem', padding: '0 0.75rem', gap: '0.5rem' }}>
-          <ChevronLeft size={18} /> Go Back
+      <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+        <button onClick={onBack} style={{ background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px', transition: 'all 0.2s' }} className="row-hover">
+          <ChevronLeft size={20} />
         </button>
-        <div style={{ height: '1.5rem', width: '1px', background: 'var(--border)' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <div style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.4rem', borderRadius: '8px' }}>
-            <Boxes size={18} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+          <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={onBack}>Capabilities</span>
+          <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--foreground)', fontWeight: 600 }}>
+            <Boxes size={14} style={{ opacity: 0.6 }} />
+            <span>{capability.name}</span>
           </div>
-          <span style={{ fontWeight: 700, fontSize: '1rem' }}>{capability.name}</span>
         </div>
       </div>
 
