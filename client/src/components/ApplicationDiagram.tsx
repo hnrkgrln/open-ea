@@ -8,6 +8,7 @@ import ReactFlow, {
   MarkerType,
   useReactFlow,
   useStore,
+  useNodesInitialized,
   getBezierPath,
   type Node,
   type Edge,
@@ -352,8 +353,10 @@ const DiagramInner = ({
 }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const { setViewport, getNodes } = useReactFlow();
+  const { setViewport, getNodes, fitView } = useReactFlow();
   const viewportWidth = useStore((s) => s.width);
+  const nodesInitialized = useNodesInitialized();
+  const lastFitKey = useRef<string>('');
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const [lockNodes, setLockNodes] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1007,20 +1010,24 @@ const DiagramInner = ({
     }
     }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark]);
   useEffect(() => {
-    if (nodes.length > 0 && visible && viewportWidth > 0) {
+    const fitKey = `${nodes.length}-${visible}-${viewportWidth}-${mode}-${relationSearch}`;
+    if (nodes.length > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== fitKey) {
       const timer = setTimeout(() => {
         const currentNodes = getNodes(); if (currentNodes.length === 0) return;
         let minX = Infinity; let maxX = -Infinity;
         currentNodes.forEach(n => {
-          const x = n.position.x; const w = n.width || (typeof n.style?.width === 'number' ? n.style.width : parseInt(n.style?.width as string)) || 200;
+          const x = n.position.x; 
+          const w = n.width || (typeof n.style?.width === 'number' ? n.style.width : parseInt(n.style?.width as string)) || 200;
           minX = Math.min(minX, x); maxX = Math.max(maxX, x + w);
         });
+        if (minX === Infinity || maxX === -Infinity) return;
         const zoom = Math.min(1, (viewportWidth - 120) / (maxX - minX));
         setViewport({ x: (viewportWidth - (maxX - minX) * zoom) / 2 - minX * zoom, y: 50, zoom }, { duration: 800 });
-      }, 250);
+        lastFitKey.current = fitKey;
+      }, 150);
       return () => clearTimeout(timer);
     }
-  }, [nodes, visible, setViewport, getNodes]);
+  }, [nodes, visible, viewportWidth, nodesInitialized, mode, relationSearch, setViewport, getNodes]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
