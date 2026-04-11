@@ -17,7 +17,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { Database, Boxes, Lock, Unlock, Maximize, Minimize } from 'lucide-react';
+import { Database, Boxes, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight } from 'lucide-react';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
