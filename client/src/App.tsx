@@ -1,11 +1,13 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
+import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { EditCapabilityDialog } from './components/EditCapabilityDialog';
+import { CapabilityDetailsView } from './components/CapabilityDetailsView';
 import { ThemeToggle } from './components/ThemeToggle';
 import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
@@ -133,11 +135,54 @@ interface Integration {
   targetApp: Application;
 }
 
-// Components
+// Layout component for shared UI elements
+const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode, brandName: string, onRefresh: () => void }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isFullWidth = location.pathname.startsWith('/diagrams');
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <header className="header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 1 }}>
+          <Link to="/apps" className="logo" style={{ textDecoration: 'none' }}>{brandName}</Link>
+          <nav className="nav">
+            <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</NavLink>
+            <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</NavLink>
+            <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</NavLink>
+          </nav>
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <UnifiedSearch />
+        </div>
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem' }}>
+          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={18} /> Settings</NavLink>
+          <ThemeToggle />
+        </div>
+      </header>
+      <main className={isFullWidth ? "main-full" : "main-container"}>
+        {children}
+      </main>
+    </div>
+  );
+};
+
+// Application Detail Wrapper for Route
+const AppDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return <AppDetailsView appId={id || null} onBack={() => navigate('/apps')} onRefresh={onRefresh} />;
+};
+
+// Capability Detail Wrapper for Route
+const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return <CapabilityDetailsView capabilityId={id || null} onBack={() => navigate('/capabilities')} onRefresh={onRefresh} />;
+};
+
 const AppContent = () => {
-  const [activeTab, setActiveTab] = useLocalStorage<'inventory' | 'capabilities' | 'diagrams' | 'settings'>('openea_active_tab', 'inventory');
   const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
-  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
   const queryClient = useQueryClient();
@@ -174,78 +219,38 @@ const AppContent = () => {
       return res.json() as Promise<Integration[]>;
     }
   });
-  const isFullWidth = activeTab === 'diagrams';
-  if (selectedAppId) {
-    return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-    <header className="header">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 1 }}>
-        <button onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
-        <nav className="nav">
-          <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('inventory'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
-          <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('capabilities'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
-          <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('diagrams'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
-        </nav>
-      </div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-        <UnifiedSearch onSelectApp={(app) => { setSelectedAppId(app.id); }} onSelectCapability={(cap) => { setSelectedAppId(null); setActiveTab('capabilities'); setEditingCapability(cap); }} />
-      </div>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem' }}>
-        <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => { setSelectedAppId(null); setActiveTab('settings'); }} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={18} /> Settings</button>
-        <ThemeToggle />
-      </div>
-    </header>
-          <AppDetailsView appId={selectedAppId} onBack={() => setSelectedAppId(null)} onRefresh={handleRefresh} />
-          </div>
-          );
-          }
 
-          return (
-            <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <header className="header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 1 }}>
-                  <button onClick={() => setActiveTab('inventory')} className="logo" style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer' }}>{brandName}</button>
-                  <nav className="nav">
-                    <button className={`nav-link ${activeTab === 'inventory' ? 'active' : ''}`} onClick={() => setActiveTab('inventory')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</button>
-                    <button className={`nav-link ${activeTab === 'capabilities' ? 'active' : ''}`} onClick={() => setActiveTab('capabilities')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</button>
-                    <button className={`nav-link ${activeTab === 'diagrams' ? 'active' : ''}`} onClick={() => setActiveTab('diagrams')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</button>
-                  </nav>
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-                  <UnifiedSearch onSelectApp={(app) => setSelectedAppId(app.id)} onSelectCapability={(cap) => setEditingCapability(cap)} />
-                  </div>
-                  <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem' }}>
-                  <button className={`nav-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => setActiveTab('settings')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={18} /> Settings</button>
-                  <ThemeToggle />
-                  </div>
-                  </header>
-
-          <main className={isFullWidth ? "main-full" : "main-container"}>
-          <div style={{ display: activeTab === 'inventory' ? 'block' : 'none' }}>
-            <InventoryView 
-              apps={apps || []} 
-              onSelectApp={(id) => setSelectedAppId(id)} 
-              onEditApp={setEditingApp} 
-              onNewApp={<NewAppDialog onSuccess={handleRefresh} />}
-            />
-          </div>
-        <div style={{ display: activeTab === 'capabilities' ? 'block' : 'none' }}>
-          <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => setSelectedAppId(id)} />
-        </div>
-        <div style={{ display: activeTab === 'diagrams' ? 'block' : 'none', height: '100%' }}>
+  return (
+    <Layout brandName={brandName} onRefresh={handleRefresh}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/apps" replace />} />
+        <Route path="/apps" element={
+          <InventoryView 
+            apps={apps || []} 
+            onSelectApp={(id) => navigate(`/apps/${id}`)} 
+            onEditApp={setEditingApp} 
+            onNewApp={<NewAppDialog onSuccess={handleRefresh} />}
+          />
+        } />
+        <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/capabilities" element={
+          <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => navigate(`/apps/${id}`)} />
+        } />
+        <Route path="/capabilities/:id" element={<CapabilityDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/diagrams" element={
           <DiagramsView 
             apps={apps || []} 
             capabilities={capabilities || []}
             integrations={integrations || []}
-            onEditApp={(id) => setSelectedAppId(id)} 
-            onEditCapability={(cap) => setEditingCapability(cap)} 
-            isVisible={activeTab === 'diagrams'}
+            onEditApp={(id) => navigate(`/apps/${id}`)} 
+            onEditCapability={(cap) => navigate(`/capabilities/${cap.id}`)} 
+            isVisible={true}
           />
-        </div>
-        <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
+        } />
+        <Route path="/settings" element={
           <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} integrations={integrations || []} onRefresh={handleRefresh} />
-        </div>
-      </main>
+        } />
+      </Routes>
 
       {editingApp && (
         <EditAppDialog 
@@ -257,18 +262,18 @@ const AppContent = () => {
       )}
 
       {editingCapability && (
-        <EditCapabilityDialog
-          capability={editingCapability}
+        <EditCapabilityDialog 
+          capability={editingCapability} 
           open={!!editingCapability}
           onOpenChange={(open) => { if (!open) setEditingCapability(null); }}
           onSuccess={handleRefresh}
         />
       )}
-    </div>
+    </Layout>
   );
 };
-
 const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Application[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
@@ -586,6 +591,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
 };
 
 const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], depth?: number }) => {
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
   
@@ -617,7 +623,12 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
                 {expanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
               </button>
             )}
-            <span style={{ fontWeight: 800, fontSize: depth === 0 ? '1.125rem' : '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Boxes size={depth === 0 ? 20 : 16} style={{ color: 'var(--muted-foreground)' }} /> {node.name}</span>
+            <span 
+              onClick={() => navigate(`/capabilities/${node.id}`)}
+              style={{ fontWeight: 800, fontSize: depth === 0 ? '1.125rem' : '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}
+            >
+              <Boxes size={depth === 0 ? 20 : 16} style={{ color: 'var(--muted-foreground)' }} /> {node.name}
+            </span>
             {criticality && (
               <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${criticality.color}20`, color: criticality.color, border: `1px solid ${criticality.color}40` }}>
                 {criticality.label}
@@ -666,6 +677,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
 };
 
 const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], depth?: number }) => {
+  const navigate = useNavigate();
   const crit = criticalityOptions.find(o => o.value === node.criticality);
   const hasChildren = node.children && node.children.length > 0;
 
@@ -673,7 +685,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
     <>
       <tr key={node.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
         <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, paddingLeft: `${1 + depth * 2}rem` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div onClick={() => navigate(`/capabilities/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
             {depth > 0 && <ChevronRight size={14} style={{ color: 'var(--muted-foreground)' }} />}
             <Boxes size={14} style={{ color: 'var(--muted-foreground)' }} />
             {node.name}
@@ -710,6 +722,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
 };
 
 const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabilities: Capability[], onRefresh: () => void, onSelectApp: (id: string) => void }) => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   
   const { data: picklists } = useQuery<any[]>({
@@ -830,43 +843,102 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
 };
 
 const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapability, isVisible }: { apps: Application[], capabilities: Capability[], integrations: any[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, isVisible: boolean }) => {
-  const [filters, setFilters] = useLocalStorage('openea_diagram_filters', { 
-    search: '', 
-    owner: [] as string[], 
-    lifecycle: [] as string[], 
-    type: [] as string[],
-    capabilityId: [] as string[],
-    criticality: [] as string[],
-    functionalFit: [] as string[],
-    technicalFit: [] as string[],
-    custom: {} as Record<string, string[]>
-  });
-  
-  // Auto-show filters if any are active
-  const isAnyFilterActive = useMemo(() => {
-    const hasCustom = Object.values(filters.custom || {}).some(vals => (vals?.length || 0) > 0);
-    return (filters.search !== '') || 
-      (filters.owner?.length || 0) > 0 || 
-      (filters.lifecycle?.length || 0) > 0 || 
-      (filters.type?.length || 0) > 0 || 
-      (filters.capabilityId?.length || 0) > 0 || 
-      (filters.criticality?.length || 0) > 0 || 
-      (filters.functionalFit?.length || 0) > 0 || 
-      (filters.technicalFit?.length || 0) > 0 || 
-      hasCustom;
-  }, [filters]);
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [showFilters, setShowFilters] = useState(isAnyFilterActive);
+  // Helper to parse comma-separated strings from URL into arrays
+  const getParamArray = (key: string) => {
+    const val = searchParams.get(key);
+    return val ? val.split(',').filter(Boolean) : [];
+  };
 
-  const [mode, setMode] = useLocalStorage<'network' | 'landscape' | 'app-landscape'>('openea_diagram_mode', 'landscape');
-  const [activeOverlay, setActiveOverlay] = useLocalStorage<string | null>('openea_diagram_overlay', 'lifecycle');
-  const [activeCustomOverlays, setActiveCustomOverlays] = useLocalStorage<string[]>('openea_diagram_custom_overlays', []);
+  // Helper to parse custom filters from URL (e.g., custom_field=val1,val2)
+  const getCustomParams = () => {
+    const custom: Record<string, string[]> = {};
+    searchParams.forEach((val, key) => {
+      if (key.startsWith('meta_')) {
+        custom[key.replace('meta_', '')] = val.split(',').filter(Boolean);
+      }
+    });
+    return custom;
+  };
+
+  const filters = useMemo(() => ({
+    search: searchParams.get('q') || '',
+    owner: getParamArray('owner'),
+    lifecycle: getParamArray('lifecycle'),
+    type: getParamArray('type'),
+    capabilityId: getParamArray('cap'),
+    criticality: getParamArray('crit'),
+    functionalFit: getParamArray('func'),
+    technicalFit: getParamArray('tech'),
+    custom: getCustomParams()
+  }), [searchParams]);
+
+  const updateFilters = (newFilters: any) => {
+    const params = new URLSearchParams(searchParams);
+    
+    const setOrRemove = (key: string, val: string | string[]) => {
+      if (!val || (Array.isArray(val) && val.length === 0)) params.delete(key);
+      else params.set(key, Array.isArray(val) ? val.join(',') : val);
+    };
+
+    if (newFilters.search !== undefined) setOrRemove('q', newFilters.search);
+    if (newFilters.owner !== undefined) setOrRemove('owner', newFilters.owner);
+    if (newFilters.lifecycle !== undefined) setOrRemove('lifecycle', newFilters.lifecycle);
+    if (newFilters.type !== undefined) setOrRemove('type', newFilters.type);
+    if (newFilters.capabilityId !== undefined) setOrRemove('cap', newFilters.capabilityId);
+    if (newFilters.criticality !== undefined) setOrRemove('crit', newFilters.criticality);
+    if (newFilters.functionalFit !== undefined) setOrRemove('func', newFilters.functionalFit);
+    if (newFilters.technicalFit !== undefined) setOrRemove('tech', newFilters.technicalFit);
+    
+    if (newFilters.custom !== undefined) {
+      // Clear existing custom meta params
+      Array.from(params.keys()).forEach(k => { if (k.startsWith('meta_')) params.delete(k); });
+      // Add new ones
+      Object.entries(newFilters.custom).forEach(([key, vals]: [string, any]) => {
+        if (vals && vals.length > 0) params.set(`meta_${key}`, vals.join(','));
+      });
+    }
+
+    setSearchParams(params, { replace: true });
+  };
+
+  const mode = (searchParams.get('mode') as any) || 'landscape';
+  const setMode = (m: string) => { const p = new URLSearchParams(searchParams); p.set('mode', m); setSearchParams(p, { replace: true }); };
+
+  const activeOverlay = searchParams.get('overlay') || 'lifecycle';
+  const setActiveOverlay = (o: string | null) => { 
+    const p = new URLSearchParams(searchParams); 
+    if (o) p.set('overlay', o); else p.delete('overlay');
+    setSearchParams(p, { replace: true }); 
+  };
+
+  const activeCustomOverlays = getParamArray('overlays_custom');
+  const setActiveCustomOverlays = (vals: string[]) => {
+    const p = new URLSearchParams(searchParams);
+    if (vals.length > 0) p.set('overlays_custom', vals.join(',')); else p.delete('overlays_custom');
+    setSearchParams(p, { replace: true });
+  };
+
+  const groupingField = searchParams.get('group') || null;
+  const setGroupingField = (g: string | null) => {
+    const p = new URLSearchParams(searchParams);
+    if (g) p.set('group', g); else p.delete('group');
+    setSearchParams(p, { replace: true });
+  };
+
+  // UI state not in URL (optional, can stay in local storage or state)
+  const [showFilters, setShowFilters] = useState(false);
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
   const [showCapabilities, setShowCapabilities] = useLocalStorage<boolean>('meat_diagram_show_caps', true);
   const [hideOrphanApps, setHideOrphanApps] = useLocalStorage<boolean>('meat_diagram_hide_orphans', true);
 
-  const [groupingField, setGroupingField] = useLocalStorage<string | null>('openea_diagram_grouping', null);
+  // Auto-show filters if any are active from URL on mount
+  useEffect(() => {
+    const hasAny = Array.from(searchParams.keys()).some(k => !['mode', 'overlay', 'group'].includes(k));
+    if (hasAny) setShowFilters(true);
+  }, []);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
@@ -1076,15 +1148,15 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
       {showFilters && (
         <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            <SearchInput label="Diagram Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="App or Integration name..." />
-            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
-            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All Types" />
-            <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId || []} onChange={(val) => setFilters({...filters, capabilityId: val})} placeholder="All Areas" />
-            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
+            <SearchInput label="Diagram Search" value={filters.search} onChange={(val) => updateFilters({ search: val })} placeholder="App or Integration name..." />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => updateFilters({ owner: val })} placeholder="All Owners" />
+            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => updateFilters({ type: val })} placeholder="All Types" />
+            <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId || []} onChange={(val) => updateFilters({ capabilityId: val })} placeholder="All Areas" />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => updateFilters({ lifecycle: val })} placeholder="All Lifecycles" />
             
-            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" />
-            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" />
-            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
+            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => updateFilters({ criticality: val })} placeholder="All" />
+            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => updateFilters({ functionalFit: val })} placeholder="All" />
+            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => updateFilters({ technicalFit: val })} placeholder="All" />
 
             {/* Custom Field Filters */}
             {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
@@ -1104,12 +1176,12 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
                   return Array.from(values).sort().map(v => ({ value: v, label: v }));
                 })()} 
                 selectedValues={(filters.custom || {})[def.fieldName] || []} 
-                onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
+                onChange={(val) => updateFilters({ custom: { ...(filters.custom || {}), [def.fieldName]: val } })} 
                 placeholder={`All ${def.label}s`} 
               />
             ))}
 
-            <button onClick={() => setFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], custom: {} })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <button onClick={() => updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], custom: {} })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
         </div>
       )}
@@ -1142,4 +1214,12 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
   );
 };
 
-export default function App() { return ( <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider> ); }
+export default function App() { 
+  return ( 
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AppContent />
+      </BrowserRouter>
+    </QueryClientProvider> 
+  ); 
+}

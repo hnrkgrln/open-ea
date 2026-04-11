@@ -2,13 +2,12 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { Search, Database, Boxes, X } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 
-interface Props {
-  onSelectApp: (app: any) => void;
-  onSelectCapability: (cap: any) => void;
-}
+interface Props {}
 
-export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
+export const UnifiedSearch = ({}: Props) => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [query, setQ] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -47,9 +46,9 @@ export const UnifiedSearch = ({ onSelectApp, onSelectCapability }: Props) => {
   const closeAndSelect = useCallback((type: 'app' | 'cap', item: any) => {
     setOpen(false);
     setQ('');
-    if (type === 'app') onSelectApp(item);
-    else onSelectCapability(item);
-  }, [onSelectApp, onSelectCapability]);
+    if (type === 'app') navigate(`/apps/${item.id}`);
+    else navigate(`/capabilities/${item.id}`);
+  }, [navigate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (flatResults.length === 0) return;
