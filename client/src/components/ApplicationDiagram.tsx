@@ -382,6 +382,7 @@ const DiagramInner = ({
   }, []);
 
   const [legendPos, setLegendPos] = useState({ x: 20, y: 20 });
+  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
   const isDraggingLegend = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
@@ -1119,13 +1120,13 @@ const DiagramInner = ({
       </Panel>
       <Panel position="top-left" style={{ 
         background: 'var(--card)', 
-        padding: '12px', 
+        padding: isLegendExpanded ? '16px' : '8px 12px', 
         borderRadius: '12px', 
         border: '1px solid var(--border)', 
         fontSize: '11px', 
         color: 'var(--foreground)', 
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-        maxWidth: '220px', 
+        width: isLegendExpanded ? '220px' : 'auto', 
         display: 'flex', 
         flexDirection: 'column', 
         gap: '16px',
@@ -1133,9 +1134,24 @@ const DiagramInner = ({
         transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
         cursor: 'grab',
         userSelect: 'none',
-        zIndex: 1000
+        zIndex: 1000,
+        transition: 'width 0.2s ease, padding 0.2s ease'
       }} onMouseDown={onLegendMouseDown}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted-foreground)' }}>
+            <MapIcon size={14} />
+            <span style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', fontSize: '10px' }}>Legend</span>
+          </div>
+          <button 
+            onClick={(e) => { e.stopPropagation(); setIsLegendExpanded(!isLegendExpanded); }}
+            style={{ border: 'none', background: 'var(--secondary)', color: 'var(--secondary-foreground)', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+          >
+            {isLegendExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        </div>
 
+        {isLegendExpanded && (
+          <>
           <div>
             <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1172,7 +1188,9 @@ const DiagramInner = ({
               {activeOverlay === 'lifecycle' ? ( LIFECYCLE_STAGES.map(stage => ( <div key={stage.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? stage.color : stage.lightColor, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{stage.label}</span></div> )) ) : ( picklists?.find(p => p.name.replace(/_/g, '').toLowerCase() === activeOverlay?.toLowerCase())?.options.map(opt => ( <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} /><span>{opt.label}</span></div> )) )}
             </div>
           </div>
-        </Panel>
+          </>
+        )}
+      </Panel>
       </ReactFlow>
   );
 };
