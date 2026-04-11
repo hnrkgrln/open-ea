@@ -60,23 +60,22 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
-      {/* Navigation Header */}
-      <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px', transition: 'all 0.2s' }} className="row-hover">
-          <ChevronLeft size={20} />
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-          <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={onBack}>Inventory</span>
-          <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--foreground)', fontWeight: 600 }}>
-            <Database size={14} style={{ opacity: 0.6 }} />
-            <span>{app.name}</span>
-          </div>
-        </div>
-      </div>
-
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div className="main-container" style={{ padding: '2rem 2rem 6rem 2rem', maxWidth: '1400px' }}>
+        <div className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '1400px', position: 'relative' }}>
+          <button 
+            onClick={onBack} 
+            style={{ 
+              position: 'absolute', top: '3rem', left: '-1rem', // Floats slightly to the left of the container
+              background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', 
+              display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', 
+              borderRadius: '6px', transition: 'all 0.2s' 
+            }} 
+            className="row-hover"
+            title="Go Back"
+          >
+            <ChevronLeft size={24} />
+          </button>
+
           {/* Hero Header */}
           <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
