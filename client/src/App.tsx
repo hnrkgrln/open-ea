@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download } from 'lucide-react';
 import { NewAppDialog } from './components/NewAppDialog';
 import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
@@ -387,6 +387,51 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
     return Array.from(values).sort().map(v => ({ value: v, label: v }));
   };
 
+  const exportToCSV = () => {
+    if (filteredApps.length === 0) return;
+    
+    // Define headers
+    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Criticality', 'Functional Fit', 'Technical Fit', 'Capabilities'];
+    const customHeaders = appMetaDefs.map(d => d.label);
+    const allHeaders = [...headers, ...customHeaders];
+
+    const csvContent = [
+      allHeaders.join(','),
+      ...filteredApps.map(app => {
+        const meta = safeJsonParse(app.metadata);
+        const caps = (app.capabilities || []).map(c => c.name).join('; ');
+        
+        const row = [
+          `"${app.name || ''}"`,
+          `"${ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || ''}"`,
+          `"${appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || ''}"`,
+          `"${app.lifecycle || ''}"`,
+          `"${app.criticality || ''}"`,
+          `"${app.functionalFit || ''}"`,
+          `"${app.technicalFit || ''}"`,
+          `"${caps}"`
+        ];
+
+        // Add custom fields
+        appMetaDefs.forEach(def => {
+          row.push(`"${meta[def.fieldName] || ''}"`);
+        });
+
+        return row.join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `openea_inventory_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div>
       <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -407,13 +452,13 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
         <div className="card" style={{ marginBottom: '2rem', background: 'var(--background)', padding: '1.25rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
             <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." />
-            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
-            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type} onChange={(val) => setFilters({...filters, type: val})} placeholder="All Types" />
-            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
+            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All Types" />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
             
-            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" />
-            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" />
-            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
+            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" />
+            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" />
+            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
 
             {/* Custom Field Filters */}
             {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
@@ -429,6 +474,14 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
 
             <button onClick={clearFilters} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
           </div>
+        </div>
+      )}
+
+      {viewMode === 'list' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+            <Download size={16} /> Export CSV
+          </button>
         </div>
       )}
       {viewMode === 'grid' ? (
@@ -682,6 +735,37 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
     return roots;
   }, [capabilities]);
 
+  const exportToCSV = () => {
+    if (!capabilities || capabilities.length === 0) return;
+
+    const headers = ['Name', 'Parent ID', 'Criticality', 'Description', 'Applications'];
+    
+    const csvContent = [
+      headers.join(','),
+      ...capabilities.map(cap => {
+        const apps = (cap.applications || []).map(a => a.name).join('; ');
+        const row = [
+          `"${cap.name || ''}"`,
+          `"${cap.parentId || ''}"`,
+          `"${criticalityOptions.find((o: any) => o.value === cap.criticality)?.label || cap.criticality || ''}"`,
+          `"${(cap.description || '').replace(/"/g, '""')}"`,
+          `"${apps}"`
+        ];
+        return row.join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `openea_capabilities_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -705,6 +789,14 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           />
         </div>
       </div>
+
+      {viewMode === 'list' && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+          <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+            <Download size={16} /> Export CSV
+          </button>
+        </div>
+      )}
 
       {viewMode === 'grid' ? (
         <div className="masonry-grid">
