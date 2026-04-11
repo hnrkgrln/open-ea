@@ -182,6 +182,7 @@ const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
 };
 
 const AppContent = () => {
+  const navigate = useNavigate();
   const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
   const [editingApp, setEditingApp] = useState<Application | null>(null);
   const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
