@@ -43,7 +43,14 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   const parent = useMemo(() => allCapabilities?.find(c => c.id === capability?.parentId), [allCapabilities, capability]);
   const children = useMemo(() => allCapabilities?.filter(c => c.parentId === capabilityId) || [], [allCapabilities, capabilityId]);
 
-  if (isLoading || !capability) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading capability details...</div>;
+  if (isLoading || !capability) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
+        <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+        <div className="loading-text" style={{ fontSize: '0.75rem' }}>Retrieving capability details...</div>
+      </div>
+    );
+  }
 
   const meta = safeJsonParse(capability.metadata);
   

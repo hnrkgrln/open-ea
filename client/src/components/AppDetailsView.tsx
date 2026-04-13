@@ -51,7 +51,14 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
 
   const isInherited = app?.capabilities && app.capabilities.length > 0;
 
-  if (isLoading || !app) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading application details...</div>;
+  if (isLoading || !app) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
+        <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+        <div className="loading-text" style={{ fontSize: '0.75rem' }}>Retrieving application details...</div>
+      </div>
+    );
+  }
 
   const meta = safeJsonParse(app.metadata);
   
