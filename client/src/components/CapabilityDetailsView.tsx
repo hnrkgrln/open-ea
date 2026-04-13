@@ -27,12 +27,19 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
   
-  const { data: allCapabilities, isLoading } = useQuery<any[]>({ 
+  const { data: allCapabilities } = useQuery<any[]>({ 
     queryKey: ['capabilities'], 
-    queryFn: () => fetch('/api/capabilities').then(res => res.json())
+    queryFn: () => fetch('/api/capabilities').then(res => res.json()),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const capability = useMemo(() => allCapabilities?.find(c => c.id === capabilityId), [allCapabilities, capabilityId]);
+  const { data: capability, isLoading } = useQuery<any>({
+    queryKey: ['capability', capabilityId],
+    queryFn: () => fetch(`/api/capabilities/${capabilityId}`).then(res => res.json()),
+    initialData: () => allCapabilities?.find(c => c.id === capabilityId),
+    enabled: !!capabilityId
+  });
+
   const parent = useMemo(() => allCapabilities?.find(c => c.id === capability?.parentId), [allCapabilities, capability]);
   const children = useMemo(() => allCapabilities?.filter(c => c.parentId === capabilityId) || [], [allCapabilities, capabilityId]);
 

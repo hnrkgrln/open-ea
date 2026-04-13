@@ -27,12 +27,18 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
   const { data: integrations } = useQuery<any[]>({ queryKey: ['integrations'], queryFn: () => fetch('/api/integrations').then(res => res.json()) });
   
-  const { data: latestApps, isLoading } = useQuery<any[]>({ 
+  const { data: latestApps } = useQuery<any[]>({ 
     queryKey: ['applications'], 
-    queryFn: () => fetch('/api/applications').then(res => res.json())
+    queryFn: () => fetch('/api/applications').then(res => res.json()),
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
-  const app = useMemo(() => latestApps?.find(a => a.id === appId), [latestApps, appId]);
+  const { data: app, isLoading } = useQuery<any>({
+    queryKey: ['application', appId],
+    queryFn: () => fetch(`/api/applications/${appId}`).then(res => res.json()),
+    initialData: () => latestApps?.find(a => a.id === appId),
+    enabled: !!appId
+  });
 
   // Effective Criticality Logic (Inherited from max of capabilities)
   const effectiveCriticality = useMemo(() => {

@@ -37,6 +37,19 @@ server.get('/applications', async () => {
   });
 });
 
+server.get('/applications/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+  },
+}, async (request, reply) => {
+  const app = await prisma.application.findUnique({
+    where: { id: request.params.id },
+    include: { capabilities: true }
+  });
+  if (!app) return reply.status(404).send({ error: 'Application not found' });
+  return app;
+});
+
 server.post('/applications', {
   schema: {
     body: z.object({
@@ -144,6 +157,19 @@ server.get('/capabilities', async (request) => {
     },
     orderBy: { name: 'asc' }
   });
+});
+
+server.get('/capabilities/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+  },
+}, async (request, reply) => {
+  const cap = await prisma.capability.findUnique({
+    where: { id: request.params.id },
+    include: { applications: true }
+  });
+  if (!cap) return reply.status(404).send({ error: 'Capability not found' });
+  return cap;
 });
 
 server.post('/capabilities', {
