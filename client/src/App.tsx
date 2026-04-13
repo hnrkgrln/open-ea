@@ -221,6 +221,25 @@ const AppContent = () => {
     }
   });
 
+  const { data: picklists, isLoading: isPicklistsLoading } = useQuery({
+    queryKey: ['picklists'],
+    queryFn: async () => {
+      const res = await fetch('/api/picklists');
+      return res.json();
+    }
+  });
+
+  const isInitialLoading = !apps || !capabilities || !integrations || isPicklistsLoading;
+
+  if (isInitialLoading) {
+    return (
+      <div className="loading-overlay">
+        <div className="loading-logo">{brandName}</div>
+        <div className="loading-text">Architecting your enterprise...</div>
+      </div>
+    );
+  }
+
   return (
     <Layout brandName={brandName} onRefresh={handleRefresh}>
       <Routes>
