@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { LifecycleBadge } from './LifecycleBadge';
 import { EditAppDialog } from './EditAppDialog';
 
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
+  const navigate = useNavigate();
   const [showEdit, setShowEdit] = React.useState(false);
 
   // Fetch all contextual data
@@ -157,7 +159,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {outgoing.length > 0 ? outgoing.map(i => (
-                        <div key={i.id} style={{ padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div key={i.id} onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="row-hover">
                           <span style={{ fontSize: '0.925rem', fontWeight: 700 }}>{i.targetApp?.name}</span>
                           <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', background: 'var(--card)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 600 }}>{i.name || i.type}</span>
                         </div>
@@ -170,7 +172,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {incoming.length > 0 ? incoming.map(i => (
-                        <div key={i.id} style={{ padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div key={i.id} onClick={() => navigate(`/apps/${i.sourceAppId}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="row-hover">
                           <span style={{ fontSize: '0.925rem', fontWeight: 700 }}>{i.sourceApp?.name}</span>
                           <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', background: 'var(--card)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 600 }}>{i.name || i.type}</span>
                         </div>
@@ -187,7 +189,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                 </h3>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                   {app.capabilities && app.capabilities.length > 0 ? app.capabilities.map((cap: any) => (
-                    <div key={cap.id} style={{ padding: '0.75rem 1.25rem', background: 'var(--secondary)', borderRadius: '12px', fontSize: '0.925rem', fontWeight: 700, border: '1px solid var(--border)', color: 'var(--secondary-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div key={cap.id} onClick={() => navigate(`/capabilities/${cap.id}`)} style={{ cursor: 'pointer', padding: '0.75rem 1.25rem', background: 'var(--secondary)', borderRadius: '12px', fontSize: '0.925rem', fontWeight: 700, border: '1px solid var(--border)', color: 'var(--secondary-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="row-hover">
                       <Boxes size={14} style={{ opacity: 0.6 }} /> {cap.name}
                     </div>
                   )) : (
