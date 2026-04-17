@@ -89,7 +89,11 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               </p>
               {parent && (
                 <div style={{ marginTop: '1.5rem' }}>
-                  <span style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <span 
+                    onClick={() => navigate(`/capabilities/${parent.id}`)}
+                    style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '4px' }}
+                    className="row-hover"
+                  >
                     <Layers size={16} /> Part of <strong>{parent.name}</strong>
                   </span>
                 </div>
@@ -130,14 +134,14 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
                   {capability.applications && capability.applications.length > 0 ? capability.applications.map((app: any) => (
-                    <div key={app.id} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="row-hover">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}>
                           <Database size={16} />
                         </div>
                         <span style={{ fontWeight: 700 }}>{app.name}</span>
                       </div>
-                      <button onClick={() => navigate(`/apps/${app.id}`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><ShieldCheck size={14} /></button>
+                      <ShieldCheck size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
                     </div>
                   )) : (
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>No applications currently mapped to this capability.</div>
@@ -153,7 +157,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                   </h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                     {children.map(child => (
-                      <div key={child.id} onClick={() => navigate(`/capabilities/${child.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div key={child.id} onClick={() => navigate(`/capabilities/${child.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
                         <Boxes size={16} style={{ color: 'var(--primary)' }} />
                         <span style={{ fontWeight: 700 }}>{child.name}</span>
                       </div>
