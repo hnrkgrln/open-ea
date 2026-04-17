@@ -22,6 +22,7 @@
   --input: #ced4da;
   --ring: #adb5bd;
   --radius: 0.6rem;
+  --brand-focus: #228be6; /* Royal Blue for light mode focus */
 
   /* Lifecycle Colors */
   --lc-discovery: #e7f5ff;
@@ -56,6 +57,7 @@
   --border: #373a40;
   --input: #373a40;
   --ring: #5c5f66;
+  --brand-focus: #3bc9db; /* Cyan for high visibility in dark mode */
 
   /* Dark Lifecycle Colors */
   --lc-discovery: #1864ab;
@@ -213,14 +215,14 @@ input, select, textarea {
   margin-top: 0.25rem;
   background: var(--card);
   color: var(--foreground);
-  /* High-contrast neon cursor for visibility */
-  caret-color: #ff00ff !important; 
+  /* High-contrast theme-adaptive cursor for visibility */
+  caret-color: var(--brand-focus) !important; 
 }
 
 input:focus, textarea:focus, select:focus {
-  outline: 2px solid #ff00ff !important;
+  outline: 2px solid var(--brand-focus) !important;
   outline-offset: 1px;
-  border-color: #ff00ff !important;
+  border-color: var(--brand-focus) !important;
 }
 
 .clear-all-item:hover {
