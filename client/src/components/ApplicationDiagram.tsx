@@ -850,10 +850,9 @@ const DiagramInner = ({
 
         if (mode === 'landscape') {
           const roots = capabilities.filter(c => !c.parentId);
-          const dynamicColCount = Math.max(2, Math.floor((window.innerWidth - 120) / 280));
-          const colCount = containerId ? 2 : dynamicColCount;
+          const colCount = 2; // Strict 2 columns
           const colHeights = new Array(colCount).fill(0); 
-          const colWidths = new Array(colCount).fill(280);
+          const colWidths = new Array(colCount).fill(350); // Slightly wider columns for stacked view
           
           // First pass: Assign to columns and calculate widths/heights
           const nodeAssignments = roots.filter(r => isRelevant(r.id)).map(root => {
@@ -880,9 +879,9 @@ const DiagramInner = ({
           const totalW = colWidths.reduce((sum, w) => sum + w + 60, 0) + 60;
           return { nodes: groupNodes, width: Math.max(totalW, 400), height: Math.max(...colHeights) + 160 };
         } else {
-          const colCount = Math.max(1, Math.floor((window.innerWidth - 120) / 350));
+          const colCount = 2; // Strict 2 columns
           const colHeights = new Array(colCount).fill(0);
-          const colWidths = new Array(colCount).fill(300);
+          const colWidths = new Array(colCount).fill(400); // More room for app detail in landscape
           
           // First pass for apps
           const appAssignments = targetApps.map(app => {
@@ -919,8 +918,8 @@ const DiagramInner = ({
           return filteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase());
         });
 
-        // Calculate dynamic grid based on screen width
-        const colCount = Math.max(2, Math.floor((window.innerWidth - 120) / 550));
+        // Calculate masonry grid for the top-level groups (e.g. LifeCycle groups)
+        const colCount = 2; // Strict 2 columns
         const columnHeights = new Array(colCount).fill(0);
         const colMaxW = new Array(colCount).fill(0);
 
