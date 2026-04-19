@@ -2,12 +2,11 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download } from 'lucide-react';
-import { NewAppDialog } from './components/NewAppDialog';
-import { EditAppDialog } from './components/EditAppDialog';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
-import { EditCapabilityDialog } from './components/EditCapabilityDialog';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
+import { EditAppPage } from './components/EditAppPage';
+import { EditCapabilityPage } from './components/EditCapabilityPage';
 import { ThemeToggle } from './components/ThemeToggle';
 import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
@@ -184,8 +183,6 @@ const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
 const AppContent = () => {
   const navigate = useNavigate();
   const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
-  const [editingApp, setEditingApp] = useState<Application | null>(null);
-  const [editingCapability, setEditingCapability] = useState<Capability | null>(null);
   const queryClient = useQueryClient();
 
   const handleRefresh = useCallback(() => {
@@ -244,26 +241,33 @@ const AppContent = () => {
     <Layout brandName={brandName} onRefresh={handleRefresh}>
       <Routes>
         <Route path="/" element={<Navigate to="/apps" replace />} />
+        
+        {/* Application Routes */}
         <Route path="/apps" element={
           <InventoryView 
             apps={apps || []} 
             onSelectApp={(id) => navigate(`/apps/${id}`)} 
-            onEditApp={setEditingApp} 
-            onNewApp={<NewAppDialog onSuccess={handleRefresh} />}
+            onEditApp={(app) => navigate(`/apps/${app.id}/edit`)} 
+            onNewApp={<button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button>}
           />
         } />
+        <Route path="/apps/new" element={<EditAppPage />} />
         <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/apps/:id/edit" element={<EditAppPage />} />
+
+        {/* Capability Routes */}
         <Route path="/capabilities" element={
           <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => navigate(`/apps/${id}`)} />
         } />
+        <Route path="/capabilities/new" element={<EditCapabilityPage />} />
         <Route path="/capabilities/:id" element={<CapabilityDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/capabilities/:id/edit" element={<EditCapabilityPage />} />
+
         <Route path="/diagrams" element={
           <DiagramsView 
             apps={apps || []} 
             capabilities={capabilities || []}
             integrations={integrations || []}
-            onEditApp={(id) => navigate(`/apps/${id}`)} 
-            onEditCapability={(cap) => navigate(`/capabilities/${cap.id}`)} 
             isVisible={true}
           />
         } />
@@ -271,24 +275,6 @@ const AppContent = () => {
           <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} integrations={integrations || []} onRefresh={handleRefresh} />
         } />
       </Routes>
-
-      {editingApp && (
-        <EditAppDialog 
-          app={editingApp} 
-          open={!!editingApp}
-          onOpenChange={(open) => { if (!open) setEditingApp(null); }}
-          onSuccess={handleRefresh}
-        />
-      )}
-
-      {editingCapability && (
-        <EditCapabilityDialog 
-          capability={editingCapability} 
-          open={!!editingCapability}
-          onOpenChange={(open) => { if (!open) setEditingCapability(null); }}
-          onSuccess={handleRefresh}
-        />
-      )}
     </Layout>
   );
 };
@@ -659,8 +645,8 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
             </span>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <EditCapabilityDialog onSuccess={onRefresh} parentId={node.id} trigger={<button className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>} />
-            <EditCapabilityDialog capability={node} onSuccess={onRefresh} trigger={<button className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>} />
+            <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>
+            <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
             <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
           </div>
         </div>
@@ -713,8 +699,8 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
         </td>
         <td style={{ padding: '1rem', width: '120px' }}>
           <div style={{ display: 'flex', gap: '0.25rem' }}>
-            <EditCapabilityDialog onSuccess={onRefresh} parentId={node.id} trigger={<button className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>} />
-            <EditCapabilityDialog capability={node} onSuccess={onRefresh} trigger={<button className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>} />
+            <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>
+            <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
             <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
           </div>
         </td>
@@ -811,15 +797,10 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
           </div>
-          <EditCapabilityDialog 
-            onSuccess={onRefresh} 
-            trigger={
-              <button className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <PlusCircle size={18} />
-                New Capability
-              </button>
-            } 
-          />
+          <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <PlusCircle size={18} />
+            New Capability
+          </button>
         </div>
       </div>
 
@@ -862,7 +843,8 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   );
 };
 
-const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapability, isVisible }: { apps: Application[], capabilities: Capability[], integrations: any[], onEditApp: (id: string) => void, onEditCapability: (cap: any) => void, isVisible: boolean }) => {
+const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: Application[], capabilities: Capability[], integrations: any[], isVisible: boolean }) => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Helper to parse comma-separated strings from URL into arrays
@@ -1207,8 +1189,8 @@ const DiagramsView = ({ apps, capabilities, integrations, onEditApp, onEditCapab
       )}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <ApplicationDiagram 
-          onNodeClick={(app) => onEditApp(app.id)} 
-          onCapabilityClick={onEditCapability} 
+          onNodeClick={(app) => navigate(`/apps/${app.id}/edit`)} 
+          onCapabilityClick={(cap) => navigate(`/capabilities/${cap.id}/edit`)} 
           apps={apps || []}
           filteredApps={filteredApps}
           categoricalFilteredApps={categoricalFilteredApps}
