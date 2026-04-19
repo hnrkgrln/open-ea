@@ -596,7 +596,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
   );
 };
 
-const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], depth?: number }) => {
+const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
@@ -653,7 +653,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
         
         {node.description && <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', margin: 0, maxWidth: '800px' }}>{node.description}</p>}
         
-        {node.applications && node.applications.length > 0 && (
+        {showApps && node.applications && node.applications.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', background: 'var(--muted)', padding: '0.75rem', borderRadius: 'var(--radius)' }}>
             {node.applications.map(app => (
               <div key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', background: 'var(--card)', padding: '0.25rem 0.6rem', borderRadius: '4px', color: 'var(--card-foreground)', fontWeight: 600, border: '1px solid var(--border)' }}>
@@ -673,7 +673,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
             gap: '1rem'
           }}>
             {node.children!.map(child => (
-              <CapabilityNode key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} depth={depth + 1} />
+              <CapabilityNode key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} depth={depth + 1} />
             ))}
           </div>
         )}
@@ -682,7 +682,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, dept
   );
 };
 
-const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], depth?: number }) => {
+const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
   const crit = criticalityOptions.find(o => o.value === node.criticality);
   const hasChildren = node.children && node.children.length > 0;
@@ -713,15 +713,15 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, d
         </td>
         <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
           <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-            {node.applications?.map(app => (
+            {showApps && node.applications?.map(app => (
               <span key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Database size={10} /> {app.name}</span>
             ))}
-            {(!node.applications || node.applications.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
+            {(!showApps || !node.applications || node.applications.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>{showApps ? '—' : (node.applications?.length || 0) + ' Apps'}</span>}
           </div>
         </td>
       </tr>
       {hasChildren && node.children!.map(child => (
-        <CapabilityListRow key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} depth={depth + 1} />
+        <CapabilityListRow key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} depth={depth + 1} />
       ))}
     </>
   );
