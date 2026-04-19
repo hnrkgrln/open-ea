@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download } from 'lucide-react';
@@ -731,6 +731,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
+  const [isPending, startTransition] = useTransition();
   
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -795,12 +796,13 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <button 
-            onClick={() => setShowApps(!showApps)} 
+            onClick={() => startTransition(() => setShowApps(!showApps))} 
             className="secondary" 
-            style={{ height: '2.5rem', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}
+            style={{ height: '2.5rem', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, opacity: isPending ? 0.6 : 1 }}
+            disabled={isPending}
           >
             {showApps ? <EyeOff size={16} /> : <Eye size={16} />}
-            {showApps ? 'Hide Apps' : 'Show Apps'}
+            {isPending ? 'Processing...' : (showApps ? 'Hide Apps' : 'Show Apps')}
           </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
@@ -818,6 +820,13 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
             <Download size={16} /> Export CSV
           </button>
+        </div>
+      )}
+
+      {isPending && (
+        <div className="loading-overlay" style={{ background: 'rgba(var(--background-rgb), 0.8)', backdropFilter: 'blur(4px)' }}>
+          <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+          <div className="loading-text" style={{ fontSize: '0.75rem' }}>Organizing supporting applications...</div>
         </div>
       )}
 

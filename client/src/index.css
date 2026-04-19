@@ -356,7 +356,9 @@ input[type="range"]::-moz-range-thumb:hover {
 .loading-overlay {
   position: fixed;
   inset: 0;
-  background: var(--background);
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -364,6 +366,10 @@ input[type="range"]::-moz-range-thumb:hover {
   gap: 1.5rem;
   z-index: 9999;
   animation: fadeIn 0.3s ease-out;
+}
+
+[data-theme='dark'] .loading-overlay {
+  background: rgba(0, 0, 0, 0.7);
 }
 
 .loading-logo {
