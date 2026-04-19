@@ -10,6 +10,8 @@ import ReactFlow, {
   useStore,
   useNodesInitialized,
   getBezierPath,
+  getNodesBounds,
+  getTransformForBounds,
   type Node,
   type Edge,
   type EdgeProps,
@@ -17,7 +19,8 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { Database, Boxes, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight } from 'lucide-react';
+import { toPng } from 'html-to-image';
+import { Database, Boxes, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-react';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -360,6 +363,40 @@ const DiagramInner = ({
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   const [lockNodes, setLockNodes] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const onExport = async () => {
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) return;
+
+    setIsExporting(true);
+    try {
+      const nodes = getNodes();
+      const bounds = getNodesBounds(nodes);
+      const imageWidth = bounds.width + 100;
+      const imageHeight = bounds.height + 100;
+
+      const dataUrl = await toPng(viewport, {
+        backgroundColor: isDark ? '#1a1b1e' : '#f8f9fa',
+        width: imageWidth,
+        height: imageHeight,
+        style: {
+          width: `${imageWidth}px`,
+          height: `${imageHeight}px`,
+          transform: `translate(${-bounds.x + 50}px, ${-bounds.y + 50}px) scale(1)`,
+        },
+      });
+
+      const link = document.createElement('a');
+      link.download = `openea-diagram-${mode}-${new Date().toISOString().split('T')[0]}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const nodeTypes = useMemo(() => NODE_TYPES, []);
   const edgeTypes = useMemo(() => EDGE_TYPES, []);
@@ -1056,7 +1093,7 @@ const DiagramInner = ({
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        minWidth: '180px'
+        minWidth: '220px'
       }}>
         <div style={{ fontSize: '11px', fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '2px' }}>
           {mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}
@@ -1086,6 +1123,33 @@ const DiagramInner = ({
           >
             {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
             {isFullscreen ? 'Exit' : 'Present'}
+          </button>
+          <button 
+            onClick={onExport}
+            disabled={isExporting}
+            title="Export diagram as PNG"
+            style={{
+              background: 'transparent',
+              color: 'var(--muted-foreground)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              padding: '0 8px',
+              height: '28px',
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              cursor: isExporting ? 'wait' : 'pointer',
+              transition: 'all 0.2s',
+              fontSize: '10px',
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              opacity: isExporting ? 0.6 : 1
+            }}
+          >
+            {isExporting ? <Loader2 size={12} className="spin" /> : <Download size={12} />}
+            {isExporting ? '...' : 'Export'}
           </button>
           <button 
             onClick={() => setLockNodes(!lockNodes)}
