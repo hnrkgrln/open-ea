@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Edit2, Database, Boxes, ShieldCheck, ChevronLeft, Calendar, Info, Share2, Layers } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { EditCapabilityDialog } from './EditCapabilityDialog';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -21,7 +20,6 @@ interface Props {
 
 export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
-  const [showEdit, setShowEdit] = React.useState(false);
 
   // Fetch all contextual data
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
@@ -99,7 +97,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                 </div>
               )}
             </div>
-            <button onClick={() => setShowEdit(true)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+            <button onClick={() => navigate(`/capabilities/${capability.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
               <Edit2 size={18} /> Edit Capability
             </button>
           </div>
@@ -210,15 +208,6 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
           </div>
         </div>
       </div>
-
-      {showEdit && (
-        <EditCapabilityDialog 
-          capability={capability} 
-          open={showEdit} 
-          onOpenChange={setShowEdit} 
-          onSuccess={() => { setShowEdit(false); onRefresh(); }} 
-        />
-      )}
     </div>
   );
 };
