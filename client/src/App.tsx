@@ -730,6 +730,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
 const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabilities: Capability[], onRefresh: () => void, onSelectApp: (id: string) => void }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
+  const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
   
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -793,6 +794,14 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <button 
+            onClick={() => setShowApps(!showApps)} 
+            className="secondary" 
+            style={{ height: '2.5rem', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}
+          >
+            {showApps ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showApps ? 'Hide Apps' : 'Show Apps'}
+          </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
@@ -816,7 +825,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
         <div className="masonry-grid">
           {capabilityTree.map(cap => (
             <div key={cap.id} className="masonry-item">
-              <CapabilityNode node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} />
+              <CapabilityNode node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} />
             </div>
           ))}
         </div>
@@ -833,7 +842,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
             </thead>
             <tbody>
               {capabilityTree.map(cap => (
-                <CapabilityListRow key={cap.id} node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} />
+                <CapabilityListRow key={cap.id} node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} />
               ))}
             </tbody>
           </table>
