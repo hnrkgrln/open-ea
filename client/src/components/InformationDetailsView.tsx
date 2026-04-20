@@ -31,7 +31,7 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
     queryKey: ['information-object', infoId],
     queryFn: () => fetch(`/api/information-objects/${infoId}`).then(res => res.json()),
     initialData: () => latestInfo?.find(i => i.id === infoId),
-    enabled: !!infoId
+    enabled: !!infoId && infoId !== 'undefined'
   });
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });

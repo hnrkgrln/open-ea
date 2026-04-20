@@ -35,7 +35,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
     queryKey: ['capability', capabilityId],
     queryFn: () => fetch(`/api/capabilities/${capabilityId}`).then(res => res.json()),
     initialData: () => allCapabilities?.find(c => c.id === capabilityId),
-    enabled: !!capabilityId
+    enabled: !!capabilityId && capabilityId !== 'undefined'
   });
 
   const parent = useMemo(() => allCapabilities?.find(c => c.id === capability?.parentId), [allCapabilities, capability]);

@@ -42,7 +42,7 @@ export const EditInformationPage = () => {
   const { data: item, isLoading: isItemLoading } = useQuery({
     queryKey: ['information-object', id],
     queryFn: () => fetch(`/api/information-objects/${id}`).then(res => res.json()),
-    enabled: !isNew
+    enabled: !isNew && !!id && id !== 'undefined'
   });
 
   const { data: organizations } = useQuery<any[]>({ queryKey: ['organizations'], queryFn: () => fetch('/api/organizations').then(res => res.json()) });

@@ -21,7 +21,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
     queryKey: ['organization', orgId],
     queryFn: () => fetch(`/api/organizations/${orgId}`).then(res => res.json()),
     initialData: () => allOrgs?.find(o => o.id === orgId),
-    enabled: !!orgId
+    enabled: !!orgId && orgId !== 'undefined'
   });
 
   const parent = useMemo(() => allOrgs?.find(o => o.id === org?.parentId), [allOrgs, org]);

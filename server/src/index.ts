@@ -42,12 +42,16 @@ server.get('/applications/:id', {
     params: z.object({ id: z.string() }),
   },
 }, async (request, reply) => {
-  const app = await prisma.application.findUnique({
-    where: { id: request.params.id },
-    include: { capabilities: true }
-  });
-  if (!app) return reply.status(404).send({ error: 'Application not found' });
-  return app;
+  try {
+    const app = await prisma.application.findUnique({
+      where: { id: request.params.id },
+      include: { capabilities: true }
+    });
+    if (!app) return reply.status(404).send({ error: 'Application not found' });
+    return app;
+  } catch (err) {
+    return reply.status(404).send({ error: 'Application not found' });
+  }
 });
 
 server.post('/applications', {
@@ -164,12 +168,16 @@ server.get('/capabilities/:id', {
     params: z.object({ id: z.string() }),
   },
 }, async (request, reply) => {
-  const cap = await prisma.capability.findUnique({
-    where: { id: request.params.id },
-    include: { applications: true }
-  });
-  if (!cap) return reply.status(404).send({ error: 'Capability not found' });
-  return cap;
+  try {
+    const cap = await prisma.capability.findUnique({
+      where: { id: request.params.id },
+      include: { applications: true }
+    });
+    if (!cap) return reply.status(404).send({ error: 'Capability not found' });
+    return cap;
+  } catch (err) {
+    return reply.status(404).send({ error: 'Capability not found' });
+  }
 });
 
 server.post('/capabilities', {
@@ -287,12 +295,16 @@ server.get('/organizations', async () => {
 server.get('/organizations/:id', {
   schema: { params: z.object({ id: z.string() }) },
 }, async (request, reply) => {
-  const org = await prisma.organization.findUnique({
-    where: { id: request.params.id },
-    include: { parent: true, children: true, informationObjects: true }
-  });
-  if (!org) return reply.status(404).send({ error: 'Organization not found' });
-  return org;
+  try {
+    const org = await prisma.organization.findUnique({
+      where: { id: request.params.id },
+      include: { parent: true, children: true, informationObjects: true }
+    });
+    if (!org) return reply.status(404).send({ error: 'Organization not found' });
+    return org;
+  } catch (err) {
+    return reply.status(404).send({ error: 'Organization not found' });
+  }
 });
 
 server.post('/organizations', {
@@ -342,12 +354,16 @@ server.get('/information-objects', async () => {
 server.get('/information-objects/:id', {
   schema: { params: z.object({ id: z.string() }) },
 }, async (request, reply) => {
-  const io = await prisma.informationObject.findUnique({
-    where: { id: request.params.id },
-    include: { businessOwner: true, appOwner: true, integrations: { include: { sourceApp: true, targetApp: true } } }
-  });
-  if (!io) return reply.status(404).send({ error: 'Information Object not found' });
-  return io;
+  try {
+    const io = await prisma.informationObject.findUnique({
+      where: { id: request.params.id },
+      include: { businessOwner: true, appOwner: true, integrations: { include: { sourceApp: true, targetApp: true } } }
+    });
+    if (!io) return reply.status(404).send({ error: 'Information Object not found' });
+    return io;
+  } catch (err) {
+    return reply.status(404).send({ error: 'Information Object not found' });
+  }
 });
 
 server.post('/information-objects', {
@@ -410,12 +426,16 @@ server.get('/integrations', async () => {
 server.get('/integrations/:id', {
   schema: { params: z.object({ id: z.string() }) },
 }, async (request, reply) => {
-  const integration = await prisma.integration.findUnique({
-    where: { id: request.params.id },
-    include: { sourceApp: true, targetApp: true, payload: true }
-  });
-  if (!integration) return reply.status(404).send({ error: 'Integration not found' });
-  return integration;
+  try {
+    const integration = await prisma.integration.findUnique({
+      where: { id: request.params.id },
+      include: { sourceApp: true, targetApp: true, payload: true }
+    });
+    if (!integration) return reply.status(404).send({ error: 'Integration not found' });
+    return integration;
+  } catch (err) {
+    return reply.status(404).send({ error: 'Integration not found' });
+  }
 });
 
 server.post('/integrations', {

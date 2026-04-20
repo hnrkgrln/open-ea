@@ -37,7 +37,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
     queryKey: ['application', appId],
     queryFn: () => fetch(`/api/applications/${appId}`).then(res => res.json()),
     initialData: () => latestApps?.find(a => a.id === appId),
-    enabled: !!appId
+    enabled: !!appId && appId !== 'undefined'
   });
 
   // Effective Criticality Logic (Inherited from max of capabilities)

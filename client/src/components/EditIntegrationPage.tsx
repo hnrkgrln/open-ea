@@ -23,7 +23,7 @@ export const EditIntegrationPage = () => {
   const { data: item, isLoading: isItemLoading } = useQuery({
     queryKey: ['integration', id],
     queryFn: () => fetch(`/api/integrations/${id}`).then(res => res.json()),
-    enabled: !isNew
+    enabled: !isNew && !!id && id !== 'undefined'
   });
 
   const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });

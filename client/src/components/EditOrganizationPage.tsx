@@ -20,7 +20,7 @@ export const EditOrganizationPage = () => {
   const { data: org, isLoading: isOrgLoading } = useQuery({
     queryKey: ['organization', id],
     queryFn: () => fetch(`/api/organizations/${id}`).then(res => res.json()),
-    enabled: !isNew
+    enabled: !isNew && !!id && id !== 'undefined'
   });
 
   const { data: allOrgs } = useQuery<any[]>({ 

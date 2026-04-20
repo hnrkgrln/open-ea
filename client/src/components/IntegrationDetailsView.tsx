@@ -21,7 +21,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
     queryKey: ['integration', integrationId],
     queryFn: () => fetch(`/api/integrations/${integrationId}`).then(res => res.json()),
     initialData: () => allIntegrations?.find(int => int.id === integrationId),
-    enabled: !!integrationId
+    enabled: !!integrationId && integrationId !== 'undefined'
   });
 
   if (isLoading || !i) {
