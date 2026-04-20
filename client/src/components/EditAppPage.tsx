@@ -120,6 +120,10 @@ export const EditAppPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isNew && (!id || id === 'undefined')) {
+      alert("Invalid ID. Cannot save changes.");
+      return;
+    }
     setLoading(true);
     try {
       const url = isNew ? '/api/applications' : `/api/applications/${id}`;

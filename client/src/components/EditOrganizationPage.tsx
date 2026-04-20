@@ -48,6 +48,10 @@ export const EditOrganizationPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isNew && (!id || id === 'undefined')) {
+      alert("Invalid ID. Cannot save changes.");
+      return;
+    }
     setLoading(true);
     try {
       const url = isNew ? '/api/organizations' : `/api/organizations/${id}`;

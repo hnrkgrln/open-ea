@@ -330,17 +330,27 @@ server.put('/organizations/:id', {
       parentId: z.string().optional().nullable(),
     }),
   },
-}, async (request) => {
-  return prisma.organization.update({
-    where: { id: request.params.id },
-    data: request.body
-  });
+}, async (request, reply) => {
+  try {
+    return await prisma.organization.update({
+      where: { id: request.params.id },
+      data: request.body
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Organization not found' });
+    throw err;
+  }
 });
 
 server.delete('/organizations/:id', {
   schema: { params: z.object({ id: z.string() }) },
-}, async (request) => {
-  return prisma.organization.delete({ where: { id: request.params.id } });
+}, async (request, reply) => {
+  try {
+    return await prisma.organization.delete({ where: { id: request.params.id } });
+  } catch (err: any) {
+    if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Organization not found' });
+    throw err;
+  }
 });
 
 // Information Objects API
@@ -399,17 +409,27 @@ server.put('/information-objects/:id', {
       appOwnerId: z.string().optional().nullable(),
     }),
   },
-}, async (request) => {
-  return prisma.informationObject.update({
-    where: { id: request.params.id },
-    data: request.body
-  });
+}, async (request, reply) => {
+  try {
+    return await prisma.informationObject.update({
+      where: { id: request.params.id },
+      data: request.body
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Information Object not found' });
+    throw err;
+  }
 });
 
 server.delete('/information-objects/:id', {
   schema: { params: z.object({ id: z.string() }) },
-}, async (request) => {
-  return prisma.informationObject.delete({ where: { id: request.params.id } });
+}, async (request, reply) => {
+  try {
+    return await prisma.informationObject.delete({ where: { id: request.params.id } });
+  } catch (err: any) {
+    if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Information Object not found' });
+    throw err;
+  }
 });
 
 // Integrations API

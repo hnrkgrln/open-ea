@@ -51,6 +51,10 @@ export const EditIntegrationPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isNew && (!id || id === 'undefined')) {
+      alert("Invalid ID. Cannot save changes.");
+      return;
+    }
     if (formData.sourceAppId === formData.targetAppId) {
       alert("Source and Target applications cannot be the same.");
       return;
