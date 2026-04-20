@@ -139,11 +139,15 @@ export const EditOrganizationPage = () => {
                     {orgTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
+  const filteredOrgs = Array.isArray(allOrgs) ? allOrgs.filter(o => o.id !== id) : [];
+
+  return (
+...
                 <div className="field">
                   <label className="label">Parent Organization / Manager</label>
                   <select value={formData.parentId || ''} onChange={e => setFormData({...formData, parentId: e.target.value || null})} style={{ padding: '0.75rem' }}>
                     <option value="">None (Top Level)</option>
-                    {allOrgs?.filter(o => o.id !== id).map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    {filteredOrgs.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
               </div>

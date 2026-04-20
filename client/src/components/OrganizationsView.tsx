@@ -108,7 +108,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_organizations_view', 'grid');
 
   const orgTree = React.useMemo(() => {
-    if (!organizations) return [];
+    if (!Array.isArray(organizations)) return [];
     const map = new Map<string, Organization>();
     const roots: Organization[] = [];
     organizations.forEach(org => map.set(org.id, { ...org, children: [] }));

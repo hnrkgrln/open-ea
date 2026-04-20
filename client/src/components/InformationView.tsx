@@ -71,7 +71,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
 
       {viewMode === 'grid' ? (
         <div className="grid">
-          {informationObjects.map(io => (
+          {Array.isArray(informationObjects) && informationObjects.map(io => (
             <InfoCard key={io.id} item={io} onRefresh={onRefresh} />
           ))}
         </div>
@@ -88,7 +88,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
               </tr>
             </thead>
             <tbody>
-              {informationObjects.map(io => (
+              {Array.isArray(informationObjects) && informationObjects.map(io => (
                 <tr key={io.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/information/${io.id}`)}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{io.name}</div>

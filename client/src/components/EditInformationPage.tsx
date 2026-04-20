@@ -210,14 +210,14 @@ export const EditInformationPage = () => {
                   <label className="label">Business Owner (Organization/Role)</label>
                   <select value={formData.businessOwnerId || ''} onChange={e => setFormData({...formData, businessOwnerId: e.target.value || null})} style={{ padding: '0.75rem' }}>
                     <option value="">Select Owner...</option>
-                    {organizations?.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    {Array.isArray(organizations) && organizations.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}
                   </select>
                 </div>
                 <div className="field">
                   <label className="label">Source of Truth (Primary Application)</label>
                   <select value={formData.appOwnerId || ''} onChange={e => setFormData({...formData, appOwnerId: e.target.value || null})} style={{ padding: '0.75rem' }}>
                     <option value="">Select System...</option>
-                    {apps?.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {Array.isArray(apps) && apps.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
               </div>

@@ -44,7 +44,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
             </tr>
           </thead>
           <tbody>
-            {integrations.map(i => (
+            {Array.isArray(integrations) && integrations.map(i => (
               <tr key={i.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/integrations/${i.id}`)}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{i.sourceApp?.name}</div>

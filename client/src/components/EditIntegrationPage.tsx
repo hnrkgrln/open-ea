@@ -140,21 +140,21 @@ export const EditIntegrationPage = () => {
                   <label className="label">Source Application</label>
                   <select required value={formData.sourceAppId} onChange={e => setFormData({...formData, sourceAppId: e.target.value})} style={{ padding: '0.75rem' }}>
                     <option value="">Select Source...</option>
-                    {apps?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {Array.isArray(apps) && apps.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
                 <div className="field">
                   <label className="label">Information Object Payload</label>
                   <select required value={formData.infoObjectId || ''} onChange={e => setFormData({...formData, infoObjectId: e.target.value})} style={{ padding: '0.75rem' }}>
                     <option value="">Select Payload...</option>
-                    {infoObjects?.map(io => <option key={io.id} value={io.id}>{io.name}</option>)}
+                    {Array.isArray(infoObjects) && infoObjects.map((io: any) => <option key={io.id} value={io.id}>{io.name}</option>)}
                   </select>
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Target Application</label>
                   <select required value={formData.targetAppId} onChange={e => setFormData({...formData, targetAppId: e.target.value})} style={{ padding: '0.75rem' }}>
                     <option value="">Select Target...</option>
-                    {apps?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    {Array.isArray(apps) && apps.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
                   </select>
                 </div>
               </div>
