@@ -1,12 +1,21 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, Share2, Layers } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
 import { EditAppPage } from './components/EditAppPage';
 import { EditCapabilityPage } from './components/EditCapabilityPage';
+import { OrganizationsView } from './components/OrganizationsView';
+import { OrganizationDetailsView } from './components/OrganizationDetailsView';
+import { EditOrganizationPage } from './components/EditOrganizationPage';
+import { InformationView } from './components/InformationView';
+import { InformationDetailsView } from './components/InformationDetailsView';
+import { EditInformationPage } from './components/EditInformationPage';
+import { IntegrationsView } from './components/IntegrationsView';
+import { IntegrationDetailsView } from './components/IntegrationDetailsView';
+import { EditIntegrationPage } from './components/EditIntegrationPage';
 import { ThemeToggle } from './components/ThemeToggle';
 import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
@@ -124,14 +133,45 @@ interface Capability {
   applications?: { id: string; name: string }[];
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  description?: string;
+  type?: string;
+  parentId?: string | null;
+  children?: Organization[];
+  informationObjects?: InformationObject[];
+}
+
+interface InformationObject {
+  id: string;
+  name: string;
+  aliases?: string;
+  description?: string;
+  classification?: string;
+  piiCategory?: string;
+  type?: string;
+  metadata?: string;
+  businessOwnerId?: string | null;
+  businessOwner?: Organization;
+  appOwnerId?: string | null;
+  appOwner?: Application;
+  integrations?: Integration[];
+}
+
 interface Integration {
   id: string;
   name: string;
   sourceAppId: string;
   targetAppId: string;
-  type: string;
+  infoObjectId?: string | null;
+  status?: string;
+  pattern?: string;
+  frequency?: string;
+  crud?: string;
   sourceApp: Application;
   targetApp: Application;
+  payload?: InformationObject;
 }
 
 // Layout component for shared UI elements
@@ -148,6 +188,9 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
           <nav className="nav">
             <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</NavLink>
             <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</NavLink>
+            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Layers size={16} /> Organizations</NavLink>
+            <NavLink to="/information" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Share2 size={16} /> Information</NavLink>
+            <NavLink to="/integrations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Network size={16} /> Integrations</NavLink>
             <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</NavLink>
           </nav>
         </div>
@@ -180,6 +223,27 @@ const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   return <CapabilityDetailsView capabilityId={id || null} onBack={() => navigate('/capabilities')} onRefresh={onRefresh} />;
 };
 
+// Organization Detail Wrapper for Route
+const OrganizationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return <OrganizationDetailsView orgId={id || null} onBack={() => navigate('/organizations')} onRefresh={onRefresh} />;
+};
+
+// Information Object Detail Wrapper for Route
+const InformationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return <InformationDetailsView infoId={id || null} onBack={() => navigate('/information')} onRefresh={onRefresh} />;
+};
+
+// Integration Detail Wrapper for Route
+const IntegrationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return <IntegrationDetailsView integrationId={id || null} onBack={() => navigate('/integrations')} onRefresh={onRefresh} />;
+};
+
 const AppContent = () => {
   const navigate = useNavigate();
   const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
@@ -210,6 +274,22 @@ const AppContent = () => {
     }
   });
 
+  const { data: organizations } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: async () => {
+      const res = await fetch('/api/organizations');
+      return res.json() as Promise<Organization[]>;
+    }
+  });
+
+  const { data: informationObjects } = useQuery({
+    queryKey: ['information-objects'],
+    queryFn: async () => {
+      const res = await fetch('/api/information-objects');
+      return res.json() as Promise<InformationObject[]>;
+    }
+  });
+
   const { data: integrations } = useQuery({
     queryKey: ['integrations'],
     queryFn: async () => {
@@ -226,7 +306,7 @@ const AppContent = () => {
     }
   });
 
-  const isInitialLoading = !apps || !capabilities || !integrations || isPicklistsLoading;
+  const isInitialLoading = !apps || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading;
 
   if (isInitialLoading) {
     return (
@@ -262,6 +342,30 @@ const AppContent = () => {
         <Route path="/capabilities/new" element={<EditCapabilityPage />} />
         <Route path="/capabilities/:id" element={<CapabilityDetailWrapper onRefresh={handleRefresh} />} />
         <Route path="/capabilities/:id/edit" element={<EditCapabilityPage />} />
+
+        {/* Organization Routes */}
+        <Route path="/organizations" element={
+          <OrganizationsView organizations={organizations || []} onRefresh={handleRefresh} />
+        } />
+        <Route path="/organizations/new" element={<EditOrganizationPage />} />
+        <Route path="/organizations/:id" element={<OrganizationDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/organizations/:id/edit" element={<EditOrganizationPage />} />
+
+        {/* Information Routes */}
+        <Route path="/information" element={
+          <InformationView informationObjects={informationObjects || []} onRefresh={handleRefresh} />
+        } />
+        <Route path="/information/new" element={<EditInformationPage />} />
+        <Route path="/information/:id" element={<InformationDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/information/:id/edit" element={<EditInformationPage />} />
+
+        {/* Integration Routes */}
+        <Route path="/integrations" element={
+          <IntegrationsView integrations={integrations || []} onRefresh={handleRefresh} />
+        } />
+        <Route path="/integrations/new" element={<EditIntegrationPage />} />
+        <Route path="/integrations/:id" element={<IntegrationDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/integrations/:id/edit" element={<EditIntegrationPage />} />
 
         <Route path="/diagrams" element={
           <DiagramsView 

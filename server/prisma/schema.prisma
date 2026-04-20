@@ -23,6 +23,7 @@ model Application {
   targetOf      Integration[] @relation("targetApp")
   sourceOf      Integration[] @relation("sourceApp")
   capabilities  Capability[]  @relation("ApplicationToCapability")
+  ownedInformationObjects InformationObject[] @relation("AppOwner")
 }
 
 model Capability {
@@ -39,18 +40,52 @@ model Capability {
   applications Application[] @relation("ApplicationToCapability")
 }
 
+model Organization {
+  id                String              @id @default(uuid())
+  name              String
+  description       String?
+  type              String?
+  parentId          String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  parent            Organization?       @relation("OrgToOrg", fields: [parentId], references: [id], onDelete: Cascade)
+  children          Organization[]      @relation("OrgToOrg")
+  informationObjects InformationObject[]
+}
+
+model InformationObject {
+  id             String        @id @default(uuid())
+  name           String
+  aliases        String?
+  description    String?
+  classification String?
+  piiCategory    String?
+  type           String?
+  metadata       String?
+  businessOwnerId String?
+  appOwnerId     String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  businessOwner  Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
+  appOwner       Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
+  integrations   Integration[]
+}
+
 model Integration {
-  id          String      @id @default(uuid())
-  name        String?
-  sourceAppId String
-  targetAppId String
-  type        String?
-  protocol    String?
-  dataFormat  String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  targetApp   Application @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)
-  sourceApp   Application @relation("sourceApp", fields: [sourceAppId], references: [id], onDelete: Cascade)
+  id            String             @id @default(uuid())
+  name          String?
+  sourceAppId   String
+  targetAppId   String
+  infoObjectId  String?
+  status        String?
+  pattern       String?
+  frequency     String?
+  crud          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  targetApp     Application        @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)
+  sourceApp     Application        @relation("sourceApp", fields: [sourceAppId], references: [id], onDelete: Cascade)
+  payload       InformationObject? @relation(fields: [infoObjectId], references: [id], onDelete: SetNull)
 }
 
 model MetadataDefinition {

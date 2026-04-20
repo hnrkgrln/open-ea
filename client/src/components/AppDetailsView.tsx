@@ -148,7 +148,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
               {/* Integrations Section */}
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Network size={16} /> System Integrations
+                  <Network size={16} /> Data Flows & Integrations
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                   <div className="card" style={{ background: 'var(--card)', padding: '1.5rem' }}>
@@ -157,9 +157,16 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {outgoing.length > 0 ? outgoing.map(i => (
-                        <div key={i.id} onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="row-hover">
-                          <span style={{ fontSize: '0.925rem', fontWeight: 700 }}>{i.targetApp?.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', background: 'var(--card)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 600 }}>{i.name || i.type}</span>
+                        <div key={i.id} onClick={() => navigate(`/integrations/${i.id}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="row-hover">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.925rem', fontWeight: 700 }}>{i.targetApp?.name}</span>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--card)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{i.status || 'Active'}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Share2 size={12} style={{ color: 'var(--primary)', opacity: 0.7 }} />
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{i.payload?.name || 'Generic Payload'}</span>
+                            <span style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem' }}>via {i.pattern || 'API'}</span>
+                          </div>
                         </div>
                       )) : <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No outgoing integrations.</div>}
                     </div>
@@ -170,9 +177,16 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {incoming.length > 0 ? incoming.map(i => (
-                        <div key={i.id} onClick={() => navigate(`/apps/${i.sourceAppId}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="row-hover">
-                          <span style={{ fontSize: '0.925rem', fontWeight: 700 }}>{i.sourceApp?.name}</span>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', background: 'var(--card)', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: 600 }}>{i.name || i.type}</span>
+                        <div key={i.id} onClick={() => navigate(`/integrations/${i.id}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--muted)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="row-hover">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.925rem', fontWeight: 700 }}>{i.sourceApp?.name}</span>
+                            <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--card)', padding: '0.15rem 0.5rem', borderRadius: '4px' }}>{i.status || 'Active'}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Share2 size={12} style={{ color: 'var(--primary)', opacity: 0.7 }} />
+                            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{i.payload?.name || 'Generic Payload'}</span>
+                            <span style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem' }}>via {i.pattern || 'API'}</span>
+                          </div>
                         </div>
                       )) : <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No incoming integrations.</div>}
                     </div>

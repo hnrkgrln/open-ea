@@ -72,6 +72,60 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: 'Manual', label: 'Manual' },
   ]);
 
+  await seedPicklist('organization_type', 'Organization Type', [
+    { value: 'Department', label: 'Department' },
+    { value: 'Division', label: 'Division' },
+    { value: 'Role', label: 'Role' },
+    { value: 'Team', label: 'Team' },
+    { value: 'Person', label: 'Person' },
+  ]);
+
+  await seedPicklist('information_classification', 'Information Classification', [
+    { value: 'Public', label: 'Public', color: '#2b8a3e' },
+    { value: 'Internal', label: 'Internal', color: '#1864ab' },
+    { value: 'Confidential', label: 'Confidential', color: '#e67700' },
+    { value: 'Restricted', label: 'Restricted', color: '#c92a2a' },
+  ]);
+
+  await seedPicklist('pii_category', 'PII Category', [
+    { value: 'None', label: 'None', color: '#ced4da' },
+    { value: 'Standard PII', label: 'Standard PII', color: '#fab005' },
+    { value: 'Sensitive/Special Category', label: 'Sensitive/Special Category', color: '#c92a2a' },
+  ]);
+
+  await seedPicklist('information_type', 'Information Type', [
+    { value: 'Master Data', label: 'Master Data' },
+    { value: 'Transactional', label: 'Transactional' },
+    { value: 'Reference', label: 'Reference' },
+    { value: 'Unstructured', label: 'Unstructured' },
+  ]);
+
+  await seedPicklist('integration_status', 'Integration Status', [
+    { value: 'Planned', label: 'Planned', color: '#1864ab' },
+    { value: 'Active', label: 'Active', color: '#2b8a3e' },
+    { value: 'Deprecated', label: 'Deprecated', color: '#c92a2a' },
+  ]);
+
+  await seedPicklist('integration_pattern', 'Integration Pattern', [
+    { value: 'REST API', label: 'REST API' },
+    { value: 'Event/Message Queue', label: 'Event/Message Queue' },
+    { value: 'Batch File', label: 'Batch File' },
+    { value: 'Direct DB Read', label: 'Direct DB Read' },
+  ]);
+
+  await seedPicklist('integration_frequency', 'Integration Frequency', [
+    { value: 'Real-time', label: 'Real-time' },
+    { value: 'Hourly', label: 'Hourly' },
+    { value: 'Nightly Batch', label: 'Nightly Batch' },
+  ]);
+
+  await seedPicklist('integration_crud', 'CRUD Operation', [
+    { value: 'Create', label: 'Create' },
+    { value: 'Read', label: 'Read' },
+    { value: 'Update', label: 'Update' },
+    { value: 'Delete', label: 'Delete' },
+  ]);
+
   console.log('Standard Meta model check complete.');
   }
 

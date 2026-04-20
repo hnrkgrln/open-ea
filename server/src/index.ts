@@ -276,14 +276,146 @@ server.delete('/capabilities/:id', {
   }
 });
 
+// Organizations API
+server.get('/organizations', async () => {
+  return prisma.organization.findMany({
+    include: { parent: true, children: true },
+    orderBy: { name: 'asc' }
+  });
+});
+
+server.get('/organizations/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  const org = await prisma.organization.findUnique({
+    where: { id: request.params.id },
+    include: { parent: true, children: true, informationObjects: true }
+  });
+  if (!org) return reply.status(404).send({ error: 'Organization not found' });
+  return org;
+});
+
+server.post('/organizations', {
+  schema: {
+    body: z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      type: z.string().optional(),
+      parentId: z.string().optional().nullable(),
+    }),
+  },
+}, async (request) => {
+  return prisma.organization.create({ data: request.body });
+});
+
+server.put('/organizations/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      name: z.string().optional(),
+      description: z.string().optional(),
+      type: z.string().optional(),
+      parentId: z.string().optional().nullable(),
+    }),
+  },
+}, async (request) => {
+  return prisma.organization.update({
+    where: { id: request.params.id },
+    data: request.body
+  });
+});
+
+server.delete('/organizations/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request) => {
+  return prisma.organization.delete({ where: { id: request.params.id } });
+});
+
+// Information Objects API
+server.get('/information-objects', async () => {
+  return prisma.informationObject.findMany({
+    include: { businessOwner: true, appOwner: true },
+    orderBy: { name: 'asc' }
+  });
+});
+
+server.get('/information-objects/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  const io = await prisma.informationObject.findUnique({
+    where: { id: request.params.id },
+    include: { businessOwner: true, appOwner: true, integrations: { include: { sourceApp: true, targetApp: true } } }
+  });
+  if (!io) return reply.status(404).send({ error: 'Information Object not found' });
+  return io;
+});
+
+server.post('/information-objects', {
+  schema: {
+    body: z.object({
+      name: z.string(),
+      aliases: z.string().optional(),
+      description: z.string().optional(),
+      classification: z.string().optional(),
+      piiCategory: z.string().optional(),
+      type: z.string().optional(),
+      metadata: z.string().optional(),
+      businessOwnerId: z.string().optional().nullable(),
+      appOwnerId: z.string().optional().nullable(),
+    }),
+  },
+}, async (request) => {
+  return prisma.informationObject.create({ data: request.body });
+});
+
+server.put('/information-objects/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      name: z.string().optional(),
+      aliases: z.string().optional(),
+      description: z.string().optional(),
+      classification: z.string().optional(),
+      piiCategory: z.string().optional(),
+      type: z.string().optional(),
+      metadata: z.string().optional(),
+      businessOwnerId: z.string().optional().nullable(),
+      appOwnerId: z.string().optional().nullable(),
+    }),
+  },
+}, async (request) => {
+  return prisma.informationObject.update({
+    where: { id: request.params.id },
+    data: request.body
+  });
+});
+
+server.delete('/information-objects/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request) => {
+  return prisma.informationObject.delete({ where: { id: request.params.id } });
+});
+
 // Integrations API
 server.get('/integrations', async () => {
   return prisma.integration.findMany({
     include: {
       sourceApp: true,
       targetApp: true,
+      payload: true,
     },
   });
+});
+
+server.get('/integrations/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  const integration = await prisma.integration.findUnique({
+    where: { id: request.params.id },
+    include: { sourceApp: true, targetApp: true, payload: true }
+  });
+  if (!integration) return reply.status(404).send({ error: 'Integration not found' });
+  return integration;
 });
 
 server.post('/integrations', {
@@ -293,7 +425,11 @@ server.post('/integrations', {
       name: z.string().optional(),
       sourceAppId: z.string(),
       targetAppId: z.string(),
-      type: z.string().optional(),
+      infoObjectId: z.string().optional().nullable(),
+      status: z.string().optional(),
+      pattern: z.string().optional(),
+      frequency: z.string().optional(),
+      crud: z.string().optional(),
     }),
   },
 }, async (request, reply) => {
@@ -323,7 +459,11 @@ server.put('/integrations/:id', {
       name: z.string().optional(),
       sourceAppId: z.string().optional(),
       targetAppId: z.string().optional(),
-      type: z.string().optional(),
+      infoObjectId: z.string().optional().nullable(),
+      status: z.string().optional(),
+      pattern: z.string().optional(),
+      frequency: z.string().optional(),
+      crud: z.string().optional(),
     }),
   },
 }, async (request, reply) => {
@@ -540,7 +680,7 @@ server.get('/search', {
   },
 }, async (request) => {
   const { q } = request.query;
-  const [apps, caps] = await Promise.all([
+  const [apps, caps, orgs, info] = await Promise.all([
     prisma.application.findMany({
       where: {
         OR: [
@@ -553,7 +693,7 @@ server.get('/search', {
         ],
       },
       include: { capabilities: true },
-      take: 15,
+      take: 10,
     }),
     prisma.capability.findMany({
       where: {
@@ -565,11 +705,32 @@ server.get('/search', {
       },
       take: 10,
     }),
+    prisma.organization.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      take: 10,
+    }),
+    prisma.informationObject.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { aliases: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      take: 10,
+    }),
   ]);
 
   return {
     applications: apps,
     capabilities: caps,
+    organizations: orgs,
+    informationObjects: info
   };
 });
 

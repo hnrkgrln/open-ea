@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Search, Database, Boxes, X } from 'lucide-react';
+import { Search, Database, Boxes, X, Share2, Layers } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,7 +15,7 @@ export const UnifiedSearch = ({}: Props) => {
   const { data: results, isLoading } = useQuery({
     queryKey: ['search', query],
     queryFn: async () => {
-      if (!query) return { applications: [], capabilities: [] };
+      if (!query) return { applications: [], capabilities: [], organizations: [], informationObjects: [] };
       const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       return res.json();
     },
@@ -25,7 +25,9 @@ export const UnifiedSearch = ({}: Props) => {
   const flatResults = useMemo(() => {
     const apps = (results?.applications || []).map((item: any) => ({ ...item, _type: 'app' }));
     const caps = (results?.capabilities || []).map((item: any) => ({ ...item, _type: 'cap' }));
-    return [...apps, ...caps];
+    const orgs = (results?.organizations || []).map((item: any) => ({ ...item, _type: 'org' }));
+    const info = (results?.informationObjects || []).map((item: any) => ({ ...item, _type: 'info' }));
+    return [...apps, ...caps, ...orgs, ...info];
   }, [results]);
 
   useEffect(() => {
@@ -43,11 +45,13 @@ export const UnifiedSearch = ({}: Props) => {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  const closeAndSelect = useCallback((type: 'app' | 'cap', item: any) => {
+  const closeAndSelect = useCallback((type: 'app' | 'cap' | 'org' | 'info', item: any) => {
     setOpen(false);
     setQ('');
     if (type === 'app') navigate(`/apps/${item.id}`);
-    else navigate(`/capabilities/${item.id}`);
+    else if (type === 'cap') navigate(`/capabilities/${item.id}`);
+    else if (type === 'org') navigate(`/organizations/${item.id}`);
+    else if (type === 'info') navigate(`/information/${item.id}`);
   }, [navigate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -63,7 +67,7 @@ export const UnifiedSearch = ({}: Props) => {
       e.preventDefault();
       const item = flatResults[selectedIndex];
       if (item) {
-        closeAndSelect(item._type as 'app' | 'cap', item);
+        closeAndSelect(item._type as any, item);
       }
     }
   };
@@ -92,13 +96,13 @@ export const UnifiedSearch = ({}: Props) => {
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
             <Dialog.Title style={{ display: 'none' }}>Search</Dialog.Title>
-            <Dialog.Description style={{ display: 'none' }}>Quickly find applications and capabilities.</Dialog.Description>
+            <Dialog.Description style={{ display: 'none' }}>Quickly find artifacts in the enterprise landscape.</Dialog.Description>
             <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
               <Search size={20} style={{ color: 'var(--muted-foreground)' }} />
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
                 <input 
                   autoFocus
-                  placeholder="Type to search applications or capabilities..." 
+                  placeholder="Type to search everything..." 
                   value={query}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -136,7 +140,7 @@ export const UnifiedSearch = ({}: Props) => {
             <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem' }}>
               {!query && (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-                  Search for apps, capabilities, or descriptions...
+                  Search for apps, capabilities, info or roles...
                 </div>
               )}
 
@@ -201,7 +205,67 @@ export const UnifiedSearch = ({}: Props) => {
                     </div>
                   )}
 
-                  {(!results?.applications?.length && !results?.capabilities?.length) && (
+                  {/* Organizations Section */}
+                  {results?.organizations?.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Layers size={12} /> Organizations & Roles
+                      </div>
+                      {results.organizations.map((org: any, idx: number) => {
+                        const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + idx;
+                        const isSelected = selectedIndex === actualIdx;
+                        return (
+                          <button
+                            key={org.id}
+                            onClick={() => closeAndSelect('org', org)}
+                            onMouseEnter={() => setSelectedIndex(actualIdx)}
+                            style={{ 
+                              width: '100%', padding: '0.75rem', textAlign: 'left', 
+                              background: isSelected ? 'var(--accent)' : 'transparent', 
+                              border: 'none', display: 'flex', flexDirection: 'column', 
+                              borderRadius: '4px', cursor: 'pointer' 
+                            }}
+                            className="search-result-item"
+                          >
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{org.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{org.description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Information Section */}
+                  {results?.informationObjects?.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Share2 size={12} /> Information Objects
+                      </div>
+                      {results.informationObjects.map((io: any, idx: number) => {
+                        const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + idx;
+                        const isSelected = selectedIndex === actualIdx;
+                        return (
+                          <button
+                            key={io.id}
+                            onClick={() => closeAndSelect('info', io)}
+                            onMouseEnter={() => setSelectedIndex(actualIdx)}
+                            style={{ 
+                              width: '100%', padding: '0.75rem', textAlign: 'left', 
+                              background: isSelected ? 'var(--accent)' : 'transparent', 
+                              border: 'none', display: 'flex', flexDirection: 'column', 
+                              borderRadius: '4px', cursor: 'pointer' 
+                            }}
+                            className="search-result-item"
+                          >
+                            <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{io.name}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{io.description}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {(!results?.applications?.length && !results?.capabilities?.length && !results?.organizations?.length && !results?.informationObjects?.length) && (
                     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
                       No results found for "{query}"
                     </div>
