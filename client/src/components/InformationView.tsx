@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Share2, PlusCircle, LayoutGrid, List, Trash2, Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useLocalStorage } from '../App';
 
 interface InformationObject {
   id: string;
@@ -47,7 +48,7 @@ const InfoCard = ({ item, onRefresh }: { item: InformationObject, onRefresh: () 
 
 export const InformationView = ({ informationObjects, onRefresh }: { informationObjects: InformationObject[], onRefresh: () => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_information_view', 'grid');
 
   return (
     <div>

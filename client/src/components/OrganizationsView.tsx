@@ -105,8 +105,7 @@ const OrgListRow = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefr
 
 export const OrganizationsView = ({ organizations, onRefresh }: { organizations: Organization[], onRefresh: () => void }) => {
   const navigate = useNavigate();
-  // Using a simplified local storage hook or just state for now to avoid complexity
-  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_organizations_view', 'grid');
 
   const orgTree = React.useMemo(() => {
     if (!organizations) return [];

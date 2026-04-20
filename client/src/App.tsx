@@ -42,7 +42,7 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
 };
 
 // Custom hook for persisted state
-function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
+export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
