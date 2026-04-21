@@ -88,6 +88,8 @@ export const EditOrganizationPage = () => {
 
   if (!isNew && isOrgLoading) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
+  const filteredOrgs = Array.isArray(allOrgs) ? allOrgs.filter(o => o.id !== id) : [];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
       <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
@@ -139,10 +141,6 @@ export const EditOrganizationPage = () => {
                     {orgTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-  const filteredOrgs = Array.isArray(allOrgs) ? allOrgs.filter(o => o.id !== id) : [];
-
-  return (
-...
                 <div className="field">
                   <label className="label">Parent Organization / Manager</label>
                   <select value={formData.parentId || ''} onChange={e => setFormData({...formData, parentId: e.target.value || null})} style={{ padding: '0.75rem' }}>
