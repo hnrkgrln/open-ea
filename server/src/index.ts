@@ -2,7 +2,7 @@ import { fastify } from 'fastify';
 import { fastifyCors } from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
+import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 
 const prisma = new PrismaClient();
 const server = fastify().withTypeProvider<ZodTypeProvider>();
@@ -25,6 +25,19 @@ server.setSerializerCompiler(serializerCompiler);
 
 server.register(fastifyCors, {
   origin: true,
+});
+
+server.setErrorHandler((error: unknown, request, reply) => {
+  console.error('FASTIFY ERROR:', error);
+  if (error instanceof Error) {
+    reply.status(500).send({ 
+      error: error.message || 'Internal Server Error',
+      stack: error.stack,
+      name: error.name
+    });
+  } else {
+    reply.status(500).send({ error: 'Unknown Error' });
+  }
 });
 
 // Applications API
@@ -285,11 +298,19 @@ server.delete('/capabilities/:id', {
 });
 
 // Organizations API
-server.get('/organizations', async () => {
-  return prisma.organization.findMany({
-    include: { parent: true, children: true },
-    orderBy: { name: 'asc' }
-  });
+server.get('/organizations', async (request, reply) => {
+  console.log('GET /organizations');
+  try {
+    const orgs = await prisma.organization.findMany({
+      include: { parent: true, children: true },
+      orderBy: { name: 'asc' }
+    });
+    console.log('GET /organizations SUCCESS - Found:', orgs.length);
+    return orgs;
+  } catch (err) {
+    console.error('GET /organizations ERROR:', err);
+    throw err;
+  }
 });
 
 server.get('/organizations/:id', {
@@ -354,11 +375,19 @@ server.delete('/organizations/:id', {
 });
 
 // Information Objects API
-server.get('/information-objects', async () => {
-  return prisma.informationObject.findMany({
-    include: { businessOwner: true, appOwner: true },
-    orderBy: { name: 'asc' }
-  });
+server.get('/information-objects', async (request, reply) => {
+  console.log('GET /information-objects');
+  try {
+    const info = await prisma.informationObject.findMany({
+      include: { businessOwner: true, appOwner: true },
+      orderBy: { name: 'asc' }
+    });
+    console.log('GET /information-objects SUCCESS - Found:', info.length);
+    return info;
+  } catch (err) {
+    console.error('GET /information-objects ERROR:', err);
+    throw err;
+  }
 });
 
 server.get('/information-objects/:id', {
@@ -433,14 +462,22 @@ server.delete('/information-objects/:id', {
 });
 
 // Integrations API
-server.get('/integrations', async () => {
-  return prisma.integration.findMany({
-    include: {
-      sourceApp: true,
-      targetApp: true,
-      payload: true,
-    },
-  });
+server.get('/integrations', async (request, reply) => {
+  console.log('GET /integrations');
+  try {
+    const integrations = await prisma.integration.findMany({
+      include: {
+        sourceApp: true,
+        targetApp: true,
+        payload: true,
+      },
+    });
+    console.log('GET /integrations SUCCESS - Found:', integrations.length);
+    return integrations;
+  } catch (err) {
+    console.error('GET /integrations ERROR:', err);
+    throw err;
+  }
 });
 
 server.get('/integrations/:id', {

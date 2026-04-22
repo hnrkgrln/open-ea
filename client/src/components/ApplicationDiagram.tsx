@@ -643,9 +643,9 @@ const DiagramInner = ({
         if (filters.technicalFit?.length > 0) activeCategoricalFilters.push(`Technical Fit: ${filters.technicalFit.join(', ')}`);
         if (filters.custom) {
           Object.entries(filters.custom).forEach(([field, vals]) => {
-            if (vals && vals.length > 0) {
+            if (vals && (vals as any[]).length > 0) {
               const def = metaDefs.find(d => d.fieldName === field);
-              activeCategoricalFilters.push(`${def?.label || field}: ${vals.join(', ')}`);
+              activeCategoricalFilters.push(`${def?.label || field}: ${(vals as any[]).join(', ')}`);
             }
           });
         }
@@ -1021,9 +1021,9 @@ const DiagramInner = ({
         
         if (filters.custom) {
           Object.entries(filters.custom).forEach(([field, vals]) => {
-            if (vals && vals.length > 0) {
+            if (vals && (vals as any[]).length > 0) {
               const def = metaDefs.find(d => d.fieldName === field);
-              activeCategoricalFilters.push(`${def?.label || field}: ${vals.join(', ')}`);
+              activeCategoricalFilters.push(`${def?.label || field}: ${(vals as any[]).join(', ')}`);
             }
           });
         }

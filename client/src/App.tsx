@@ -213,35 +213,35 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
 const AppDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  return <AppDetailsView appId={id || null} onBack={() => navigate('/apps')} onRefresh={onRefresh} />;
+  return <AppDetailsView appId={id || ''} onBack={() => navigate('/apps')} onRefresh={onRefresh} />;
 };
 
 // Capability Detail Wrapper for Route
 const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  return <CapabilityDetailsView capabilityId={id || null} onBack={() => navigate('/capabilities')} onRefresh={onRefresh} />;
+  return <CapabilityDetailsView capabilityId={id || ''} onBack={() => navigate('/capabilities')} onRefresh={onRefresh} />;
 };
 
 // Organization Detail Wrapper for Route
 const OrganizationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  return <OrganizationDetailsView orgId={id || null} onBack={() => navigate('/organizations')} onRefresh={onRefresh} />;
+  return <OrganizationDetailsView orgId={id || ''} onBack={() => navigate('/organizations')} onRefresh={onRefresh} />;
 };
 
 // Information Object Detail Wrapper for Route
 const InformationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  return <InformationDetailsView infoId={id || null} onBack={() => navigate('/information')} onRefresh={onRefresh} />;
+  return <InformationDetailsView infoId={id || ''} onBack={() => navigate('/information')} onRefresh={onRefresh} />;
 };
 
 // Integration Detail Wrapper for Route
 const IntegrationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  return <IntegrationDetailsView integrationId={id || null} onBack={() => navigate('/integrations')} onRefresh={onRefresh} />;
+  return <IntegrationDetailsView integrationId={id || ''} onBack={() => navigate('/integrations')} onRefresh={onRefresh} />;
 };
 
 const AppContent = () => {
