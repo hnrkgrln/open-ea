@@ -34,7 +34,7 @@ export const EditAppPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new' || id === 'undefined';
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
