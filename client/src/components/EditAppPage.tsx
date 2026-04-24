@@ -162,6 +162,7 @@ export const EditAppPage = () => {
           return Promise.resolve();
         }));
 
+        queryClient.invalidateQueries({ queryKey: ['application', appId] });
         queryClient.invalidateQueries({ queryKey: ['applications'] });
         queryClient.invalidateQueries({ queryKey: ['integrations'] });
         navigate(`/apps/${appId}`);

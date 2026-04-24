@@ -94,6 +94,7 @@ export const EditCapabilityPage = () => {
       if (res.ok) {
         const saved = await res.json();
         const finalId = isNew ? saved.id : id;
+        queryClient.invalidateQueries({ queryKey: ['capability', finalId] });
         queryClient.invalidateQueries({ queryKey: ['capabilities'] });
         queryClient.invalidateQueries({ queryKey: ['applications'] }); // Re-fetch apps as they might have new capability links
         navigate(`/capabilities/${finalId}`);

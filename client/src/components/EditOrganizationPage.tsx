@@ -64,8 +64,10 @@ export const EditOrganizationPage = () => {
 
       if (res.ok) {
         const saved = await res.json();
+        const finalId = isNew ? saved.id : id;
+        queryClient.invalidateQueries({ queryKey: ['organization', finalId] });
         queryClient.invalidateQueries({ queryKey: ['organizations'] });
-        navigate(`/organizations/${isNew ? saved.id : id}`);
+        navigate(`/organizations/${finalId}`);
       }
     } catch (err) {
       console.error(err);

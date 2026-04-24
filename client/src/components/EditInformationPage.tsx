@@ -93,8 +93,10 @@ export const EditInformationPage = () => {
 
       if (res.ok) {
         const saved = await res.json();
+        const finalId = isNew ? saved.id : id;
+        queryClient.invalidateQueries({ queryKey: ['information-object', finalId] });
         queryClient.invalidateQueries({ queryKey: ['information-objects'] });
-        navigate(`/information/${isNew ? saved.id : id}`);
+        navigate(`/information/${finalId}`);
       }
     } catch (err) {
       console.error(err);

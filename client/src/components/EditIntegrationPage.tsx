@@ -74,8 +74,10 @@ export const EditIntegrationPage = () => {
 
       if (res.ok) {
         const saved = await res.json();
+        const finalId = isNew ? saved.id : id;
+        queryClient.invalidateQueries({ queryKey: ['integration', finalId] });
         queryClient.invalidateQueries({ queryKey: ['integrations'] });
-        navigate(`/integrations/${isNew ? saved.id : id}`);
+        navigate(`/integrations/${finalId}`);
       }
     } catch (err) {
       console.error(err);
