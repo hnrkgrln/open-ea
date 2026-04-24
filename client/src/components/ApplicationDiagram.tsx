@@ -71,7 +71,6 @@ interface Integration {
   frequency?: string;
   crud?: string;
   payload?: InformationObject;
-}
   sourceApp?: Application;
   targetApp?: Application;
 }
