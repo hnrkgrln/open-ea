@@ -23,7 +23,7 @@ export const EditInformationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new' || id === 'undefined';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -75,7 +75,7 @@ export const EditInformationPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isNew && (!id || id === 'undefined' || id === 'new')) {
+    if (!isNew && (!id || id === 'undefined')) {
       alert("Invalid ID. Cannot save changes.");
       return;
     }

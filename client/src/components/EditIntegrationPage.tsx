@@ -9,7 +9,7 @@ export const EditIntegrationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -75,7 +75,7 @@ export const EditIntegrationPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isNew && (!id || id === 'undefined' || id === 'new')) {
+    if (!isNew && (!id || id === 'undefined')) {
       alert("Invalid ID. Cannot save changes.");
       return;
     }
