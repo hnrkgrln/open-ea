@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Search, Database, Boxes, X, Share2, Layers } from 'lucide-react';
+import { Search, Database, Boxes, X, Share2, Layers, Network, ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -15,7 +15,7 @@ export const UnifiedSearch = ({}: Props) => {
   const { data: results, isLoading } = useQuery({
     queryKey: ['search', query],
     queryFn: async () => {
-      if (!query) return { applications: [], capabilities: [], organizations: [], informationObjects: [] };
+      if (!query) return { applications: [], capabilities: [], organizations: [], informationObjects: [], integrations: [] };
       const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       return res.json();
     },
@@ -27,7 +27,8 @@ export const UnifiedSearch = ({}: Props) => {
     const caps = (results?.capabilities || []).map((item: any) => ({ ...item, _type: 'cap' }));
     const orgs = (results?.organizations || []).map((item: any) => ({ ...item, _type: 'org' }));
     const info = (results?.informationObjects || []).map((item: any) => ({ ...item, _type: 'info' }));
-    return [...apps, ...caps, ...orgs, ...info];
+    const integrations = (results?.integrations || []).map((item: any) => ({ ...item, _type: 'integration' }));
+    return [...apps, ...caps, ...orgs, ...info, ...integrations];
   }, [results]);
 
   useEffect(() => {
@@ -45,13 +46,14 @@ export const UnifiedSearch = ({}: Props) => {
     return () => document.removeEventListener('keydown', down);
   }, []);
 
-  const closeAndSelect = useCallback((type: 'app' | 'cap' | 'org' | 'info', item: any) => {
+  const closeAndSelect = useCallback((type: 'app' | 'cap' | 'org' | 'info' | 'integration', item: any) => {
     setOpen(false);
     setQ('');
     if (type === 'app') navigate(`/apps/${item.id}`);
     else if (type === 'cap') navigate(`/capabilities/${item.id}`);
     else if (type === 'org') navigate(`/organizations/${item.id}`);
     else if (type === 'info') navigate(`/information/${item.id}`);
+    else if (type === 'integration') navigate(`/integrations/${item.id}`);
   }, [navigate]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -265,7 +267,41 @@ export const UnifiedSearch = ({}: Props) => {
                     </div>
                   )}
 
-                  {(!results?.applications?.length && !results?.capabilities?.length && !results?.organizations?.length && !results?.informationObjects?.length) && (
+                  {/* Integrations Section */}
+                  {results?.integrations?.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Network size={12} /> Integrations
+                      </div>
+                      {results.integrations.map((i: any, idx: number) => {
+                        const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + (results.informationObjects?.length || 0) + idx;
+                        const isSelected = selectedIndex === actualIdx;
+                        return (
+                          <button
+                            key={i.id}
+                            onClick={() => closeAndSelect('integration', i)}
+                            onMouseEnter={() => setSelectedIndex(actualIdx)}
+                            style={{ 
+                              width: '100%', padding: '0.75rem', textAlign: 'left', 
+                              background: isSelected ? 'var(--accent)' : 'transparent', 
+                              border: 'none', display: 'flex', flexDirection: 'column', 
+                              borderRadius: '4px', cursor: 'pointer' 
+                            }}
+                            className="search-result-item"
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{i.sourceApp?.name}</span>
+                                <ArrowRight size={12} style={{ opacity: 0.5 }} />
+                                <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>{i.targetApp?.name}</span>
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Payload: {i.payload?.name || '—'}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {(!results?.applications?.length && !results?.capabilities?.length && !results?.organizations?.length && !results?.informationObjects?.length && !results?.integrations?.length) && (
                     <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
                       No results found for "{query}"
                     </div>

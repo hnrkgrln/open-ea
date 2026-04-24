@@ -759,7 +759,7 @@ server.get('/search', {
   },
 }, async (request) => {
   const { q } = request.query;
-  const [apps, caps, orgs, info] = await Promise.all([
+  const [apps, caps, orgs, info, integrations] = await Promise.all([
     prisma.application.findMany({
       where: {
         OR: [
@@ -803,13 +803,26 @@ server.get('/search', {
       },
       take: 10,
     }),
+    prisma.integration.findMany({
+      where: {
+        OR: [
+          { sourceApp: { name: { contains: q, mode: 'insensitive' } } },
+          { targetApp: { name: { contains: q, mode: 'insensitive' } } },
+          { payload: { name: { contains: q, mode: 'insensitive' } } },
+          { name: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      include: { sourceApp: true, targetApp: true, payload: true },
+      take: 10,
+    }),
   ]);
 
   return {
     applications: apps,
     capabilities: caps,
     organizations: orgs,
-    informationObjects: info
+    informationObjects: info,
+    integrations: integrations
   };
 });
 

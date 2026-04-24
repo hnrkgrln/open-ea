@@ -19,19 +19,33 @@ interface Capability {
   [key: string]: any;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  [key: string]: any;
+}
+
+interface InformationObject {
+  id: string;
+  name: string;
+  [key: string]: any;
+}
+
 interface Integration {
   id: string;
   sourceAppId: string;
   targetAppId: string;
-  name?: string;
-  type?: string;
+  infoObjectId?: string | null;
+  pattern?: string;
+  frequency?: string;
+  crud?: string;
   [key: string]: any;
 }
 
 interface ImportExportProps {
-  type: 'applications' | 'capabilities' | 'integrations';
+  type: 'applications' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
   onImportSuccess: () => void;
-  data: (Application | Capability | Integration)[];
+  data: any[];
 }
 
 interface ImportStatus {
@@ -61,8 +75,12 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
       headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'type', 'criticality', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
     } else if (type === 'capabilities') {
       headers = ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'];
+    } else if (type === 'organizations') {
+      headers = ['id', 'name', 'description', 'type', 'parentId'];
+    } else if (type === 'information-objects') {
+      headers = ['id', 'name', 'aliases', 'description', 'confidentiality', 'integrity', 'availability', 'piiCategory', 'type', 'businessOwnerId', 'appOwnerId', 'metadata'];
     } else {
-      headers = ['id', 'name', 'sourceAppId', 'targetAppId', 'type'];
+      headers = ['id', 'name', 'sourceAppId', 'targetAppId', 'infoObjectId', 'pattern', 'frequency', 'crud'];
     }
 
     const csvRows = data.map(item => {
@@ -86,7 +104,8 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `${type}_export_${new Date().toISOString().split('T')[0]}.csv`);
+    const filenameType = type === 'information-objects' ? 'information' : type;
+    link.setAttribute('download', `${filenameType}_export_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -171,6 +190,13 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
           } else if (type === 'capabilities') {
             payload.applicationIds = payload.applicationIds ? payload.applicationIds.split(';').filter((id: string) => id !== '') : [];
             if (payload.parentId === '') payload.parentId = null;
+          } else if (type === 'organizations') {
+            if (payload.parentId === '') payload.parentId = null;
+          } else if (type === 'information-objects') {
+             if (payload.businessOwnerId === '') payload.businessOwnerId = null;
+             if (payload.appOwnerId === '') payload.appOwnerId = null;
+          } else if (type === 'integrations') {
+             if (payload.infoObjectId === '') payload.infoObjectId = null;
           }
 
           // Decide method and handle potentially missing records
@@ -328,7 +354,7 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
   );
 };
 
-export const ImportExportSettings = ({ onRefresh, apps, capabilities, integrations }: { onRefresh: () => void, apps: any[], capabilities: any[], integrations: any[] }) => {
+export const ImportExportSettings = ({ onRefresh, apps, capabilities, organizations, informationObjects, integrations }: { onRefresh: () => void, apps: any[], capabilities: any[], organizations: any[], informationObjects: any[], integrations: any[] }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
@@ -339,21 +365,35 @@ export const ImportExportSettings = ({ onRefresh, apps, capabilities, integratio
         <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Applications</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-            Import or export your application inventory. Use CSV format with headers.
+            Import or export your application inventory.
           </p>
           <ImportExport type="applications" data={apps} onImportSuccess={onRefresh} />
         </div>
         <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Capabilities</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-            Import or export your business capability map. Maintain hierarchy using parentId.
+            Import or export your business capability map.
           </p>
           <ImportExport type="capabilities" data={capabilities} onImportSuccess={onRefresh} />
         </div>
         <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Organizations</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+            Import or export accountability structures.
+          </p>
+          <ImportExport type="organizations" data={organizations} onImportSuccess={onRefresh} />
+        </div>
+        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Information Model</h3>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+            Import or export conceptual business data objects.
+          </p>
+          <ImportExport type="information-objects" data={informationObjects} onImportSuccess={onRefresh} />
+        </div>
+        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
           <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Integrations</h3>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
-            Import or export system dependencies. Requires sourceAppId and targetAppId.
+            Import or export system-to-system dependencies.
           </p>
           <ImportExport type="integrations" data={integrations} onImportSuccess={onRefresh} />
         </div>
@@ -366,10 +406,11 @@ export const ImportExportSettings = ({ onRefresh, apps, capabilities, integratio
         <div style={{ fontSize: '0.875rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
           To correctly restore all relationships between your data, please import files in this specific order:
           <ol style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+            <li><strong>Organizations</strong> (Owner references)</li>
             <li><strong>Capabilities</strong> (Initial hierarchy)</li>
-            <li><strong>Applications</strong> (Links apps to existing capabilities)</li>
-            <li><strong>Integrations</strong> (Links apps to each other)</li>
-            <li><strong>Capabilities</strong> (Optional second pass: links capabilities back to apps)</li>
+            <li><strong>Information Model</strong> (Payload definitions)</li>
+            <li><strong>Applications</strong> (Links to owners and capabilities)</li>
+            <li><strong>Integrations</strong> (Links apps and payloads together)</li>
           </ol>
         </div>
       </div>

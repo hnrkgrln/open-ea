@@ -61,13 +61,17 @@ interface Capability {
   criticality: string;
   applications?: { id: string }[];
 }
-
 interface Integration {
   id: string;
   sourceAppId: string;
   targetAppId: string;
   name?: string;
-  type?: string;
+  infoObjectId?: string | null;
+  pattern?: string;
+  frequency?: string;
+  crud?: string;
+  payload?: InformationObject;
+}
   sourceApp?: Application;
   targetApp?: Application;
 }
@@ -546,7 +550,9 @@ const DiagramInner = ({
         if (!sourceApp || !targetApp) return false;
 
         if (search) {
-          const iMatches = i.name?.toLowerCase().includes(search) || i.type?.toLowerCase().includes(search);
+          const iMatches = i.payload?.name?.toLowerCase().includes(search) || 
+                          i.pattern?.toLowerCase().includes(search) ||
+                          i.crud?.toLowerCase().includes(search);
           const sMatches = sourceApp.name.toLowerCase().includes(search);
           const tMatches = targetApp.name.toLowerCase().includes(search);
           return iMatches || sMatches || tMatches;
@@ -618,7 +624,7 @@ const DiagramInner = ({
           if (islandAppIds.includes(i.sourceAppId)) {
             islandEdges.push({
               id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId, 
-              label: i.name || i.type,
+              label: i.payload?.name ? `${i.payload.name} (${i.pattern || 'API'})` : (i.pattern || 'API'),
               type: 'centered',
               style: { stroke: isDark ? '#5c5f66' : '#adb5bd', strokeWidth: 2 },
               markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#5c5f66' : '#adb5bd' },
