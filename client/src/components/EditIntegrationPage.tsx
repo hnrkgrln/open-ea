@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Info, Network, Trash2, Edit2, Database, Share2, Activity } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MultiSelect } from './FilterControls';
 
 export const EditIntegrationPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +17,7 @@ export const EditIntegrationPage = () => {
     infoObjectId: '' as string | null,
     pattern: 'REST API',
     frequency: 'Real-time',
-    crud: 'Read'
+    crud: [] as string[]
   });
 
   const { data: item, isLoading: isItemLoading } = useQuery({
@@ -41,7 +42,7 @@ export const EditIntegrationPage = () => {
         infoObjectId: item.infoObjectId || '',
         pattern: item.pattern || 'REST API',
         frequency: item.frequency || 'Real-time',
-        crud: item.crud || 'Read'
+        crud: item.crud ? item.crud.split(',').filter(Boolean) : []
       });
     }
   }, [item, isNew]);
@@ -65,7 +66,8 @@ export const EditIntegrationPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...formData, 
-          infoObjectId: formData.infoObjectId === '' ? null : formData.infoObjectId 
+          infoObjectId: formData.infoObjectId === '' ? null : formData.infoObjectId,
+          crud: formData.crud.join(',')
         }),
       });
 
@@ -178,10 +180,13 @@ export const EditIntegrationPage = () => {
                   </select>
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="label">CRUD Operation</label>
-                  <select value={formData.crud} onChange={e => setFormData({...formData, crud: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {crudOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <label className="label">CRUD Operations</label>
+                  <MultiSelect 
+                    options={crudOptions} 
+                    selectedValues={formData.crud} 
+                    onChange={(vals) => setFormData({...formData, crud: vals})} 
+                    placeholder="Select operations..." 
+                  />
                 </div>
               </div>
             </section>

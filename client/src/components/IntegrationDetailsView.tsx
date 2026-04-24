@@ -79,12 +79,14 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', position: 'relative' }}>
               <div style={{ position: 'absolute', width: '100%', height: '2px', background: 'var(--border)', top: '32px', left: 0, zIndex: 0 }} />
-              <div onClick={() => i.infoObjectId && navigate(`/information/${i.infoObjectId}`)} style={{ cursor: i.infoObjectId ? 'pointer' : 'default', zIndex: 1, background: 'var(--card)', padding: '1rem 2rem', borderRadius: '16px', border: '2px solid var(--primary)', textAlign: 'center', minWidth: '200px' }} className={i.infoObjectId ? "row-hover" : ""}>
+              <div onClick={() => i.infoObjectId && navigate(`/information/${i.infoObjectId}`)} style={{ cursor: i.infoObjectId ? 'pointer' : 'default', zIndex: 1, background: 'var(--card)', padding: '1.125rem 2rem', borderRadius: '16px', border: '2px solid var(--primary)', textAlign: 'center', minWidth: '200px' }} className={i.infoObjectId ? "row-hover" : ""}>
                 <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.25rem' }}>Data Payload</div>
                 <div style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '1rem' }}>{i.payload?.name || 'Undefined Information Object'}</div>
-                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'REST API'}</span>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.crud || 'READ'}</span>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '0.6rem', fontWeight: 800, background: 'var(--secondary)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{i.pattern || 'API'}</span>
+                  {i.crud?.split(',').filter(Boolean).map(op => (
+                    <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{op}</span>
+                  ))}
                 </div>
               </div>
               <div style={{ zIndex: 1, fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)', background: 'var(--background)', padding: '0.2rem 0.75rem', borderRadius: '20px' }}>
@@ -113,9 +115,13 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Frequency</div>
                   <div style={{ fontSize: '1rem', fontWeight: 700 }}>{i.frequency || '—'}</div>
                 </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operation</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700 }}>{i.crud || '—'}</div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operations</div>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    {i.crud?.split(',').filter(Boolean).map(op => (
+                      <span key={op} style={{ fontSize: '0.875rem', fontWeight: 800, background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.25rem 0.75rem', borderRadius: '6px', textTransform: 'uppercase' }}>{op}</span>
+                    )) || '—'}
+                  </div>
                 </div>
               </div>
             </section>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, PlusCircle, ArrowRight, Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import { useLocalStorage } from '../App';
 
 interface Integration {
   id: string;
@@ -17,6 +18,7 @@ interface Integration {
 
 export const IntegrationsView = ({ integrations, onRefresh }: { integrations: Integration[], onRefresh: () => void }) => {
   const navigate = useNavigate();
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_integrations_view', 'grid');
 
   return (
     <div>
@@ -48,12 +50,16 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                   <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{i.sourceApp?.name}</div>
                 </td>
                 <td style={{ padding: '1rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>{i.payload?.name || '—'}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--muted-foreground)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--muted-foreground)' }}>
                       <span style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</span>
                       <ArrowRight size={14} style={{ opacity: 0.3 }} />
-                      <span style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.crud || 'READ'}</span>
+                      <div style={{ display: 'flex', gap: '0.2rem' }}>
+                        {i.crud?.split(',').filter(Boolean).map(op => (
+                          <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{op}</span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </td>
