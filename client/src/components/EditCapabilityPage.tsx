@@ -70,7 +70,7 @@ export const EditCapabilityPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isNew && (!id || id === 'undefined')) {
+    if (!isNew && (!id || id === 'undefined' || id === 'new')) {
       alert("Invalid ID. Cannot save changes.");
       return;
     }
