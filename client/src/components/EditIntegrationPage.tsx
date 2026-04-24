@@ -32,7 +32,16 @@ export const EditIntegrationPage = () => {
 
   const patternOptions = picklists?.find(p => p.name === 'integration_pattern')?.options || [];
   const freqOptions = picklists?.find(p => p.name === 'integration_frequency')?.options || [];
-  const crudOptions = picklists?.find(p => p.name === 'integration_crud')?.options || [];
+  let crudOptions = picklists?.find(p => p.name === 'integration_crud')?.options || [];
+  
+  if (crudOptions.length === 0) {
+    crudOptions = [
+      { value: 'CREATE', label: 'CREATE' },
+      { value: 'READ', label: 'READ' },
+      { value: 'UPDATE', label: 'UPDATE' },
+      { value: 'DELETE', label: 'DELETE' },
+    ];
+  }
 
   useEffect(() => {
     if (item && !isNew) {
