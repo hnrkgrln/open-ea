@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Info, Network, Trash2, Edit2, Database, Share2, Activity } from 'lucide-react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { ChevronLeft, Info, Network, Trash2, Edit2, Database, Share2, Activity, Plus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MultiSelect } from './FilterControls';
 
 export const EditIntegrationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const isNew = id === 'new';
 
@@ -42,6 +43,22 @@ export const EditIntegrationPage = () => {
       { value: 'DELETE', label: 'DELETE' },
     ];
   }
+
+  // Handle pre-population for new integrations
+  useEffect(() => {
+    if (isNew) {
+      const params = new URLSearchParams(location.search);
+      const sourceAppId = params.get('sourceAppId');
+      const targetAppId = params.get('targetAppId');
+      if (sourceAppId || targetAppId) {
+        setFormData(prev => ({
+          ...prev,
+          sourceAppId: sourceAppId || prev.sourceAppId,
+          targetAppId: targetAppId || prev.targetAppId
+        }));
+      }
+    }
+  }, [isNew, location.search]);
 
   useEffect(() => {
     if (item && !isNew) {

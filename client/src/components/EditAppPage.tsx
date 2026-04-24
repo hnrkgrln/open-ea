@@ -331,47 +331,35 @@ export const EditAppPage = () => {
 
             {/* INTEGRATIONS */}
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Network size={18} /> Integrations
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Network size={18} /> Integrations & Data Flows
+                </h3>
+              </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                {/* Outgoing */}
-                <div className="card" style={{ padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted-foreground)' }}>PROVIDES DATA TO</span>
-                    <button type="button" onClick={() => setOutgoingRelations([...outgoingRelations, { sourceId: id!, targetId: '', type: 'API', name: '' }])} style={{ height: '2rem', padding: '0 0.75rem', fontSize: '0.75rem' }}>+ Add</button>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {outgoingRelations.map((rel, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 30px', gap: '0.5rem', alignItems: 'center' }}>
-                        <input value={rel.name} onChange={e => { const n = [...outgoingRelations]; n[i].name = e.target.value; setOutgoingRelations(n); }} placeholder="Name" style={{ fontSize: '0.8rem' }} />
-                        <select value={rel.targetId} onChange={e => { const n = [...outgoingRelations]; n[i].targetId = e.target.value; setOutgoingRelations(n); }} style={{ fontSize: '0.8rem' }}>
-                          <option value="">Select App...</option>
-                          {apps?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                        </select>
-                        <button type="button" onClick={() => setOutgoingRelations(outgoingRelations.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'none', color: 'var(--destructive)' }}><Trash2 size={16} /></button>
-                      </div>
-                    ))}
-                  </div>
+                <div className="card" style={{ padding: '1.5rem', background: 'var(--card)' }}>
+                  <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted-foreground)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>Outgoing (Providing Data)</h4>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>Define data that this system provides to other applications.</p>
+                  <button 
+                    type="button" 
+                    className="secondary" 
+                    onClick={() => navigate(`/integrations/new?sourceAppId=${id}`)}
+                    style={{ width: '100%', gap: '0.5rem' }}
+                  >
+                    <Plus size={16} /> Establish New Outbound Integration
+                  </button>
                 </div>
-                {/* Incoming */}
-                <div className="card" style={{ padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted-foreground)' }}>CONSUMES DATA FROM</span>
-                    <button type="button" onClick={() => setIncomingRelations([...incomingRelations, { sourceId: '', targetId: id!, type: 'API', name: '' }])} style={{ height: '2rem', padding: '0 0.75rem', fontSize: '0.75rem' }}>+ Add</button>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {incomingRelations.map((rel, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 30px', gap: '0.5rem', alignItems: 'center' }}>
-                        <input value={rel.name} onChange={e => { const n = [...incomingRelations]; n[i].name = e.target.value; setIncomingRelations(n); }} placeholder="Name" style={{ fontSize: '0.8rem' }} />
-                        <select value={rel.sourceId} onChange={e => { const n = [...incomingRelations]; n[i].sourceId = e.target.value; setIncomingRelations(n); }} style={{ fontSize: '0.8rem' }}>
-                          <option value="">Select App...</option>
-                          {apps?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                        </select>
-                        <button type="button" onClick={() => setIncomingRelations(incomingRelations.filter((_, idx) => idx !== i))} style={{ border: 'none', background: 'none', color: 'var(--destructive)' }}><Trash2 size={16} /></button>
-                      </div>
-                    ))}
-                  </div>
+                <div className="card" style={{ padding: '1.5rem', background: 'var(--card)' }}>
+                  <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted-foreground)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>Incoming (Consuming Data)</h4>
+                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>Define data that this system consumes from other applications.</p>
+                  <button 
+                    type="button" 
+                    className="secondary" 
+                    onClick={() => navigate(`/integrations/new?targetAppId=${id}`)}
+                    style={{ width: '100%', gap: '0.5rem' }}
+                  >
+                    <Plus size={16} /> Establish New Inbound Integration
+                  </button>
                 </div>
               </div>
             </section>
