@@ -148,7 +148,9 @@ interface InformationObject {
   name: string;
   aliases?: string;
   description?: string;
-  classification?: string;
+  confidentiality?: string;
+  integrity?: string;
+  availability?: string;
   piiCategory?: string;
   type?: string;
   metadata?: string;
@@ -165,7 +167,6 @@ interface Integration {
   sourceAppId: string;
   targetAppId: string;
   infoObjectId?: string | null;
-  status?: string;
   pattern?: string;
   frequency?: string;
   crud?: string;

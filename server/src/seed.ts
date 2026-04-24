@@ -72,6 +72,15 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: 'Manual', label: 'Manual' },
   ]);
 
+  const ciaOptions = [
+    { value: '1', label: '1 - Low', color: '#2b8a3e' },
+    { value: '2', label: '2 - Moderate', color: '#fab005' },
+    { value: '3', label: '3 - High', color: '#e67700' },
+    { value: '4', label: '4 - Critical', color: '#c92a2a' },
+  ];
+
+  await seedPicklist('cia_scale', 'CIA Scale', ciaOptions);
+
   await seedPicklist('organization_type', 'Organization Type', [
     { value: 'Department', label: 'Department' },
     { value: 'Division', label: 'Division' },
@@ -80,17 +89,11 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: 'Person', label: 'Person' },
   ]);
 
-  await seedPicklist('information_classification', 'Information Classification', [
-    { value: 'Public', label: 'Public', color: '#2b8a3e' },
-    { value: 'Internal', label: 'Internal', color: '#1864ab' },
-    { value: 'Confidential', label: 'Confidential', color: '#e67700' },
-    { value: 'Restricted', label: 'Restricted', color: '#c92a2a' },
-  ]);
-
   await seedPicklist('pii_category', 'PII Category', [
-    { value: 'None', label: 'None', color: '#ced4da' },
-    { value: 'Standard PII', label: 'Standard PII', color: '#fab005' },
-    { value: 'Sensitive/Special Category', label: 'Sensitive/Special Category', color: '#c92a2a' },
+    { value: '1', label: '1 - None', color: '#ced4da' },
+    { value: '2', label: '2 - Standard PII', color: '#fab005' },
+    { value: '3', label: '3 - Sensitive', color: '#e67700' },
+    { value: '4', label: '4 - Special Category', color: '#c92a2a' },
   ]);
 
   await seedPicklist('information_type', 'Information Type', [
@@ -98,12 +101,6 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: 'Transactional', label: 'Transactional' },
     { value: 'Reference', label: 'Reference' },
     { value: 'Unstructured', label: 'Unstructured' },
-  ]);
-
-  await seedPicklist('integration_status', 'Integration Status', [
-    { value: 'Planned', label: 'Planned', color: '#1864ab' },
-    { value: 'Active', label: 'Active', color: '#2b8a3e' },
-    { value: 'Deprecated', label: 'Deprecated', color: '#c92a2a' },
   ]);
 
   await seedPicklist('integration_pattern', 'Integration Pattern', [

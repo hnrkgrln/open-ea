@@ -7,14 +7,13 @@ export const EditIntegrationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isNew = !id || id === 'new' || id === 'undefined';
+  const isNew = id === 'new';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     sourceAppId: '',
     targetAppId: '',
     infoObjectId: '' as string | null,
-    status: 'Active',
     pattern: 'REST API',
     frequency: 'Real-time',
     crud: 'Read'
@@ -30,7 +29,6 @@ export const EditIntegrationPage = () => {
   const { data: infoObjects } = useQuery<any[]>({ queryKey: ['information-objects'], queryFn: () => fetch('/api/information-objects').then(res => res.json()) });
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
 
-  const statusOptions = picklists?.find(p => p.name === 'integration_status')?.options || [];
   const patternOptions = picklists?.find(p => p.name === 'integration_pattern')?.options || [];
   const freqOptions = picklists?.find(p => p.name === 'integration_frequency')?.options || [];
   const crudOptions = picklists?.find(p => p.name === 'integration_crud')?.options || [];
@@ -41,7 +39,6 @@ export const EditIntegrationPage = () => {
         sourceAppId: item.sourceAppId || '',
         targetAppId: item.targetAppId || '',
         infoObjectId: item.infoObjectId || '',
-        status: item.status || 'Active',
         pattern: item.pattern || 'REST API',
         frequency: item.frequency || 'Real-time',
         crud: item.crud || 'Read'
@@ -180,16 +177,10 @@ export const EditIntegrationPage = () => {
                     {freqOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div className="field">
+                <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">CRUD Operation</label>
                   <select value={formData.crud} onChange={e => setFormData({...formData, crud: e.target.value})} style={{ padding: '0.75rem' }}>
                     {crudOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div className="field">
-                  <label className="label">Status</label>
-                  <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {statusOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
               </div>

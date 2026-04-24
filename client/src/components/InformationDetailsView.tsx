@@ -100,19 +100,22 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
               {/* Compliance & Risk Section */}
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <ShieldCheck size={16} /> Compliance & Risk Profile
+                  <ShieldCheck size={16} /> CIA Model & Compliance Profile
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                   {[
-                    { label: 'Information Classification', val: item.classification, key: 'information_classification' },
+                    { label: 'Confidentiality', val: item.confidentiality, key: 'cia_scale' },
+                    { label: 'Integrity', val: item.integrity, key: 'cia_scale' },
+                    { label: 'Availability', val: item.availability, key: 'cia_scale' },
                     { label: 'PII Category', val: item.piiCategory, key: 'pii_category' }
                   ].map(score => {
                     const info = getPicklistInfo(score.key, score.val);
                     return (
-                      <div key={score.label} style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>{score.label}</div>
-                        <div style={{ fontSize: '1.125rem', fontWeight: 800, color: info.color }}>{info.label}</div>
-                        <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
+                      <div key={score.label} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.5rem', textTransform: 'uppercase', textAlign: 'center' }}>{score.label}</div>
+                        <div style={{ fontSize: '1.125rem', fontWeight: 800, color: info.color }}>{info.label.split(' - ')[0]}</div>
+                        <div style={{ marginTop: '0.5rem', width: '40px', height: '4px', borderRadius: '2px', background: info.color }} />
+                        <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.4rem' }}>{info.label.split(' - ')[1] || ''}</div>
                       </div>
                     );
                   })}

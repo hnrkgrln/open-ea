@@ -14,8 +14,7 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
 
 const getScaleGradient = (scaleType: string) => {
   switch (scaleType) {
-    case 'good-bad': return 'linear-gradient(to right, #2b8a3e, #fab005, #c92a2a)';
-    case 'bad-good': return 'linear-gradient(to right, #c92a2a, #fab005, #2b8a3e)';
+    case 'importance': return 'linear-gradient(to right, #dee2e6, #7048e8)';
     default: return 'linear-gradient(to right, var(--accent), var(--primary))';
   }
 };
@@ -24,15 +23,17 @@ export const EditInformationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const isNew = !id || id === 'new' || id === 'undefined';
+  const isNew = id === 'new';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     aliases: '',
     description: '',
-    classification: '',
-    piiCategory: 'None',
+    confidentiality: '1',
+    integrity: '1',
+    availability: '1',
+    piiCategory: '1',
     type: 'Master Data',
     businessOwnerId: '' as string | null,
     appOwnerId: '' as string | null
@@ -50,7 +51,7 @@ export const EditInformationPage = () => {
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
 
-  const classificationOptions = picklists?.find(p => p.name === 'information_classification')?.options || [];
+  const ciaOptions = picklists?.find(p => p.name === 'cia_scale')?.options || [];
   const piiOptions = picklists?.find(p => p.name === 'pii_category')?.options || [];
   const typeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
 
@@ -60,8 +61,10 @@ export const EditInformationPage = () => {
         name: item.name || '',
         aliases: item.aliases || '',
         description: item.description || '',
-        classification: item.classification || '',
-        piiCategory: item.piiCategory || 'None',
+        confidentiality: item.confidentiality || '1',
+        integrity: item.integrity || '1',
+        availability: item.availability || '1',
+        piiCategory: item.piiCategory || '1',
         type: item.type || 'Master Data',
         businessOwnerId: item.businessOwnerId || '',
         appOwnerId: item.appOwnerId || ''
@@ -142,7 +145,7 @@ export const EditInformationPage = () => {
           <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
               <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Data Concept' : item?.name}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define governed business data and its compliance profile.</p>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define governed business data and its CIA profile.</p>
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard</button>
@@ -180,24 +183,37 @@ export const EditInformationPage = () => {
               </div>
             </section>
 
-            {/* COMPLIANCE */}
+            {/* CIA TRIAD & PII */}
             <section style={{ background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
               <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <ShieldCheck size={18} /> Compliance & Risk Profile
+                <ShieldCheck size={18} /> CIA Model & Compliance
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                <div className="field">
-                  <label className="label">Classification</label>
-                  <select value={formData.classification} onChange={e => setFormData({...formData, classification: e.target.value})} style={{ padding: '0.75rem' }}>
-                    <option value="">Select Classification...</option>
-                    {classificationOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <div className="field">
-                  <label className="label">PII Category</label>
-                  <select value={formData.piiCategory} onChange={e => setFormData({...formData, piiCategory: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {piiOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                {[
+                  { label: 'Confidentiality', key: 'confidentiality' },
+                  { label: 'Integrity', key: 'integrity' },
+                  { label: 'Availability', key: 'availability' }
+                ].map(cia => (
+                  <div key={cia.key} className="field">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                      <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{cia.label}</label>
+                      <div style={{ fontSize: '0.875rem', fontWeight: 800, color: ciaOptions.find((o:any) => o.value === (formData as any)[cia.key])?.color }}>
+                        {ciaOptions.find((o:any) => o.value === (formData as any)[cia.key])?.label}
+                      </div>
+                    </div>
+                    <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('importance') }} value={(formData as any)[cia.key]} onChange={e => setFormData({...formData, [cia.key]: e.target.value})} />
+                  </div>
+                ))}
+
+                <div className="field" style={{ marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                    <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>PII Category</label>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 800, color: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }}>
+                      {piiOptions.find((o:any) => o.value === formData.piiCategory)?.label}
+                    </div>
+                  </div>
+                  <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('bad-good') }} value={formData.piiCategory} onChange={e => setFormData({...formData, piiCategory: e.target.value})} />
                 </div>
               </div>
             </section>

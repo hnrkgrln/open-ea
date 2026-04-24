@@ -57,9 +57,6 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>
                   {i.sourceApp?.name} <ArrowRight size={24} style={{ opacity: 0.3, margin: '0 0.5rem' }} /> {i.targetApp?.name}
                 </h1>
-                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
-                  {i.status || 'Active'}
-                </span>
               </div>
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 System-to-system data exchange via {i.pattern || 'standard interface'}.
@@ -119,10 +116,6 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operation</div>
                   <div style={{ fontSize: '1rem', fontWeight: 700 }}>{i.crud || '—'}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Lifecycle Status</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700 }}>{i.status || '—'}</div>
                 </div>
               </div>
             </section>

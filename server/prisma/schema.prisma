@@ -58,7 +58,9 @@ model InformationObject {
   name           String
   aliases        String?
   description    String?
-  classification String?
+  confidentiality String?      @default("1")
+  integrity      String?       @default("1")
+  availability   String?       @default("1")
   piiCategory    String?
   type           String?
   metadata       String?
@@ -77,7 +79,6 @@ model Integration {
   sourceAppId   String
   targetAppId   String
   infoObjectId  String?
-  status        String?
   pattern       String?
   frequency     String?
   crud          String?

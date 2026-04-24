@@ -7,7 +7,6 @@ interface Integration {
   sourceAppId: string;
   targetAppId: string;
   infoObjectId?: string | null;
-  status?: string;
   pattern?: string;
   frequency?: string;
   crud?: string;
@@ -39,7 +38,6 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
               <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Source Application</th>
               <th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'center' }}>Payload & Pattern</th>
               <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Target Application</th>
-              <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Status</th>
               <th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
@@ -62,20 +60,15 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                 <td style={{ padding: '1rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{i.targetApp?.name}</div>
                 </td>
-                <td style={{ padding: '1rem' }}>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: 'var(--secondary)', color: 'var(--secondary-foreground)' }}>
-                    {i.status || 'Active'}
-                  </span>
-                </td>
                 <td style={{ padding: '1rem', textAlign: 'right' }}>
                   <button onClick={(e) => { e.stopPropagation(); navigate(`/integrations/${i.id}/edit`); }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={14} /></button>
                   <button onClick={async (e) => { e.stopPropagation(); if(confirm('Delete integration?')) { await fetch(`/api/integrations/${i.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, background: 'transparent', border: 'none', color: 'var(--destructive)' }}><Trash2 size={14} /></button>
                 </td>
               </tr>
             ))}
-            {integrations.length === 0 && (
+            {(!Array.isArray(integrations) || integrations.length === 0) && (
               <tr>
-                <td colSpan={5} style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No integrations recorded yet.</td>
+                <td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No integrations recorded yet.</td>
               </tr>
             )}
           </tbody>
