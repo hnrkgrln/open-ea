@@ -208,6 +208,8 @@ export const EditInformationPage = () => {
                 ].map(cia => {
                    const currentVal = (formData as any)[cia.key];
                    const opt = ciaOptions.find((o:any) => o.value === String(currentVal));
+                   const maxVal = ciaOptions.length > 0 ? Math.max(...ciaOptions.map((o: any) => Number(o.value) || 0)) : 4;
+                   
                    return (
                     <div key={cia.key} className="field">
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -216,7 +218,7 @@ export const EditInformationPage = () => {
                             {opt?.label || `${currentVal} - Not Set`}
                         </div>
                         </div>
-                        <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('good-bad') }} value={currentVal} onChange={e => setFormData({...formData, [cia.key]: e.target.value})} />
+                        <input type="range" min="1" max={maxVal} step="1" style={{ background: getScaleGradient('good-bad') }} value={currentVal} onChange={e => setFormData({...formData, [cia.key]: e.target.value})} />
                     </div>
                    );
                 })}
@@ -228,7 +230,15 @@ export const EditInformationPage = () => {
                       {piiOptions.find((o:any) => o.value === String(formData.piiCategory))?.label || `${formData.piiCategory} - Not Set`}
                     </div>
                   </div>
-                  <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('pii') }} value={formData.piiCategory} onChange={e => setFormData({...formData, piiCategory: e.target.value})} />
+                  <input 
+                    type="range" 
+                    min="1" 
+                    max={piiOptions.length > 0 ? Math.max(...piiOptions.map((o: any) => Number(o.value) || 0)) : 4} 
+                    step="1" 
+                    style={{ background: getScaleGradient('pii') }} 
+                    value={formData.piiCategory} 
+                    onChange={e => setFormData({...formData, piiCategory: e.target.value})} 
+                  />
                 </div>
               </div>
             </section>
