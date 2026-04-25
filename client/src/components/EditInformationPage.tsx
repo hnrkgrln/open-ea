@@ -30,6 +30,7 @@ export const EditInformationPage = () => {
   const isNew = !id || id === 'new' || id === 'undefined';
 
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     aliases: '',
@@ -60,7 +61,7 @@ export const EditInformationPage = () => {
   const typeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
 
   useEffect(() => {
-    if (item && !isNew) {
+    if (item && !isNew && !initialized) {
       setFormData({
         name: item.name || '',
         aliases: item.aliases || '',
@@ -74,8 +75,9 @@ export const EditInformationPage = () => {
         appOwnerId: item.appOwnerId || ''
       });
       setDynamicValues(safeJsonParse(item.metadata));
+      setInitialized(true);
     }
-  }, [item, isNew]);
+  }, [item, isNew, initialized]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +92,6 @@ export const EditInformationPage = () => {
       businessOwnerId: formData.businessOwnerId === '' ? null : formData.businessOwnerId,
       appOwnerId: formData.appOwnerId === '' ? null : formData.appOwnerId
     };
-    console.log('SAVING INFORMATION OBJECT:', payload);
     try {
       const url = isNew ? '/api/information-objects' : `/api/information-objects/${id}`;
       const method = isNew ? 'POST' : 'PUT';
@@ -208,7 +209,7 @@ export const EditInformationPage = () => {
                 ].map(cia => {
                    const currentVal = (formData as any)[cia.key];
                    const opt = ciaOptions.find((o:any) => o.value === String(currentVal));
-                   const maxVal = ciaOptions.length > 0 ? Math.max(...ciaOptions.map((o: any) => Number(o.value) || 0)) : 4;
+                   const maxVal = ciaOptions.length > 0 ? Math.max(...ciaOptions.map((o: any) => Number(o.value) || 0)) : 1;
                    
                    return (
                     <div key={cia.key} className="field">
@@ -233,7 +234,7 @@ export const EditInformationPage = () => {
                   <input 
                     type="range" 
                     min="1" 
-                    max={piiOptions.length > 0 ? Math.max(...piiOptions.map((o: any) => Number(o.value) || 0)) : 4} 
+                    max={piiOptions.length > 0 ? Math.max(...piiOptions.map((o: any) => Number(o.value) || 0)) : 1} 
                     step="1" 
                     style={{ background: getScaleGradient('pii') }} 
                     value={formData.piiCategory} 
