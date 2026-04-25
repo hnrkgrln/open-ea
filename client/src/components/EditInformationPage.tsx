@@ -38,7 +38,7 @@ export const EditInformationPage = () => {
     confidentiality: '1',
     integrity: '1',
     availability: '1',
-    piiCategory: '1',
+    piiCategory: 'None',
     type: 'Master Data',
     businessOwnerId: '' as string | null,
     appOwnerId: '' as string | null
@@ -69,7 +69,7 @@ export const EditInformationPage = () => {
         confidentiality: String(item.confidentiality || '1'),
         integrity: String(item.integrity || '1'),
         availability: String(item.availability || '1'),
-        piiCategory: String(item.piiCategory || '1'),
+        piiCategory: item.piiCategory || 'None',
         type: item.type || 'Master Data',
         businessOwnerId: item.businessOwnerId || '',
         appOwnerId: item.appOwnerId || ''
@@ -209,7 +209,10 @@ export const EditInformationPage = () => {
                 ].map(cia => {
                    const currentVal = (formData as any)[cia.key];
                    const opt = ciaOptions.find((o:any) => o.value === String(currentVal));
-                   const maxVal = ciaOptions.length > 0 ? Math.max(...ciaOptions.map((o: any) => Number(o.value) || 0)) : 1;
+                   // Find the max numeric value from options, or fallback to 4
+                   const maxVal = ciaOptions.length > 0 
+                    ? Math.max(...ciaOptions.map((o: any) => parseInt(o.value)).filter((v: any) => !isNaN(v))) 
+                    : 4;
                    
                    return (
                     <div key={cia.key} className="field">
@@ -219,7 +222,15 @@ export const EditInformationPage = () => {
                             {opt?.label || `${currentVal} - Not Set`}
                         </div>
                         </div>
-                        <input type="range" min="1" max={maxVal} step="1" style={{ background: getScaleGradient('good-bad') }} value={currentVal} onChange={e => setFormData({...formData, [cia.key]: e.target.value})} />
+                        <input 
+                            type="range" 
+                            min="1" 
+                            max={maxVal} 
+                            step="1" 
+                            style={{ background: getScaleGradient('good-bad') }} 
+                            value={currentVal} 
+                            onChange={e => setFormData({...formData, [cia.key]: e.target.value})} 
+                        />
                     </div>
                    );
                 })}
@@ -227,18 +238,23 @@ export const EditInformationPage = () => {
                 <div className="field" style={{ marginTop: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                     <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>PII Category</label>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 800, color: piiOptions.find((o:any) => o.value === String(formData.piiCategory))?.color }}>
-                      {piiOptions.find((o:any) => o.value === String(formData.piiCategory))?.label || `${formData.piiCategory} - Not Set`}
+                    <div style={{ fontSize: '0.875rem', fontWeight: 800, color: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }}>
+                      {piiOptions.find((o:any) => o.value === formData.piiCategory)?.label || `${formData.piiCategory} - Not Set`}
                     </div>
                   </div>
                   <input 
                     type="range" 
-                    min="1" 
-                    max={piiOptions.length > 0 ? Math.max(...piiOptions.map((o: any) => Number(o.value) || 0)) : 1} 
+                    min="0" 
+                    max={Math.max(0, piiOptions.length - 1)} 
                     step="1" 
                     style={{ background: getScaleGradient('pii') }} 
-                    value={formData.piiCategory} 
-                    onChange={e => setFormData({...formData, piiCategory: e.target.value})} 
+                    value={piiOptions.findIndex(o => o.value === formData.piiCategory)} 
+                    onChange={e => {
+                        const idx = parseInt(e.target.value);
+                        if (piiOptions[idx]) {
+                            setFormData({...formData, piiCategory: piiOptions[idx].value});
+                        }
+                    }} 
                   />
                 </div>
               </div>
