@@ -54,23 +54,23 @@ model Organization {
 }
 
 model InformationObject {
-  id             String        @id @default(uuid())
-  name           String
-  aliases        String?
-  description    String?
-  confidentiality String?      @default("1")
-  integrity      String?       @default("1")
-  availability   String?       @default("1")
-  piiCategory    String?       @default("1")
-  type           String?
-  metadata       String?
+  id              String        @id @default(uuid())
+  name            String
+  aliases         String?
+  description     String?
+  confidentiality String?       @default("1")
+  integrity       String?       @default("1")
+  availability    String?       @default("1")
+  piiCategory     String?       @default("1")
+  type            String?
+  metadata        String?
   businessOwnerId String?
-  appOwnerId     String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  businessOwner  Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
-  appOwner       Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
-  integrations   Integration[]
+  appOwnerId      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  businessOwner   Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
+  appOwner        Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
+  integrations    Integration[]
 }
 
 model Integration {
