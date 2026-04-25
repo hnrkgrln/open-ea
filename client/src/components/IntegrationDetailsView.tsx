@@ -53,6 +53,11 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
 
           <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#d6336c', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Network size={12} /> Integration Flow
+                </span>
+              </div>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>
                   {i.sourceApp?.name} <ArrowRight size={24} style={{ opacity: 0.3, margin: '0 0.5rem' }} /> {i.targetApp?.name}
