@@ -85,7 +85,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-                <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{cap.name}</h1>
+                <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{capability.name}</h1>
               </div>
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {capability.description || 'No description provided for this business capability.'}

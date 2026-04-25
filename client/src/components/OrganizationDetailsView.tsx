@@ -53,18 +53,18 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
           >
             <ChevronLeft size={24} />
           </button>
-<div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-  <div style={{ flex: 1 }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-      <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#0b7285', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <Layers size={12} /> Organization Unit
-      </span>
-    </div>
-    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-      <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{org.name}</h1>
-    </div>
+
+          <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#0b7285', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Layers size={12} /> Organization Unit
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{org.name}</h1>
                 {org.type && (
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: 'var(--secondary)', color: 'var(--secondary-foreground)' }}>
                     {org.type}
                   </span>
                 )}
