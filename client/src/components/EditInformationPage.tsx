@@ -80,18 +80,20 @@ export const EditInformationPage = () => {
       return;
     }
     setLoading(true);
+    const payload = { 
+      ...formData, 
+      metadata: JSON.stringify(dynamicValues),
+      businessOwnerId: formData.businessOwnerId === '' ? null : formData.businessOwnerId,
+      appOwnerId: formData.appOwnerId === '' ? null : formData.appOwnerId
+    };
+    console.log('SAVING INFORMATION OBJECT:', payload);
     try {
       const url = isNew ? '/api/information-objects' : `/api/information-objects/${id}`;
       const method = isNew ? 'POST' : 'PUT';
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...formData, 
-          metadata: JSON.stringify(dynamicValues),
-          businessOwnerId: formData.businessOwnerId === '' ? null : formData.businessOwnerId,
-          appOwnerId: formData.appOwnerId === '' ? null : formData.appOwnerId
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {

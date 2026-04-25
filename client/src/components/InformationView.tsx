@@ -1,26 +1,39 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Share2, PlusCircle, LayoutGrid, List, Trash2, Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 
 interface InformationObject {
   id: string;
   name: string;
   description?: string;
-  classification?: string;
+  confidentiality?: string;
+  integrity?: string;
+  availability?: string;
   piiCategory?: string;
   type?: string;
   businessOwner?: { name: string };
 }
 
-const InfoCard = ({ item, onRefresh }: { item: InformationObject, onRefresh: () => void }) => {
+const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onRefresh: () => void, picklists: any[] }) => {
   const navigate = useNavigate();
+  
+  const getPicklistInfo = (picklistName: string, value: string) => {
+    const list = picklists?.find(p => p.name === picklistName);
+    const option = list?.options?.find((o: any) => o.value === String(value));
+    return option || { label: value || '—', color: 'var(--muted-foreground)' };
+  };
+
+  const piiInfo = getPicklistInfo('pii_category', item.piiCategory || '1');
+  const confInfo = getPicklistInfo('cia_scale', item.confidentiality || '1');
+
   return (
     <div className="card row-hover" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div onClick={() => navigate(`/information/${item.id}`)} style={{ cursor: 'pointer', flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <Share2 size={18} style={{ color: 'var(--primary)' }} />
+            <Share2 size={18} style={{ color: '#e67700' }} />
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>{item.name}</h3>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{item.type || 'Data Concept'}</div>
@@ -34,8 +47,12 @@ const InfoCard = ({ item, onRefresh }: { item: InformationObject, onRefresh: () 
       {item.description && <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>}
 
       <div style={{ marginTop: 'auto', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-        {item.classification && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'var(--secondary)', color: 'var(--secondary-foreground)' }}>{item.classification}</span>}
-        {item.piiCategory && <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: item.piiCategory === 'None' ? 'var(--muted)' : '#fff0f6', color: item.piiCategory === 'None' ? 'var(--muted-foreground)' : '#d6336c', border: item.piiCategory === 'None' ? '1px solid var(--border)' : '1px solid #ffdeeb' }}>{item.piiCategory}</span>}
+        <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'var(--secondary)', color: 'var(--secondary-foreground)', border: '1px solid var(--border)' }}>
+          C: {confInfo.label.split(' - ')[0]}
+        </span>
+        <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: piiInfo.color, color: 'white' }}>
+          PII: {piiInfo.label.split(' - ')[0]}
+        </span>
       </div>
       
       <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
@@ -49,6 +66,12 @@ const InfoCard = ({ item, onRefresh }: { item: InformationObject, onRefresh: () 
 export const InformationView = ({ informationObjects, onRefresh }: { informationObjects: InformationObject[], onRefresh: () => void }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_information_view', 'grid');
+  const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+
+  const getLabel = (picklist: string, val: string) => {
+    const list = picklists?.find(p => p.name === picklist);
+    return list?.options?.find((o: any) => o.value === String(val))?.label || val || '—';
+  };
 
   return (
     <div>
@@ -72,7 +95,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
       {viewMode === 'grid' ? (
         <div className="grid">
           {Array.isArray(informationObjects) && informationObjects.map(io => (
-            <InfoCard key={io.id} item={io} onRefresh={onRefresh} />
+            <InfoCard key={io.id} item={io} onRefresh={onRefresh} picklists={picklists || []} />
           ))}
         </div>
       ) : (
@@ -81,7 +104,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
                 <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Name</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Classification</th>
+                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Confidentiality</th>
                 <th style={{ padding: '1rem', fontSize: '0.875rem' }}>PII Category</th>
                 <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Business Owner</th>
                 <th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th>
@@ -94,8 +117,8 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
                     <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{io.name}</div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>{io.type}</div>
                   </td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{io.classification || '—'}</td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{io.piiCategory || '—'}</td>
+                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{getLabel('cia_scale', io.confidentiality || '1')}</td>
+                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{getLabel('pii_category', io.piiCategory || '1')}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{io.businessOwner?.name || '—'}</td>
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
                     <button onClick={(e) => { e.stopPropagation(); navigate(`/information/${io.id}/edit`); }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={14} /></button>

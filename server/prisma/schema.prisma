@@ -61,7 +61,7 @@ model InformationObject {
   confidentiality String?      @default("1")
   integrity      String?       @default("1")
   availability   String?       @default("1")
-  piiCategory    String?
+  piiCategory    String?       @default("1")
   type           String?
   metadata       String?
   businessOwnerId String?
