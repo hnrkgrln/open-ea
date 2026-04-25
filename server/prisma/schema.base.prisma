@@ -11,9 +11,9 @@ model Application {
   metadata      String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  targetOf      Integration[] @relation("targetApp")
-  sourceOf      Integration[] @relation("sourceApp")
   capabilities  Capability[]  @relation("ApplicationToCapability")
+  sourceOf      Integration[] @relation("sourceApp")
+  targetOf      Integration[] @relation("targetApp")
   ownedInformationObjects InformationObject[] @relation("AppOwner")
 }
 
@@ -45,21 +45,23 @@ model Organization {
 }
 
 model InformationObject {
-  id             String        @id @default(uuid())
-  name           String
-  aliases        String?
-  description    String?
-  classification String?
-  piiCategory    String?
-  type           String?
-  metadata       String?
+  id              String        @id @default(uuid())
+  name            String
+  aliases         String?
+  description     String?
+  confidentiality String?       @default("1")
+  integrity       String?       @default("1")
+  availability    String?       @default("1")
+  piiCategory     String?       @default("1")
+  type            String?
+  metadata        String?
   businessOwnerId String?
-  appOwnerId     String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-  businessOwner  Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
-  appOwner       Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
-  integrations   Integration[]
+  appOwnerId      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  businessOwner   Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
+  appOwner        Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
+  integrations    Integration[]
 }
 
 model Integration {
@@ -68,7 +70,6 @@ model Integration {
   sourceAppId   String
   targetAppId   String
   infoObjectId  String?
-  status        String?
   pattern       String?
   frequency     String?
   crud          String?
@@ -86,11 +87,11 @@ model MetadataDefinition {
   fieldType  String
   label      String
   required   Boolean  @default(false)
+  min        Int?     @default(0)
+  max        Int?     @default(100)
+  scaleType  String?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  max        Int?     @default(100)
-  min        Int?     @default(0)
-  scaleType  String?
 }
 
 model Picklist {
