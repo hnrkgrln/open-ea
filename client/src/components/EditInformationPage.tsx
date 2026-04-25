@@ -14,6 +14,9 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
 
 const getScaleGradient = (scaleType: string) => {
   switch (scaleType) {
+    case 'good-bad': return 'linear-gradient(to right, #2b8a3e, #fab005, #c92a2a)';
+    case 'bad-good': return 'linear-gradient(to right, #c92a2a, #fab005, #2b8a3e)';
+    case 'low-high': return 'linear-gradient(to right, #e7f5ff, #1864ab)';
     case 'importance': return 'linear-gradient(to right, #dee2e6, #7048e8)';
     default: return 'linear-gradient(to right, var(--accent), var(--primary))';
   }
@@ -61,10 +64,10 @@ export const EditInformationPage = () => {
         name: item.name || '',
         aliases: item.aliases || '',
         description: item.description || '',
-        confidentiality: item.confidentiality || '1',
-        integrity: item.integrity || '1',
-        availability: item.availability || '1',
-        piiCategory: item.piiCategory || '1',
+        confidentiality: String(item.confidentiality || '1'),
+        integrity: String(item.integrity || '1'),
+        availability: String(item.availability || '1'),
+        piiCategory: String(item.piiCategory || '1'),
         type: item.type || 'Master Data',
         businessOwnerId: item.businessOwnerId || '',
         appOwnerId: item.appOwnerId || ''
@@ -205,22 +208,22 @@ export const EditInformationPage = () => {
                   <div key={cia.key} className="field">
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                       <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{cia.label}</label>
-                      <div style={{ fontSize: '0.875rem', fontWeight: 800, color: ciaOptions.find((o:any) => o.value === (formData as any)[cia.key])?.color }}>
-                        {ciaOptions.find((o:any) => o.value === (formData as any)[cia.key])?.label}
+                      <div style={{ fontSize: '0.875rem', fontWeight: 800, color: ciaOptions.find((o:any) => o.value === String((formData as any)[cia.key]))?.color }}>
+                        {ciaOptions.find((o:any) => o.value === String((formData as any)[cia.key]))?.label || '1 - Low'}
                       </div>
                     </div>
-                    <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('importance') }} value={(formData as any)[cia.key]} onChange={e => setFormData({...formData, [cia.key]: e.target.value})} />
+                    <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('good-bad') }} value={(formData as any)[cia.key]} onChange={e => setFormData({...formData, [cia.key]: e.target.value})} />
                   </div>
                 ))}
 
                 <div className="field" style={{ marginTop: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                     <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>PII Category</label>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 800, color: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }}>
-                      {piiOptions.find((o:any) => o.value === formData.piiCategory)?.label}
+                    <div style={{ fontSize: '0.875rem', fontWeight: 800, color: piiOptions.find((o:any) => o.value === String(formData.piiCategory))?.color }}>
+                      {piiOptions.find((o:any) => o.value === String(formData.piiCategory))?.label || '1 - None'}
                     </div>
                   </div>
-                  <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('bad-good') }} value={formData.piiCategory} onChange={e => setFormData({...formData, piiCategory: e.target.value})} />
+                  <input type="range" min="1" max="4" step="1" style={{ background: getScaleGradient('good-bad') }} value={formData.piiCategory} onChange={e => setFormData({...formData, piiCategory: e.target.value})} />
                 </div>
               </div>
             </section>
