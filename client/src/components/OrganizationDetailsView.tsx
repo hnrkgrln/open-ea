@@ -61,7 +61,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
       </span>
     </div>
     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-      <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{item.name}</h1>
+      <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{org.name}</h1>
     </div>
                 {org.type && (
                   <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
