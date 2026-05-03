@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity, ArrowUpRight, ChevronLeft } from 'lucide-react';
+import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity, ArrowUpRight, ChevronLeft, LogOut, LogIn } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -55,6 +55,7 @@ export const EditAppPage = () => {
   const { data: capabilities } = useQuery<any[]>({ queryKey: ['capabilities'], queryFn: () => fetch('/api/capabilities').then(res => res.json()) });
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
+  const { data: allIntegrations } = useQuery<any[]>({ queryKey: ['integrations'], queryFn: () => fetch('/api/integrations').then(res => res.json()) });
 
   useEffect(() => {
     if (app && !isNew) {
@@ -72,6 +73,11 @@ export const EditAppPage = () => {
       setDynamicValues(safeJsonParse(app.metadata));
     }
   }, [app, isNew]);
+
+  const appIntegrations = useMemo(() => {
+    if (!allIntegrations || isNew) return [];
+    return allIntegrations.filter(i => i.sourceAppId === id || i.targetAppId === id);
+  }, [allIntegrations, id, isNew]);
 
   const filteredCaps = useMemo(() => {
     if (!capabilities) return [];
@@ -266,31 +272,61 @@ export const EditAppPage = () => {
                   <Network size={18} /> Integrations & Data Flows
                 </h3>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                <div className="card" style={{ padding: '1.5rem', background: 'var(--card)' }}>
-                  <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted-foreground)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>Outgoing (Providing Data)</h4>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>Define data that this system provides to other applications.</p>
-                  <button 
-                    type="button" 
-                    className="secondary" 
-                    onClick={() => navigate(`/integrations/new?sourceAppId=${id}`)}
-                    style={{ width: '100%', gap: '0.5rem' }}
-                  >
-                    <Plus size={16} /> Establish New Outbound Integration
-                  </button>
-                </div>
-                <div className="card" style={{ padding: '1.5rem', background: 'var(--card)' }}>
-                  <h4 style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--muted-foreground)', marginBottom: '1.5rem', textTransform: 'uppercase' }}>Incoming (Consuming Data)</h4>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>Define data that this system consumes from other applications.</p>
-                  <button 
-                    type="button" 
-                    className="secondary" 
-                    onClick={() => navigate(`/integrations/new?targetAppId=${id}`)}
-                    style={{ width: '100%', gap: '0.5rem' }}
-                  >
-                    <Plus size={16} /> Establish New Inbound Integration
-                  </button>
-                </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {appIntegrations.length > 0 ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+                    {appIntegrations.map(int => {
+                      const isSource = int.sourceAppId === id;
+                      const otherApp = isSource ? int.targetApp : int.sourceApp;
+                      return (
+                        <div 
+                          key={int.id} 
+                          onClick={() => navigate(`/integrations/${int.id}/edit`)}
+                          className="card row-hover" 
+                          style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', cursor: 'pointer' }}
+                        >
+                          <div style={{ background: isSource ? '#d6336c' : 'var(--primary)', color: 'white', padding: '0.4rem', borderRadius: '6px', display: 'flex' }}>
+                            {isSource ? <LogOut size={16} title="Outgoing" /> : <LogIn size={16} title="Incoming" />}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{otherApp?.name || 'Unknown System'}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                              Payload: <strong>{int.payload?.name || 'Generic Object'}</strong> • {int.pattern || 'API'}
+                            </div>
+                          </div>
+                          <ArrowUpRight size={16} style={{ opacity: 0.3 }} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ padding: '2.5rem', background: 'var(--card)', borderRadius: '24px', border: '1px dashed var(--border)', textAlign: 'center' }}>
+                    <Network size={32} style={{ color: 'var(--muted-foreground)', opacity: 0.2, marginBottom: '1rem' }} />
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>No integrations defined for this application.</div>
+                  </div>
+                )}
+
+                {!isNew && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                    <button 
+                      type="button" 
+                      className="secondary" 
+                      onClick={() => navigate(`/integrations/new?sourceAppId=${id}`)}
+                      style={{ height: '3.5rem', gap: '0.75rem', justifyContent: 'center', padding: '0 1.5rem' }}
+                    >
+                      <Plus size={16} /> Establish Outbound
+                    </button>
+                    <button 
+                      type="button" 
+                      className="secondary" 
+                      onClick={() => navigate(`/integrations/new?targetAppId=${id}`)}
+                      style={{ height: '3.5rem', gap: '0.75rem', justifyContent: 'center', padding: '0 1.5rem' }}
+                    >
+                      <Plus size={16} /> Establish Inbound
+                    </button>
+                  </div>
+                )}
               </div>
             </section>
 
