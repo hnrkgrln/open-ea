@@ -45,6 +45,8 @@ server.get('/applications', async () => {
   return prisma.application.findMany({
     include: {
       capabilities: true,
+      sourceOf: { include: { targetApp: true, payload: true } },
+      targetOf: { include: { sourceApp: true, payload: true } }
     },
     orderBy: { name: 'asc' }
   });
@@ -58,7 +60,11 @@ server.get('/applications/:id', {
   try {
     const app = await prisma.application.findUnique({
       where: { id: request.params.id },
-      include: { capabilities: true }
+      include: { 
+        capabilities: true,
+        sourceOf: { include: { targetApp: true, payload: true } },
+        targetOf: { include: { sourceApp: true, payload: true } }
+      }
     });
     if (!app) return reply.status(404).send({ error: 'Application not found' });
     return app;
@@ -319,7 +325,15 @@ server.get('/organizations/:id', {
   try {
     const org = await prisma.organization.findUnique({
       where: { id: request.params.id },
-      include: { parent: true, children: true, informationObjects: true }
+      include: { 
+        parent: true, 
+        children: true, 
+        informationObjects: { 
+          include: { 
+            integrations: { include: { sourceApp: true, targetApp: true } } 
+          } 
+        } 
+      }
     });
     if (!org) return reply.status(404).send({ error: 'Organization not found' });
     return org;
@@ -379,7 +393,11 @@ server.get('/information-objects', async (request, reply) => {
   console.log('GET /information-objects');
   try {
     const info = await prisma.informationObject.findMany({
-      include: { businessOwner: true, appOwner: true },
+      include: { 
+        businessOwner: true, 
+        appOwner: true,
+        integrations: { include: { sourceApp: true, targetApp: true } }
+      },
       orderBy: { name: 'asc' }
     });
     console.log('GET /information-objects SUCCESS - Found:', info.length);
