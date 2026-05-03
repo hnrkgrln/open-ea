@@ -38,6 +38,29 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
 
+  // Effective Criticality Logic
+  const { effectiveCriticality, isInherited } = useMemo(() => {
+    if (!app) return { effectiveCriticality: '3', isInherited: false };
+    
+    // Find highest criticality from linked capabilities
+    const capCriticalities = (app.capabilities || [])
+        .map((c: any) => Number(c.criticality))
+        .filter((n: number) => !isNaN(n) && n > 0);
+    
+    if (capCriticalities.length > 0) {
+        return { 
+            effectiveCriticality: String(Math.max(...capCriticalities)), 
+            isInherited: true 
+        };
+    }
+    
+    // Fallback to manual application criticality
+    return { 
+        effectiveCriticality: app.criticality || '3', 
+        isInherited: false 
+    };
+  }, [app]);
+
   if (isLoading || !app) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
@@ -53,8 +76,6 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
     const option = list?.options?.find((o: any) => o.value === String(value));
     return option || { label: value || 'Not Scored', color: 'var(--muted-foreground)' };
   };
-
-  const appMetaDefs = metaDefs?.filter(d => d.entityType === 'Application') || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
@@ -105,15 +126,16 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }}>
                   {[
-                    { label: 'Criticality', val: app.criticality, key: 'criticality' },
-                    { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit' },
-                    { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit' }
+                    { label: 'Criticality', val: effectiveCriticality, key: 'criticality', inherited: isInherited },
+                    { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit', inherited: false },
+                    { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit', inherited: false }
                   ].map(score => {
                     const info = getPicklistInfo(score.key, score.val);
                     return (
                       <div key={score.label} style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>{score.label}</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: info.color }}>{info.label}</div>
+                        <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>{score.label}</div>
+                        <div style={{ fontSize: '1.125rem', fontWeight: 800, color: info.color }}>{info.label}</div>
+                        {score.inherited && <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem' }}>INHERITED</div>}
                         <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
                       </div>
                     );

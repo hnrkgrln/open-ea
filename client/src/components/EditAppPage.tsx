@@ -74,6 +74,32 @@ export const EditAppPage = () => {
     }
   }, [app, isNew]);
 
+  // Inheritance Logic
+  const { inheritedValue, isFieldDisabled } = useMemo(() => {
+    if (!capabilities || selectedCapIds.length === 0) return { inheritedValue: null, isFieldDisabled: false };
+    
+    const selectedCaps = capabilities.filter(c => selectedCapIds.includes(c.id));
+    const scores = selectedCaps
+        .map(c => Number(c.criticality))
+        .filter(n => !isNaN(n) && n > 0);
+    
+    if (scores.length > 0) {
+        return { 
+            inheritedValue: String(Math.max(...scores)), 
+            isFieldDisabled: true 
+        };
+    }
+    
+    return { inheritedValue: null, isFieldDisabled: false };
+  }, [capabilities, selectedCapIds]);
+
+  // Update form data if inherited value changes
+  useEffect(() => {
+    if (inheritedValue !== null) {
+      setFormData(prev => ({ ...prev, criticality: inheritedValue }));
+    }
+  }, [inheritedValue]);
+
   const appIntegrations = useMemo(() => {
     if (!allIntegrations || isNew) return [];
     return allIntegrations.filter(i => i.sourceAppId === id || i.targetAppId === id);
@@ -217,20 +243,33 @@ export const EditAppPage = () => {
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-                  {strategicPicklists.map(item => (
-                    <div key={item.key} className="field">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{item.label}</label>
-                            {item.key === 'criticality' && <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
+                  {strategicPicklists.map(item => {
+                    const isDisabled = item.key === 'criticality' && isFieldDisabled;
+                    return (
+                        <div key={item.key} className="field" style={{ opacity: isDisabled ? 0.6 : 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{item.label}</label>
+                                {isDisabled && <span style={{ fontSize: '0.7rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM CAPABILITIES</span>}
+                                {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
+                            </div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 800, color: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }}>
+                            {item.options.find((o:any) => o.value === (formData as any)[item.key])?.label}
+                            </div>
                         </div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 800, color: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }}>
-                          {item.options.find((o:any) => o.value === (formData as any)[item.key])?.label}
+                        <input 
+                            type="range" 
+                            min="1" 
+                            max="5" 
+                            step="1" 
+                            disabled={isDisabled}
+                            style={{ background: getScaleGradient(item.key === 'criticality' ? 'importance' : 'bad-good'), cursor: isDisabled ? 'not-allowed' : 'pointer' }} 
+                            value={(formData as any)[item.key]} 
+                            onChange={e => setFormData({...formData, [item.key]: e.target.value})} 
+                        />
                         </div>
-                      </div>
-                      <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient(item.key === 'criticality' ? 'importance' : 'bad-good') }} value={(formData as any)[item.key]} onChange={e => setFormData({...formData, [item.key]: e.target.value})} />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                   {rangeMetaDefs.map(def => (
