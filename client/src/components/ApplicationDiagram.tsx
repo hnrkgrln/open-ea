@@ -502,17 +502,8 @@ const DiagramInner = ({
 
     const getAppScore = (app: Application, fieldName: string, def?: MetadataDefinition) => {
       const localVal = Number((app as any)[fieldName] || safeJsonParse(app.metadata)[fieldName] || (def ? def.min : 1));
-      
-      if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
-        const capScores = app.capabilities.map(c => {
-          const fullCap = capabilities.find(ac => ac.id === c.id);
-          return Number(fullCap?.criticality || 1);
-        });
-        return Math.max(localVal, ...capScores);
-      }
       return localVal;
     };
-
     const getFieldValue = (app: Application, field: string) => {
       if (field === 'criticality') {
         return String(getAppScore(app, 'criticality', appCritDef));

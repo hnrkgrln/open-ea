@@ -86,8 +86,7 @@ export const EditAppPage = () => {
   }, [capabilities, capSearch]);
 
   const appMetaDefs = metaDefs?.filter(d => d.entityType === 'Application') || [];
-  const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
-
+  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isNew && (!id || id === 'undefined')) {
@@ -221,12 +220,15 @@ export const EditAppPage = () => {
                   {strategicPicklists.map(item => (
                     <div key={item.key} className="field">
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{item.label}</label>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{item.label}</label>
+                            {item.key === 'criticality' && <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
+                        </div>
                         <div style={{ fontSize: '0.875rem', fontWeight: 800, color: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }}>
                           {item.options.find((o:any) => o.value === (formData as any)[item.key])?.label}
                         </div>
                       </div>
-                      <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('bad-good') }} value={(formData as any)[item.key]} onChange={e => setFormData({...formData, [item.key]: e.target.value})} />
+                      <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient(item.key === 'criticality' ? 'importance' : 'bad-good') }} value={(formData as any)[item.key]} onChange={e => setFormData({...formData, [item.key]: e.target.value})} />
                     </div>
                   ))}
                 </div>
