@@ -119,49 +119,65 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
     const reader = new FileReader();
     reader.onload = async (e) => {
       const text = e.target?.result as string;
-      const lines = text.split('\n');
-      if (lines.length < 2) return;
+      
+      // Robust CSV Parser handling quotes and newlines within fields
+      const rows: string[][] = [];
+      let currentRow: string[] = [];
+      let currentCell = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
 
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const rows = lines.slice(1).filter(line => line.trim() !== '');
-
-      const importedData = rows.map(line => {
-        const values: any[] = [];
-        let current = '';
-        let inQuotes = false;
-        
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          const nextChar = line[i + 1];
-
-          if (char === '"') {
-            if (inQuotes && nextChar === '"') {
-              // Escaped quote: "" -> "
-              current += '"';
-              i++; // Skip the next quote
-            } else {
-              // Toggle quote mode
-              inQuotes = !inQuotes;
-            }
-          } else if (char === ',' && !inQuotes) {
-            values.push(current.trim());
-            current = '';
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            currentCell += '"';
+            i++; // skip next quote
           } else {
-            current += char;
+            // Toggle quote state
+            inQuotes = !inQuotes;
           }
+        } else if (char === ',' && !inQuotes) {
+          // End of cell
+          currentRow.push(currentCell.trim());
+          currentCell = '';
+        } else if ((char === '\n' || (char === '\r' && nextChar === '\n')) && !inQuotes) {
+          // End of row
+          if (char === '\r') i++; // skip \n
+          currentRow.push(currentCell.trim());
+          if (currentRow.some(cell => cell !== '')) {
+            rows.push(currentRow);
+          }
+          currentRow = [];
+          currentCell = '';
+        } else {
+          currentCell += char;
         }
-        values.push(current.trim());
+      }
+      // Push the very last cell/row if file doesn't end with newline
+      if (currentCell || currentRow.length > 0) {
+        currentRow.push(currentCell.trim());
+        if (currentRow.some(cell => cell !== '')) {
+          rows.push(currentRow);
+        }
+      }
 
+      if (rows.length < 2) return;
+
+      const headers = rows[0].map(h => h.replace(/^"|"$/g, ''));
+      const dataRows = rows.slice(1);
+
+      const importedData = dataRows.map(values => {
         const obj: any = {};
         headers.forEach((header, index) => {
           let val = values[index];
-          // Remove wrapping quotes if they exist
           if (val && val.startsWith('"') && val.endsWith('"')) {
             val = val.substring(1, val.length - 1);
           }
           obj[header] = val;
         });
-
         return obj;
       });
 
