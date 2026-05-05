@@ -248,11 +248,25 @@ export const EditAppPage = () => {
                 </div>
                 <div className="field">
                   <label className="label">Lifecycle Start Date</label>
-                  <input type="date" value={formData.lifecycleStartDate} onChange={e => setFormData({...formData, lifecycleStartDate: e.target.value})} />
+                  <input 
+                    type="text" 
+                    placeholder="YYYY-MM-DD" 
+                    value={formData.lifecycleStartDate} 
+                    onChange={e => setFormData({...formData, lifecycleStartDate: e.target.value})} 
+                    style={{ fontFamily: 'monospace' }} 
+                    title="Expected format: YYYY-MM-DD"
+                  />
                 </div>
                 <div className="field">
                   <label className="label">Lifecycle End Date</label>
-                  <input type="date" value={formData.lifecycleEndDate} onChange={e => setFormData({...formData, lifecycleEndDate: e.target.value})} />
+                  <input 
+                    type="text" 
+                    placeholder="YYYY-MM-DD" 
+                    value={formData.lifecycleEndDate} 
+                    onChange={e => setFormData({...formData, lifecycleEndDate: e.target.value})} 
+                    style={{ fontFamily: 'monospace' }} 
+                    title="Expected format: YYYY-MM-DD"
+                  />
                 </div>
               </div>
             </section>
