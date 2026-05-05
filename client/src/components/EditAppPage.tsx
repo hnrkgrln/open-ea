@@ -233,6 +233,13 @@ export const EditAppPage = () => {
                     {picklists?.find(p => p.name === 'lifecycle')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
+                <div className="field">
+                  <label className="label">Application Type</label>
+                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                    <option value="">Select Type...</option>
+                    {picklists?.find(p => p.name === 'application_type')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
+                  </select>
+                </div>
               </div>
             </section>
 

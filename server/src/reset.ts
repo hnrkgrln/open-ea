@@ -92,6 +92,7 @@ async function main() {
           { value: 'Business Application', label: 'Business Application', order: 1 },
           { value: 'Infrastructure Service', label: 'Infrastructure Service', order: 2 },
           { value: 'Platform', label: 'Platform', order: 3 },
+          { value: 'Desktop Application', label: 'Desktop Application', order: 4 },
         ]
       }
     }

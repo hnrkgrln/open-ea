@@ -63,6 +63,7 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: 'Business Application', label: 'Business Application' },
     { value: 'Infrastructure Service', label: 'Infrastructure Service' },
     { value: 'Platform', label: 'Platform' },
+    { value: 'Desktop Application', label: 'Desktop Application' },
   ]);
 
   await seedPicklist('integration_type', 'Integration Type', [
