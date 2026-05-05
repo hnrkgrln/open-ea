@@ -4,6 +4,8 @@ model Application {
   description   String?
   owner         String?
   lifecycle     String?       @default("Discovery")
+  lifecycleStartDate DateTime?
+  lifecycleEndDate   DateTime?
   type          String?
   criticality   String?       @default("3")
   functionalFit String?       @default("3")

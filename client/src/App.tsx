@@ -113,6 +113,8 @@ interface Application {
   description: string;
   owner: string;
   lifecycle: string;
+  lifecycleStartDate?: string;
+  lifecycleEndDate?: string;
   type: string;
   criticality: string;
   functionalFit: string;

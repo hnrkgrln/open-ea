@@ -229,6 +229,13 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Lifecycle</span>
                       <span style={{ fontWeight: 700 }}>{app.lifecycle || 'Discovery'}</span>
+                      {(app.lifecycleStartDate || app.lifecycleEndDate) && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
+                          {app.lifecycleStartDate && <span>Starts: {new Date(app.lifecycleStartDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>}
+                          {app.lifecycleStartDate && app.lifecycleEndDate && <span> • </span>}
+                          {app.lifecycleEndDate && <span>Ends: {new Date(app.lifecycleEndDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

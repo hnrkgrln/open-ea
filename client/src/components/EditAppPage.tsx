@@ -37,6 +37,8 @@ export const EditAppPage = () => {
     description: '',
     owner: '',
     lifecycle: 'Active',
+    lifecycleStartDate: '',
+    lifecycleEndDate: '',
     type: 'Internal',
     criticality: '3',
     functionalFit: '3',
@@ -64,6 +66,8 @@ export const EditAppPage = () => {
         description: app.description || '',
         owner: app.owner || '',
         lifecycle: app.lifecycle || 'Active',
+        lifecycleStartDate: app.lifecycleStartDate ? app.lifecycleStartDate.split('T')[0] : '',
+        lifecycleEndDate: app.lifecycleEndDate ? app.lifecycleEndDate.split('T')[0] : '',
         type: app.type || 'Internal',
         criticality: String(app.criticality || '3'),
         functionalFit: String(app.functionalFit || '3'),
@@ -128,6 +132,8 @@ export const EditAppPage = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           ...formData, 
+          lifecycleStartDate: formData.lifecycleStartDate ? new Date(formData.lifecycleStartDate).toISOString() : null,
+          lifecycleEndDate: formData.lifecycleEndDate ? new Date(formData.lifecycleEndDate).toISOString() : null,
           capabilityIds: selectedCapIds,
           metadata: JSON.stringify(dynamicValues)
         }),
@@ -239,6 +245,14 @@ export const EditAppPage = () => {
                     <option value="">Select Type...</option>
                     {picklists?.find(p => p.name === 'application_type')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
+                </div>
+                <div className="field">
+                  <label className="label">Lifecycle Start Date</label>
+                  <input type="date" value={formData.lifecycleStartDate} onChange={e => setFormData({...formData, lifecycleStartDate: e.target.value})} />
+                </div>
+                <div className="field">
+                  <label className="label">Lifecycle End Date</label>
+                  <input type="date" value={formData.lifecycleEndDate} onChange={e => setFormData({...formData, lifecycleEndDate: e.target.value})} />
                 </div>
               </div>
             </section>
