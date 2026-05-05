@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, Share2, Layers } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, Share2, Layers } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -701,11 +701,17 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
   );
 };
 
-const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number }) => {
+const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0, forceExpandState }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number, forceExpandState?: { state: boolean, timestamp: number } }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
   
+  useEffect(() => {
+    if (forceExpandState && forceExpandState.timestamp > 0) {
+      setExpanded(forceExpandState.state);
+    }
+  }, [forceExpandState]);
+
   const getRecursiveAppIds = (n: Capability): string[] => {
     const ids = (n.applications || []).map(a => a.id);
     const childIds = (n.children || []).flatMap(c => getRecursiveAppIds(c));
@@ -778,7 +784,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
             gap: '1rem'
           }}>
             {node.children!.map(child => (
-              <CapabilityNode key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} depth={depth + 1} />
+              <CapabilityNode key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} depth={depth + 1} forceExpandState={forceExpandState} />
             ))}
           </div>
         )}
@@ -837,6 +843,11 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
   const [isPending, startTransition] = useTransition();
+  const [forceExpandState, setForceExpandState] = useState({ state: true, timestamp: 0 });
+
+  const handleToggleExpandAll = () => {
+    setForceExpandState(prev => ({ state: !prev.state, timestamp: Date.now() }));
+  };
   
   const { data: picklists } = useQuery<any[]>({
     queryKey: ['picklists'],
@@ -900,6 +911,16 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {viewMode === 'grid' && (
+            <button 
+              onClick={handleToggleExpandAll} 
+              className="secondary" 
+              style={{ height: '2.5rem', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600 }}
+            >
+              {forceExpandState.state ? <ChevronsUp size={16} /> : <ChevronsDown size={16} />}
+              {forceExpandState.state ? 'Collapse All' : 'Expand All'}
+            </button>
+          )}
           <button 
             onClick={() => startTransition(() => setShowApps(!showApps))} 
             className="secondary" 
@@ -939,7 +960,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
         <div className="masonry-grid">
           {capabilityTree.map(cap => (
             <div key={cap.id} className="masonry-item">
-              <CapabilityNode node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} />
+              <CapabilityNode node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} forceExpandState={forceExpandState} />
             </div>
           ))}
         </div>
