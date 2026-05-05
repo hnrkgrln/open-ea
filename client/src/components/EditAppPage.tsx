@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity, ArrowUpRight, ChevronLeft, LogOut, LogIn } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { DatePicker } from './DatePicker';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -246,28 +247,16 @@ export const EditAppPage = () => {
                     {picklists?.find(p => p.name === 'application_type')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
                   </select>
                 </div>
-                <div className="field">
-                  <label className="label">Lifecycle Start Date</label>
-                  <input 
-                    type="text" 
-                    placeholder="YYYY-MM-DD" 
-                    value={formData.lifecycleStartDate} 
-                    onChange={e => setFormData({...formData, lifecycleStartDate: e.target.value})} 
-                    style={{ fontFamily: 'monospace' }} 
-                    title="Expected format: YYYY-MM-DD"
-                  />
-                </div>
-                <div className="field">
-                  <label className="label">Lifecycle End Date</label>
-                  <input 
-                    type="text" 
-                    placeholder="YYYY-MM-DD" 
-                    value={formData.lifecycleEndDate} 
-                    onChange={e => setFormData({...formData, lifecycleEndDate: e.target.value})} 
-                    style={{ fontFamily: 'monospace' }} 
-                    title="Expected format: YYYY-MM-DD"
-                  />
-                </div>
+                <DatePicker 
+                  label="Lifecycle Start Date" 
+                  value={formData.lifecycleStartDate} 
+                  onChange={val => setFormData({...formData, lifecycleStartDate: val})} 
+                />
+                <DatePicker 
+                  label="Lifecycle End Date" 
+                  value={formData.lifecycleEndDate} 
+                  onChange={val => setFormData({...formData, lifecycleEndDate: val})} 
+                />
               </div>
             </section>
 
