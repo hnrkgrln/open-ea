@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const LifecycleBadge = ({ lifecycle, className, style }: Props) => {
-  const lc = lifecycle?.toLowerCase() || 'planning';
+  const lc = lifecycle?.toLowerCase() || 'discovery';
   
   return (
     <span 
@@ -19,7 +19,7 @@ export const LifecycleBadge = ({ lifecycle, className, style }: Props) => {
       )}
       style={style}
     >
-      {lifecycle}
+      {lifecycle || 'Discovery'}
     </span>
   );
 };

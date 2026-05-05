@@ -65,10 +65,10 @@ async function main() {
       label: 'Application Lifecycle',
       options: {
         create: [
-          { value: 'Planning', label: 'Planning', order: 1 },
-          { value: 'Deployment', label: 'Deployment', order: 2 },
-          { value: 'Maintenance', label: 'Maintenance', order: 3 },
-          { value: 'Sunset', label: 'Sunset', order: 4 },
+          { value: 'Discovery', label: 'Discovery', order: 1 },
+          { value: 'Onboarding', label: 'Onboarding', order: 2 },
+          { value: 'Mainstream', label: 'Mainstream', order: 3 },
+          { value: 'Legacy', label: 'Legacy', order: 4 },
           { value: 'Decommissioned', label: 'Decommissioned', order: 5 },
         ]
       }
