@@ -201,7 +201,7 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                     <div style={{ background: 'var(--muted)', padding: '0.5rem', borderRadius: '8px' }}><Calendar size={18} style={{ opacity: 0.7 }} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Conceptualized</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{item.createdAt ? item.createdAt.split('T')[0] : '—'}</span>
                     </div>
                   </div>
                 </div>

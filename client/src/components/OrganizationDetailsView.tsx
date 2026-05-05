@@ -135,14 +135,14 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                     <div style={{ background: 'var(--muted)', padding: '0.5rem', borderRadius: '8px' }}><Calendar size={18} style={{ opacity: 0.7 }} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>System Creation</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{org.createdAt ? new Date(org.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{org.createdAt ? org.createdAt.split('T')[0] : '—'}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
                     <div style={{ background: 'var(--muted)', padding: '0.5rem', borderRadius: '8px' }}><Info size={18} style={{ opacity: 0.7 }} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{org.updatedAt ? new Date(org.updatedAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{org.updatedAt ? org.updatedAt.split('T')[0] : '—'}</span>
                     </div>
                   </div>
                 </div>

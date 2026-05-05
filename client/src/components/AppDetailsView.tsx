@@ -231,9 +231,9 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                       <span style={{ fontWeight: 700 }}>{app.lifecycle || 'Discovery'}</span>
                       {(app.lifecycleStartDate || app.lifecycleEndDate) && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
-                          {app.lifecycleStartDate && <span>Starts: {new Date(app.lifecycleStartDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>}
+                          {app.lifecycleStartDate && <span>Starts: {app.lifecycleStartDate.split('T')[0]}</span>}
                           {app.lifecycleStartDate && app.lifecycleEndDate && <span> • </span>}
-                          {app.lifecycleEndDate && <span>Ends: {new Date(app.lifecycleEndDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>}
+                          {app.lifecycleEndDate && <span>Ends: {app.lifecycleEndDate.split('T')[0]}</span>}
                         </div>
                       )}
                     </div>
