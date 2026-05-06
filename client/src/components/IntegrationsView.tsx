@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Network, PlusCircle, ArrowRight, Trash2, Edit2, ShieldAlert } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 
 interface Integration {
@@ -16,9 +17,17 @@ interface Integration {
   payload?: { name: string };
 }
 
+const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, value: string | undefined) => {
+  if (!value) return null;
+  const list = picklists?.find(p => p.name === picklistName);
+  const option = list?.options?.find((o: any) => o.value === String(value));
+  return option || { label: value, color: 'var(--secondary)' };
+};
+
 export const IntegrationsView = ({ integrations, onRefresh }: { integrations: Integration[], onRefresh: () => void }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_integrations_view', 'grid');
+  const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
 
   return (
     <div>
@@ -44,7 +53,9 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
             </tr>
           </thead>
           <tbody>
-            {Array.isArray(integrations) && integrations.map(i => (
+            {Array.isArray(integrations) && integrations.map(i => {
+              const patternInfo = getPicklistInfo(picklists, 'integration_pattern', i.pattern);
+              return (
               <tr key={i.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/integrations/${i.id}`)}>
                 <td style={{ padding: '1rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{i.sourceApp?.name}</div>
@@ -53,12 +64,14 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>{i.payload?.name || '—'}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--muted-foreground)' }}>
-                      <span style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: patternInfo?.color !== 'var(--secondary)' ? patternInfo?.color : 'var(--secondary)', color: patternInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--secondary-foreground)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{patternInfo?.label || i.pattern || 'API'}</span>
                       <ArrowRight size={14} style={{ opacity: 0.3 }} />
                       <div style={{ display: 'flex', gap: '0.2rem' }}>
-                        {i.crud?.split(',').filter(Boolean).map(op => (
-                          <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{op}</span>
-                        ))}
+                        {i.crud?.split(',').filter(Boolean).map(op => {
+                          const crudInfo = getPicklistInfo(picklists, 'integration_crud', op);
+                          return (
+                          <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: crudInfo?.color !== 'var(--secondary)' ? crudInfo?.color : 'var(--primary)', color: crudInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{crudInfo?.label || op}</span>
+                        )})}
                       </div>
                     </div>
                   </div>
@@ -71,7 +84,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                   <button onClick={async (e) => { e.stopPropagation(); if(confirm('Delete integration?')) { await fetch(`/api/integrations/${i.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, background: 'transparent', border: 'none', color: 'var(--destructive)' }}><Trash2 size={14} /></button>
                 </td>
               </tr>
-            ))}
+            )})}
             {(!Array.isArray(integrations) || integrations.length === 0) && (
               <tr>
                 <td colSpan={4} style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No integrations recorded yet.</td>

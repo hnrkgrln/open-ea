@@ -635,7 +635,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <LifecycleBadge lifecycle={app.lifecycle} />
+                    <LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} />
                     <button 
                       onClick={(e) => { e.stopPropagation(); onEditApp(app); }} 
                       className="secondary" 
@@ -649,7 +649,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
                 <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description || 'No description provided.'}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: 'auto' }}>
                   <div><strong>Owner:</strong> {ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || 'Unassigned'}</div>
-                  <div><strong>Type:</strong> {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</div>
+                  <div><strong>Type:</strong> <span style={{ fontWeight: 600, color: appTypeOptions.find((o: any) => o.value === app.type)?.color }}>{appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
                 </div>
               </div>
             );
@@ -670,7 +670,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Database size={14} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || '—'}</td>
+                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, color: appTypeOptions.find((o: any) => o.value === app.type)?.color }}>{appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || '—'}</td>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {allRangeFields.map(def => {
@@ -682,7 +682,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
                       })}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}><LifecycleBadge lifecycle={app.lifecycle} /></td>
+                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}><LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} /></td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}><div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>{app.capabilities?.map(cap => (<span key={cap.id} style={{ background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem' }}>{cap.name}</span>))}{(!app.capabilities || app.capabilities.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</div></td>
                   <td style={{ padding: '1rem', textAlign: 'right' }}>
                     <button 

@@ -24,6 +24,8 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
     enabled: !!orgId && orgId !== 'undefined'
   });
 
+  const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+
   const parent = useMemo(() => allOrgs?.find(o => o.id === org?.parentId), [allOrgs, org]);
   const children = useMemo(() => allOrgs?.filter(o => o.parentId === orgId) || [], [allOrgs, orgId]);
 
@@ -35,6 +37,14 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
       </div>
     );
   }
+
+  const getPicklistInfo = (picklistName: string, value: string) => {
+    const list = picklists?.find(p => p.name === picklistName);
+    const option = list?.options?.find((o: any) => o.value === String(value));
+    return option || { label: value || '—', color: 'var(--secondary)' };
+  };
+
+  const orgTypeInfo = org.type ? getPicklistInfo('organization_type', org.type) : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
@@ -63,9 +73,9 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
               </div>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{org.name}</h1>
-                {org.type && (
-                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: 'var(--secondary)', color: 'var(--secondary-foreground)' }}>
-                    {org.type}
+                {orgTypeInfo && (
+                  <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: orgTypeInfo.color !== 'var(--secondary)' ? orgTypeInfo.color : 'var(--primary)', color: orgTypeInfo.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', textShadow: orgTypeInfo.color !== 'var(--secondary)' ? '0 1px 2px rgba(0,0,0,0.3)' : undefined }}>
+                    {orgTypeInfo.label}
                   </span>
                 )}
               </div>

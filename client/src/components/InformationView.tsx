@@ -28,6 +28,8 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
   const piiInfo = getPicklistInfo('pii_category', item.piiCategory || '1');
   const confInfo = getPicklistInfo('cia_scale', item.confidentiality || '1');
 
+  const typeInfo = getPicklistInfo('information_type', item.type || '');
+
   return (
     <div className="card row-hover" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', height: '100%' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -36,7 +38,7 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
             <Share2 size={18} style={{ color: '#e67700' }} />
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>{item.name}</h3>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{item.type || 'Data Concept'}</div>
+          <div style={{ fontSize: '0.75rem', color: typeInfo.color !== 'var(--muted-foreground)' ? typeInfo.color : 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{typeInfo.label || item.type || 'Data Concept'}</div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => navigate(`/information/${item.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
@@ -111,11 +113,13 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(informationObjects) && informationObjects.map(io => (
+              {Array.isArray(informationObjects) && informationObjects.map(io => {
+                const listTypeInfo = picklists?.find(p => p.name === 'information_type')?.options?.find((o: any) => o.value === io.type);
+                return (
                 <tr key={io.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/information/${io.id}`)}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{io.name}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>{io.type}</div>
+                    <div style={{ fontSize: '0.7rem', color: listTypeInfo?.color || 'var(--muted-foreground)' }}>{listTypeInfo?.label || io.type}</div>
                   </td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{getLabel('cia_scale', io.confidentiality || '1')}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{getLabel('pii_category', io.piiCategory || '1')}</td>

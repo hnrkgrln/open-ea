@@ -80,9 +80,14 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
               </div>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{item.name}</h1>
-                <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: 'var(--secondary)', color: 'var(--secondary-foreground)' }}>
-                  {item.type || 'Generic Object'}
-                </span>
+                {(() => {
+                  const typeInfo = getPicklistInfo('information_type', item.type);
+                  return (
+                    <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.2rem 0.75rem', borderRadius: '6px', background: typeInfo.color !== 'var(--secondary)' ? typeInfo.color : 'var(--secondary)', color: typeInfo.color !== 'var(--secondary)' ? 'white' : 'var(--secondary-foreground)', textShadow: typeInfo.color !== 'var(--secondary)' ? '0 1px 2px rgba(0,0,0,0.3)' : undefined, border: typeInfo.color === 'var(--secondary)' ? '1px solid var(--border)' : 'none' }}>
+                      {typeInfo.label || item.type || 'Generic Object'}
+                    </span>
+                  );
+                })()}
               </div>
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {item.description || 'No description provided for this data concept.'}

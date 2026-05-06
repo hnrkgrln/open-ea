@@ -24,6 +24,15 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
     enabled: !!integrationId && integrationId !== 'undefined'
   });
 
+  const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+
+  const getPicklistInfo = (picklistName: string, value: string | undefined) => {
+    if (!value) return null;
+    const list = picklists?.find(p => p.name === picklistName);
+    const option = list?.options?.find((o: any) => o.value === String(value));
+    return option || { label: value, color: 'var(--secondary)' };
+  };
+
   if (isLoading || !i) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
@@ -64,7 +73,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 </h1>
               </div>
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
-                System-to-system data exchange via {i.pattern || 'standard interface'}.
+                System-to-system data exchange via {getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || 'standard interface'}.
               </p>
             </div>
             <button onClick={() => navigate(`/integrations/${i.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
@@ -88,15 +97,27 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.25rem' }}>Data Payload</div>
                 <div style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '1rem' }}>{i.payload?.name || 'Undefined Information Object'}</div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.6rem', fontWeight: 800, background: 'var(--secondary)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{i.pattern || 'API'}</span>
-                  {i.crud?.split(',').filter(Boolean).map(op => (
-                    <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{op}</span>
-                  ))}
+                  {(() => {
+                    const patternInfo = getPicklistInfo('integration_pattern', i.pattern);
+                    return (
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, background: patternInfo?.color !== 'var(--secondary)' ? patternInfo?.color : 'var(--secondary)', color: patternInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--secondary-foreground)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{patternInfo?.label || i.pattern || 'API'}</span>
+                    );
+                  })()}
+                  {i.crud?.split(',').filter(Boolean).map(op => {
+                    const crudInfo = getPicklistInfo('integration_crud', op);
+                    return (
+                    <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: crudInfo?.color !== 'var(--secondary)' ? crudInfo?.color : 'var(--primary)', color: crudInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
+                  )})}
                 </div>
               </div>
-              <div style={{ zIndex: 1, fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)', background: 'var(--background)', padding: '0.2rem 0.75rem', borderRadius: '20px' }}>
-                <Activity size={12} style={{ marginRight: '0.4rem' }} /> {i.frequency || 'Real-time'}
-              </div>
+              {(() => {
+                const freqInfo = getPicklistInfo('integration_frequency', i.frequency);
+                return (
+                  <div style={{ zIndex: 1, fontSize: '0.75rem', fontWeight: 700, color: freqInfo?.color !== 'var(--secondary)' ? freqInfo?.color : 'var(--muted-foreground)', background: 'var(--background)', padding: '0.2rem 0.75rem', borderRadius: '20px' }}>
+                    <Activity size={12} style={{ marginRight: '0.4rem' }} /> {freqInfo?.label || i.frequency || 'Real-time'}
+                  </div>
+                );
+              })()}
             </div>
 
             <div onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', zIndex: 1, textAlign: 'center', flex: 1, maxWidth: '280px' }} className="row-hover">
@@ -114,18 +135,21 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Integration Pattern</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700 }}>{i.pattern || '—'}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: getPicklistInfo('integration_pattern', i.pattern)?.color !== 'var(--secondary)' ? getPicklistInfo('integration_pattern', i.pattern)?.color : 'var(--foreground)' }}>{getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || '—'}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Frequency</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700 }}>{i.frequency || '—'}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: getPicklistInfo('integration_frequency', i.frequency)?.color !== 'var(--secondary)' ? getPicklistInfo('integration_frequency', i.frequency)?.color : 'var(--foreground)' }}>{getPicklistInfo('integration_frequency', i.frequency)?.label || i.frequency || '—'}</div>
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operations</div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {i.crud?.split(',').filter(Boolean).map(op => (
-                      <span key={op} style={{ fontSize: '0.875rem', fontWeight: 800, background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.25rem 0.75rem', borderRadius: '6px', textTransform: 'uppercase' }}>{op}</span>
-                    )) || '—'}
+                    {i.crud?.split(',').filter(Boolean).map(op => {
+                      const crudInfo = getPicklistInfo('integration_crud', op);
+                      return (
+                        <span key={op} style={{ fontSize: '0.875rem', fontWeight: 800, background: crudInfo?.color !== 'var(--secondary)' ? crudInfo?.color : 'var(--primary)', color: crudInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', padding: '0.25rem 0.75rem', borderRadius: '6px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
+                      )
+                    }) || '—'}
                   </div>
                 </div>
               </div>

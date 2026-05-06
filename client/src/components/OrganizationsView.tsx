@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layers, PlusCircle, LayoutGrid, List, Search, Download, Trash2, Edit2, ChevronRight, Boxes } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App'; // Need to export useLocalStorage from App.tsx or duplicate
 
 interface Organization {
@@ -12,9 +13,17 @@ interface Organization {
   children?: Organization[];
 }
 
-const OrgNode = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefresh: () => void, depth?: number }) => {
+const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, value: string | undefined) => {
+  if (!value) return null;
+  const list = picklists?.find(p => p.name === picklistName);
+  const option = list?.options?.find((o: any) => o.value === String(value));
+  return option || { label: value, color: 'var(--secondary)' };
+};
+
+const OrgNode = ({ node, picklists, onRefresh, depth = 0 }: { node: Organization, picklists: any[], onRefresh: () => void, depth?: number }) => {
   const navigate = useNavigate();
   const hasChildren = node.children && node.children.length > 0;
+  const typeInfo = getPicklistInfo(picklists, 'organization_type', node.type);
 
   return (
     <div className={depth === 0 ? "" : "nested-node"} style={{ width: '100%' }}>
@@ -36,9 +45,9 @@ const OrgNode = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefresh
             >
               <Layers size={depth === 0 ? 20 : 16} style={{ color: 'var(--muted-foreground)' }} /> {node.name}
             </span>
-            {node.type && (
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: 'var(--secondary)', color: 'var(--secondary-foreground)', border: '1px solid var(--border)' }}>
-                {node.type}
+            {typeInfo && (
+              <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: typeInfo.color !== 'var(--secondary)' ? typeInfo.color : 'var(--secondary)', color: typeInfo.color !== 'var(--secondary)' ? 'white' : 'var(--secondary-foreground)', textShadow: typeInfo.color !== 'var(--secondary)' ? '0 1px 2px rgba(0,0,0,0.3)' : undefined, border: typeInfo.color === 'var(--secondary)' ? '1px solid var(--border)' : 'none' }}>
+                {typeInfo.label}
               </span>
             )}
           </div>
@@ -60,7 +69,7 @@ const OrgNode = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefresh
             gap: '1rem'
           }}>
             {node.children!.map(child => (
-              <OrgNode key={child.id} node={child} onRefresh={onRefresh} depth={depth + 1} />
+              <OrgNode key={child.id} node={child} picklists={picklists} onRefresh={onRefresh} depth={depth + 1} />
             ))}
           </div>
         )}
@@ -69,9 +78,10 @@ const OrgNode = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefresh
   );
 };
 
-const OrgListRow = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefresh: () => void, depth?: number }) => {
+const OrgListRow = ({ node, picklists, onRefresh, depth = 0 }: { node: Organization, picklists: any[], onRefresh: () => void, depth?: number }) => {
   const navigate = useNavigate();
   const hasChildren = node.children && node.children.length > 0;
+  const typeInfo = getPicklistInfo(picklists, 'organization_type', node.type);
 
   return (
     <>
@@ -90,14 +100,14 @@ const OrgListRow = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefr
           </div>
         </td>
         <td style={{ padding: '1rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>{node.type || '—'}</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: typeInfo?.color !== 'var(--secondary)' ? typeInfo?.color : 'var(--muted-foreground)' }}>{typeInfo?.label || '—'}</span>
         </td>
         <td style={{ padding: '1rem', fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
           {node.description || '—'}
         </td>
       </tr>
       {hasChildren && node.children!.map(child => (
-        <OrgListRow key={child.id} node={child} onRefresh={onRefresh} depth={depth + 1} />
+        <OrgListRow key={child.id} node={child} picklists={picklists} onRefresh={onRefresh} depth={depth + 1} />
       ))}
     </>
   );
@@ -106,6 +116,7 @@ const OrgListRow = ({ node, onRefresh, depth = 0 }: { node: Organization, onRefr
 export const OrganizationsView = ({ organizations, onRefresh }: { organizations: Organization[], onRefresh: () => void }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_organizations_view', 'grid');
+  const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
 
   const orgTree = React.useMemo(() => {
     if (!Array.isArray(organizations)) return [];
@@ -143,7 +154,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
         <div className="masonry-grid">
           {orgTree.map(org => (
             <div key={org.id} className="masonry-item">
-              <OrgNode node={org} onRefresh={onRefresh} />
+              <OrgNode node={org} picklists={picklists || []} onRefresh={onRefresh} />
             </div>
           ))}
         </div>
@@ -160,7 +171,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
             </thead>
             <tbody>
               {orgTree.map(org => (
-                <OrgListRow key={org.id} node={org} onRefresh={onRefresh} />
+                <OrgListRow key={org.id} node={org} picklists={picklists || []} onRefresh={onRefresh} />
               ))}
             </tbody>
           </table>

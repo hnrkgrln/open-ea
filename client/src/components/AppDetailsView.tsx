@@ -105,7 +105,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
               </div>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{app.name}</h1>
-                <LifecycleBadge lifecycle={app.lifecycle} />
+                <LifecycleBadge lifecycle={app.lifecycle} color={getPicklistInfo('lifecycle', app.lifecycle).color} />
               </div>
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {app.description || 'No description provided for this application.'}
@@ -221,14 +221,14 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '8px' }}><Tag size={18} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>App Type</span>
-                      <span style={{ fontWeight: 700 }}>{app.type || 'Internal'}</span>
+                      <span style={{ fontWeight: 700, color: getPicklistInfo('application_type', app.type).color }}>{getPicklistInfo('application_type', app.type).label || app.type || 'Internal'}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '8px' }}><Activity size={18} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Lifecycle</span>
-                      <span style={{ fontWeight: 700 }}>{app.lifecycle || 'Discovery'}</span>
+                      <span style={{ fontWeight: 700, color: getPicklistInfo('lifecycle', app.lifecycle).color }}>{getPicklistInfo('lifecycle', app.lifecycle).label || app.lifecycle || 'Discovery'}</span>
                       {(app.lifecycleStartDate || app.lifecycleEndDate) && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
                           {app.lifecycleStartDate && <span>Starts: {app.lifecycleStartDate.split('T')[0]}</span>}
