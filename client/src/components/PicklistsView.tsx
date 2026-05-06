@@ -304,12 +304,11 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
                       : `Managing allowed values for ${selectedPicklist.name}`}
                   </p>
                 </div>
-                {isScalePicklist && (
-                  <EditRangePicklistDialog 
-                    picklist={selectedPicklist} 
-                    onSuccess={() => queryClient.invalidateQueries({ queryKey: ['picklists'] })} 
-                  />
-                )}
+                <EditRangePicklistDialog 
+                  picklist={selectedPicklist} 
+                  isScale={isScalePicklist}
+                  onSuccess={() => queryClient.invalidateQueries({ queryKey: ['picklists'] })} 
+                />
               </div>
 
               {isScalePicklist ? (
@@ -327,70 +326,20 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
                   </div>
                 </div>
               ) : (
-                <>
-                  <div style={{ marginBottom: '3rem' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                          <th style={{ padding: '1rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Color</th>
-                          <th style={{ padding: '1rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Label</th>
-                          <th style={{ padding: '1rem', fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Value</th>
-                          <th style={{ padding: '1rem', textAlign: 'right' }}></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {selectedPicklist.options.map(opt => (
-                          <tr key={opt.id} style={{ borderBottom: '1px solid var(--border)' }} className="row-hover">
-                            <td style={{ padding: '1rem' }}>
-                              <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: opt.color || '#adb5bd', border: '1px solid var(--border)' }} />
-                            </td>
-                            <td style={{ padding: '1rem', fontSize: '0.925rem', fontWeight: 600 }}>{opt.label}</td>
-                            <td style={{ padding: '1rem', fontSize: '0.875rem', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{opt.value}</td>
-                            <td style={{ padding: '1rem', textAlign: 'right' }}>
-                              <button onClick={() => handleDeleteOption(opt.id)} style={{ border: 'none', background: 'transparent', color: 'var(--destructive)', padding: '0.5rem', cursor: 'pointer' }}>
-                                <Trash2 size={18} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  <div style={{ background: 'var(--background)', padding: '2rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.5rem' }}>Add New Allowed Value</h3>
-                    <form onSubmit={handleAddOption} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr auto', gap: '1.5rem', alignItems: 'flex-end' }}>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label className="label">Badge Color</label>
-                        <input 
-                          type="color" 
-                          value={newColor} 
-                          onChange={(e) => setNewColor(e.target.value)} 
-                          style={{ width: '60px', height: '3rem', padding: '4px', cursor: 'pointer' }}
-                        />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                  {selectedPicklist.options.map(opt => (
+                    <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                      <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: opt.color || '#adb5bd', border: '1px solid var(--border)', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 700, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt.label}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt.value}</div>
                       </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label className="label">Display Label</label>
-                        <input 
-                          value={newLabel}
-                          onChange={(e) => {
-                            setNewLabel(e.target.value);
-                            if (!newValue) setNewValue(e.target.value.replace(/\s+/g, '_').toLowerCase());
-                          }}
-                          placeholder="e.g. High Priority" required 
-                          style={{ height: '3rem' }}
-                        />
-                      </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label className="label">Database Value</label>
-                        <input value={newValue} onChange={(e) => setNewValue(e.target.value)} placeholder="e.g. high_priority" required style={{ height: '3rem' }} />
-                      </div>
-                      <button type="submit" className="primary" style={{ height: '3rem', padding: '0 1.5rem' }}>
-                        <Plus size={18} /> Add Option
-                      </button>
-                    </form>
-                  </div>
-                </>
+                    </div>
+                  ))}
+                  {selectedPicklist.options.length === 0 && (
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', padding: '1rem' }}>No options defined yet.</div>
+                  )}
+                </div>
               )}
             </div>
           ) : activeTab === 'metadata' ? (
