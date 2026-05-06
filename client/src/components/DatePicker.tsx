@@ -87,6 +87,11 @@ export const DatePicker = ({ value, onChange, label, placeholder = 'YYYY-MM-DD' 
               mode="single" 
               selected={selectedDate} 
               onSelect={handleSelect}
+              showOutsideDays
+              fixedWeeks
+              captionLayout="dropdown"
+              startMonth={new Date(2000, 0)}
+              endMonth={new Date(2050, 11)}
             />
           </Popover.Content>
         </Popover.Portal>
