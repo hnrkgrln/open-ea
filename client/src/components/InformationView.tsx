@@ -128,7 +128,8 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
                     <button onClick={(e) => { e.stopPropagation(); navigate(`/information/${io.id}/edit`); }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={14} /></button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
