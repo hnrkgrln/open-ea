@@ -221,42 +221,52 @@ export const EditAppPage = () => {
               <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <Info size={18} /> Basic Information
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
-                <div className="field" style={{ gridColumn: 'span 2' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">Application Name</label>
                   <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '1rem', fontSize: '1.25rem', fontWeight: 600 }} placeholder="e.g. Core Banking System" />
                 </div>
-                <div className="field" style={{ gridColumn: 'span 2' }}>
+                <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">Description</label>
                   <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '1rem' }} placeholder="Purpose and primary functions..." />
                 </div>
-                <div className="field">
-                  <label className="label">Business Owner</label>
-                  <input value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} placeholder="Department or Role" />
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Business Owner</label>
+                    <input value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} placeholder="Department or Role" />
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Application Type</label>
+                    <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
+                      <option value="">Select Type...</option>
+                      {picklists?.find(p => p.name === 'application_type')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
                 </div>
-                <div className="field">
-                  <label className="label">Lifecycle Status</label>
-                  <select value={formData.lifecycle} onChange={e => setFormData({...formData, lifecycle: e.target.value})}>
-                    {picklists?.find(p => p.name === 'lifecycle')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', background: 'rgba(0,0,0,0.02)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Lifecycle Status</label>
+                    <select value={formData.lifecycle} onChange={e => setFormData({...formData, lifecycle: e.target.value})}>
+                      {picklists?.find(p => p.name === 'lifecycle')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: 0 }}>
+                    <DatePicker 
+                      label="Lifecycle Start Date" 
+                      value={formData.lifecycleStartDate} 
+                      onChange={val => setFormData({...formData, lifecycleStartDate: val})} 
+                    />
+                  </div>
+                  <div style={{ marginBottom: 0 }}>
+                    <DatePicker 
+                      label="Lifecycle End Date" 
+                      value={formData.lifecycleEndDate} 
+                      onChange={val => setFormData({...formData, lifecycleEndDate: val})} 
+                    />
+                  </div>
                 </div>
-                <div className="field">
-                  <label className="label">Application Type</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})}>
-                    <option value="">Select Type...</option>
-                    {picklists?.find(p => p.name === 'application_type')?.options.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-                <DatePicker 
-                  label="Lifecycle Start Date" 
-                  value={formData.lifecycleStartDate} 
-                  onChange={val => setFormData({...formData, lifecycleStartDate: val})} 
-                />
-                <DatePicker 
-                  label="Lifecycle End Date" 
-                  value={formData.lifecycleEndDate} 
-                  onChange={val => setFormData({...formData, lifecycleEndDate: val})} 
-                />
               </div>
             </section>
 
@@ -265,8 +275,7 @@ export const EditAppPage = () => {
               <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <ShieldCheck size={18} /> Strategic Assessment
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3rem' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '3rem' }}>
                   {strategicPicklists.map(item => {
                     const isDisabled = item.key === 'criticality' && isFieldDisabled;
                     return (
@@ -294,8 +303,6 @@ export const EditAppPage = () => {
                         </div>
                     );
                   })}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                   {rangeMetaDefs.map(def => (
                     <div key={def.id} className="field">
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
@@ -305,7 +312,6 @@ export const EditAppPage = () => {
                       <input type="range" min={def.min ?? 0} max={def.max ?? 100} step="1" style={{ background: getScaleGradient(def.scaleType) }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
                     </div>
                   ))}
-                </div>
               </div>
             </section>
 
