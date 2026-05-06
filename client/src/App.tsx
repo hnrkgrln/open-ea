@@ -456,10 +456,9 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
       const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
       const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
-      const localCrit = Number(app.criticality || 1);
-      const inheritedCrit = (app.capabilities && app.capabilities.length > 0) 
-        ? String(Math.max(localCrit, ...app.capabilities.map(c => Number(c.criticality || 1))))
-        : String(localCrit);
+      const capScores = (app.capabilities || []).map((c: any) => Number(c.criticality)).filter((n: number) => !isNaN(n) && n > 0);
+      const isInherited = capScores.length > 0;
+      const inheritedCrit = isInherited ? String(Math.max(...capScores)) : String(app.criticality || 1);
 
       const matchCrit = filters.criticality.length === 0 || filters.criticality.includes(inheritedCrit);
 
@@ -606,10 +605,9 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
         <div className="grid">
           {filteredApps.map(app => {
             const meta = safeJsonParse(app.metadata);
-            const isInherited = app.capabilities && app.capabilities.length > 0;
-            const inheritedCrit = isInherited 
-              ? String(Math.max(...app.capabilities!.map(c => Number(c.criticality || 1))))
-              : app.criticality;
+            const capScores = (app.capabilities || []).map((c: any) => Number(c.criticality)).filter((n: number) => !isNaN(n) && n > 0);
+            const isInherited = capScores.length > 0;
+            const inheritedCrit = isInherited ? String(Math.max(...capScores)) : String(app.criticality || 1);
 
             return (
               <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer' }}>
@@ -659,12 +657,11 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Name</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Owner</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Type</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Status</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Lifecycle</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Capabilities</th><th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th></tr></thead>
-            <tbody>{filteredApps.map(app => {
+            {filteredApps.map(app => {
               const meta = safeJsonParse(app.metadata);
-              const isInherited = app.capabilities && app.capabilities.length > 0;
-              const inheritedCrit = isInherited 
-                ? String(Math.max(...app.capabilities!.map(c => Number(c.criticality || 1))))
-                : app.criticality;
+              const capScores = (app.capabilities || []).map((c: any) => Number(c.criticality)).filter((n: number) => !isNaN(n) && n > 0);
+              const isInherited = capScores.length > 0;
+              const inheritedCrit = isInherited ? String(Math.max(...capScores)) : String(app.criticality || 1);
 
               return (
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
