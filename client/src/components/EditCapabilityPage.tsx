@@ -203,8 +203,9 @@ export const EditCapabilityPage = () => {
               <div className="field">
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                   <label className="label" style={{ fontSize: '1.125rem', fontWeight: 700 }}>Business Criticality</label>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, color: criticalityOptions.find((o:any) => o.value === formData.criticality)?.color }}>
-                    {criticalityOptions.find((o:any) => o.value === formData.criticality)?.label}
+                  <div style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    {criticalityOptions.find((o:any) => o.value === formData.criticality)?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: criticalityOptions.find((o:any) => o.value === formData.criticality)?.color }} />}
+                    {criticalityOptions.find((o:any) => o.value === formData.criticality)?.label || '1 - Low'}
                   </div>
                 </div>
                 <input type="range" min="1" max="5" step="1" style={{ background: getScaleGradient('importance') }} value={formData.criticality} onChange={e => setFormData({...formData, criticality: e.target.value})} />

@@ -135,11 +135,11 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Integration Pattern</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: getPicklistInfo('integration_pattern', i.pattern)?.color !== 'var(--secondary)' ? getPicklistInfo('integration_pattern', i.pattern)?.color : 'var(--foreground)' }}>{getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || '—'}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{getPicklistInfo('integration_pattern', i.pattern)?.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('integration_pattern', i.pattern)?.color }} />}{getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || '—'}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Frequency</div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: getPicklistInfo('integration_frequency', i.frequency)?.color !== 'var(--secondary)' ? getPicklistInfo('integration_frequency', i.frequency)?.color : 'var(--foreground)' }}>{getPicklistInfo('integration_frequency', i.frequency)?.label || i.frequency || '—'}</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{getPicklistInfo('integration_frequency', i.frequency)?.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('integration_frequency', i.frequency)?.color }} />}{getPicklistInfo('integration_frequency', i.frequency)?.label || i.frequency || '—'}</div>
                 </div>
                 <div style={{ gridColumn: 'span 2' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operations</div>

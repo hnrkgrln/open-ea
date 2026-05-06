@@ -122,7 +122,10 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                     return (
                       <div style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Business Criticality</div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: info.color }}>{info.label}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {info.color && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: info.color }} />}
+                            {info.label}
+                        </div>
                         <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
                       </div>
                     );

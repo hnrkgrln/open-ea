@@ -100,7 +100,10 @@ const OrgListRow = ({ node, picklists, onRefresh, depth = 0 }: { node: Organizat
           </div>
         </td>
         <td style={{ padding: '1rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: typeInfo?.color !== 'var(--secondary)' ? typeInfo?.color : 'var(--muted-foreground)' }}>{typeInfo?.label || '—'}</span>
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            {typeInfo?.color && typeInfo.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: typeInfo.color }} />}
+            {typeInfo?.label || '—'}
+          </span>
         </td>
         <td style={{ padding: '1rem', fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
           {node.description || '—'}

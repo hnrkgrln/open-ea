@@ -649,7 +649,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
                 <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description || 'No description provided.'}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: 'auto' }}>
                   <div><strong>Owner:</strong> {ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || 'Unassigned'}</div>
-                  <div><strong>Type:</strong> <span style={{ fontWeight: 600, color: appTypeOptions.find((o: any) => o.value === app.type)?.color }}>{appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
+                  <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.color && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: appTypeOptions.find((o: any) => o.value === app.type)?.color }} />} {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
                 </div>
               </div>
             );
@@ -670,7 +670,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Database size={14} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, color: appTypeOptions.find((o: any) => o.value === app.type)?.color }}>{appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || '—'}</td>
+                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600 }}>{(() => { const opt = appTypeOptions.find((o: any) => o.value === app.type); return opt ? <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: opt.color }} />{opt.label}</div> : (app.type || '—'); })()}</td>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       {allRangeFields.map(def => {

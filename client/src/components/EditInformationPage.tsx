@@ -218,7 +218,8 @@ export const EditInformationPage = () => {
                     <div key={cia.key} className="field">
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                         <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{cia.label}</label>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 800, color: opt?.color }}>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {opt?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: opt.color }} />}
                             {opt?.label || `${currentVal} - Not Set`}
                         </div>
                         </div>
@@ -238,7 +239,8 @@ export const EditInformationPage = () => {
                 <div className="field" style={{ marginTop: '1rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                     <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>PII Category</label>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 800, color: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }}>
+                    <div style={{ fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      {piiOptions.find((o:any) => o.value === formData.piiCategory)?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }} />}
                       {piiOptions.find((o:any) => o.value === formData.piiCategory)?.label || `${formData.piiCategory} - Not Set`}
                     </div>
                   </div>

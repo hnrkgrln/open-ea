@@ -1,5 +1,6 @@
 import React from 'react';
 import { clsx } from 'clsx';
+import { getContrastColor } from '../utils/colors';
 
 interface Props {
   lifecycle: string;
@@ -10,6 +11,7 @@ interface Props {
 
 export const LifecycleBadge = ({ lifecycle, color, className, style }: Props) => {
   const lc = lifecycle?.toLowerCase() || 'discovery';
+  const textColor = color ? getContrastColor(color) : undefined;
   
   return (
     <span 
@@ -21,8 +23,9 @@ export const LifecycleBadge = ({ lifecycle, color, className, style }: Props) =>
       style={{
         ...style,
         backgroundColor: color || undefined,
-        color: color ? 'white' : undefined,
-        textShadow: color ? '0 1px 2px rgba(0,0,0,0.3)' : undefined
+        color: textColor,
+        textShadow: color && textColor === '#ffffff' ? '0 1px 2px rgba(0,0,0,0.3)' : undefined,
+        border: color && textColor === '#000000' ? '1px solid rgba(0,0,0,0.15)' : undefined
       }}
     >
       {lifecycle || 'Discovery'}

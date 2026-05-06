@@ -38,7 +38,10 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
             <Share2 size={18} style={{ color: '#e67700' }} />
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>{item.name}</h3>
           </div>
-          <div style={{ fontSize: '0.75rem', color: typeInfo.color !== 'var(--muted-foreground)' ? typeInfo.color : 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>{typeInfo.label || item.type || 'Data Concept'}</div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            {typeInfo.color !== 'var(--muted-foreground)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: typeInfo.color }} />}
+            {typeInfo.label || item.type || 'Data Concept'}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button onClick={() => navigate(`/information/${item.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
@@ -119,7 +122,10 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
                 <tr key={io.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/information/${io.id}`)}>
                   <td style={{ padding: '1rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.925rem' }}>{io.name}</div>
-                    <div style={{ fontSize: '0.7rem', color: listTypeInfo?.color || 'var(--muted-foreground)' }}>{listTypeInfo?.label || io.type}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      {listTypeInfo?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: listTypeInfo.color }} />}
+                      {listTypeInfo?.label || io.type}
+                    </div>
                   </td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{getLabel('cia_scale', io.confidentiality || '1')}</td>
                   <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{getLabel('pii_category', io.piiCategory || '1')}</td>

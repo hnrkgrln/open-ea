@@ -123,7 +123,10 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                     return (
                       <div key={score.label} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                         <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.5rem', textTransform: 'uppercase', textAlign: 'center' }}>{score.label}</div>
-                        <div style={{ fontSize: '1.125rem', fontWeight: 800, color: info.color }}>{info.label.split(' - ')[0]}</div>
+                        <div style={{ fontSize: '1.125rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {info.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.color }} />}
+                            {info.label.split(' - ')[0]}
+                        </div>
                         <div style={{ marginTop: '0.5rem', width: '40px', height: '4px', borderRadius: '2px', background: info.color }} />
                         <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.4rem' }}>{info.label.split(' - ')[1] || ''}</div>
                       </div>

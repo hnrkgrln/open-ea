@@ -286,7 +286,8 @@ export const EditAppPage = () => {
                                 {isDisabled && <span style={{ fontSize: '0.7rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM CAPABILITIES</span>}
                                 {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
                             </div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 800, color: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }}>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {item.options.find((o:any) => o.value === (formData as any)[item.key])?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }} />}
                             {item.options.find((o:any) => o.value === (formData as any)[item.key])?.label}
                             </div>
                         </div>

@@ -134,7 +134,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     return (
                       <div key={score.label} style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                         <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>{score.label}</div>
-                        <div style={{ fontSize: '1.125rem', fontWeight: 800, color: info.color }}>{info.label}</div>
+                        <div style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {info.color && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: info.color }} />}
+                            {info.label}
+                        </div>
                         {score.inherited && <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px', marginTop: '0.25rem' }}>INHERITED</div>}
                         <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
                       </div>
@@ -221,14 +224,14 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '8px' }}><Tag size={18} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>App Type</span>
-                      <span style={{ fontWeight: 700, color: getPicklistInfo('application_type', app.type).color }}>{getPicklistInfo('application_type', app.type).label || app.type || 'Internal'}</span>
+                      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>{getPicklistInfo('application_type', app.type).color !== 'var(--muted-foreground)' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('application_type', app.type).color }} />} {getPicklistInfo('application_type', app.type).label || app.type || 'Internal'}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: '8px' }}><Activity size={18} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Lifecycle</span>
-                      <span style={{ fontWeight: 700, color: getPicklistInfo('lifecycle', app.lifecycle).color }}>{getPicklistInfo('lifecycle', app.lifecycle).label || app.lifecycle || 'Discovery'}</span>
+                      <span style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>{getPicklistInfo('lifecycle', app.lifecycle).color !== 'var(--muted-foreground)' && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('lifecycle', app.lifecycle).color }} />} {getPicklistInfo('lifecycle', app.lifecycle).label || app.lifecycle || 'Discovery'}</span>
                       {(app.lifecycleStartDate || app.lifecycleEndDate) && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
                           {app.lifecycleStartDate && <span>Starts: {app.lifecycleStartDate.split('T')[0]}</span>}
