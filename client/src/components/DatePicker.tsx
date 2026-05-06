@@ -32,7 +32,6 @@ export const DatePicker = ({ value, onChange, label, placeholder = 'YYYY-MM-DD' 
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           style={{ 
-            fontFamily: 'monospace', 
             paddingRight: '2.5rem',
             width: '100%',
             marginTop: 0
@@ -44,22 +43,18 @@ export const DatePicker = ({ value, onChange, label, placeholder = 'YYYY-MM-DD' 
           onClick={handleIconClick}
           style={{
             position: 'absolute',
-            right: '0.25rem',
+            right: '0.5rem',
             background: 'transparent',
             border: 'none',
-            padding: '0.25rem',
-            height: 'auto',
-            cursor: 'pointer',
-            color: 'var(--muted-foreground)',
+            padding: 0,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'color 0.2s',
+            color: 'var(--muted-foreground)',
+            cursor: 'pointer'
           }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--foreground)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--muted-foreground)'}
         >
-          <Calendar size={18} />
+          <Calendar size={16} />
         </button>
         
         {/* Hidden native date picker */}
