@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Network, PlusCircle, ArrowRight, Trash2, Edit2, ShieldAlert } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
+import { getContrastColor } from '../utils/colors';
 
 interface Integration {
   id: string;
@@ -64,13 +65,21 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
                     <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--primary)' }}>{i.payload?.name || '—'}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--muted-foreground)' }}>
-                      <span style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: patternInfo?.color !== 'var(--secondary)' ? patternInfo?.color : 'var(--secondary)', color: patternInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--secondary-foreground)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{patternInfo?.label || i.pattern || 'API'}</span>
+                      {(() => {
+                        const hasColor = patternInfo?.color && patternInfo.color !== 'var(--secondary)';
+                        const bg = hasColor ? patternInfo!.color : 'var(--secondary)';
+                        const text = hasColor ? getContrastColor(patternInfo!.color) : 'var(--secondary-foreground)';
+                        return <span style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: bg, color: text, padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{patternInfo?.label || i.pattern || 'API'}</span>;
+                      })()}
                       <ArrowRight size={14} style={{ opacity: 0.3 }} />
                       <div style={{ display: 'flex', gap: '0.2rem' }}>
                         {i.crud?.split(',').filter(Boolean).map(op => {
                           const crudInfo = getPicklistInfo(picklists, 'integration_crud', op);
+                          const hasColor = crudInfo?.color && crudInfo.color !== 'var(--secondary)';
+                          const bg = hasColor ? crudInfo!.color : 'var(--primary)';
+                          const text = hasColor ? getContrastColor(crudInfo!.color) : 'var(--primary-foreground)';
                           return (
-                          <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: crudInfo?.color !== 'var(--secondary)' ? crudInfo?.color : 'var(--primary)', color: crudInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{crudInfo?.label || op}</span>
+                          <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', background: bg, color: text, padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{crudInfo?.label || op}</span>
                         )})}
                       </div>
                     </div>

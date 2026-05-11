@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Info, Share2, Trash2, Edit2, ShieldCheck, Database, Plus } from 'lucide-react';
+import { ChevronLeft, Info, Share2, FileText, Trash2, Edit2, ShieldCheck, Database, Plus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ColoredSelect } from './ColoredSelect';
+import { CustomCheckbox } from './CustomCheckbox';
+import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -30,7 +33,7 @@ export const EditInformationPage = () => {
   const isNew = !id || id === 'new' || id === 'undefined';
 
   const [loading, setLoading] = useState(false);
-  const [initialized, setInitialized] = useState(false);
+  const [hydrated, setHydrated] = useState(isNew);
   const [formData, setFormData] = useState({
     name: '',
     aliases: '',
@@ -44,6 +47,7 @@ export const EditInformationPage = () => {
     appOwnerId: '' as string | null
   });
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
+  const [references, setReferences] = useState<Reference[]>([]);
 
   const { data: item, isLoading: isItemLoading } = useQuery({
     queryKey: ['information-object', id],
@@ -60,8 +64,12 @@ export const EditInformationPage = () => {
   const piiOptions = picklists?.find(p => p.name === 'pii_category')?.options || [];
   const typeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
 
-  useEffect(() => {
-    if (item && !isNew && !initialized) {
+  // Populate formData from the DB before the form mounts. We gate rendering on
+  // `hydrated` below so Radix Select instances never see stale default values —
+  // they mount once with the correct DB-backed value, avoiding the case where
+  // a placeholder briefly registers and overwrites the real selection.
+  useLayoutEffect(() => {
+    if (item && !isNew && !hydrated) {
       setFormData({
         name: item.name || '',
         aliases: item.aliases || '',
@@ -75,9 +83,10 @@ export const EditInformationPage = () => {
         appOwnerId: item.appOwnerId || ''
       });
       setDynamicValues(safeJsonParse(item.metadata));
-      setInitialized(true);
+      setReferences(parseReferences(item.references));
+      setHydrated(true);
     }
-  }, [item, isNew, initialized]);
+  }, [item, isNew, hydrated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,9 +95,10 @@ export const EditInformationPage = () => {
       return;
     }
     setLoading(true);
-    const payload = { 
-      ...formData, 
+    const payload = {
+      ...formData,
       metadata: JSON.stringify(dynamicValues),
+      references: serializeReferences(references),
       businessOwnerId: formData.businessOwnerId === '' ? null : formData.businessOwnerId,
       appOwnerId: formData.appOwnerId === '' ? null : formData.appOwnerId
     };
@@ -127,7 +137,12 @@ export const EditInformationPage = () => {
     } catch (err) { console.error(err); }
   };
 
-  if (!isNew && isItemLoading) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
+  // Don't render the form until both the item AND the lookup data are loaded,
+  // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
+  // default values that then get committed back, overwriting real DB values.
+  if (!isNew && (isItemLoading || !item)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
+  if (!picklists || !organizations || !apps) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
+  if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
   const infoMetaDefs = metaDefs?.filter(d => d.entityType === 'InformationObject') || [];
 
@@ -153,7 +168,7 @@ export const EditInformationPage = () => {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#e67700', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Share2 size={12} /> Information Object
+                  <FileText size={12} /> Information Object
                 </span>
               </div>
               <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Data Concept' : item?.name}</h1>
@@ -188,9 +203,11 @@ export const EditInformationPage = () => {
                 </div>
                 <div className="field">
                   <label className="label">Information Type</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {typeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <ColoredSelect
+                    value={formData.type}
+                    onChange={(val) => setFormData({ ...formData, type: val })}
+                    options={typeOptions}
+                  />
                 </div>
               </div>
             </section>
@@ -250,7 +267,7 @@ export const EditInformationPage = () => {
                     max={Math.max(0, piiOptions.length - 1)} 
                     step="1" 
                     style={{ background: getScaleGradient('pii') }} 
-                    value={piiOptions.findIndex(o => o.value === formData.piiCategory)} 
+                    value={piiOptions.findIndex((o: { value: string }) => o.value === formData.piiCategory)}
                     onChange={e => {
                         const idx = parseInt(e.target.value);
                         if (piiOptions[idx]) {
@@ -269,18 +286,20 @@ export const EditInformationPage = () => {
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                 <div className="field">
-                  <label className="label">Business Owner (Organization/Role)</label>
-                  <select value={formData.businessOwnerId || ''} onChange={e => setFormData({...formData, businessOwnerId: e.target.value || null})} style={{ padding: '0.75rem' }}>
-                    <option value="">Select Owner...</option>
-                    {Array.isArray(organizations) && organizations.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                  </select>
+                  <label className="label">Business Owner (Organization)</label>
+                  <ColoredSelect
+                    value={formData.businessOwnerId || ''}
+                    onChange={(val) => setFormData({ ...formData, businessOwnerId: val || null })}
+                    options={[{ value: '', label: 'Select Owner...' }, ...((Array.isArray(organizations) ? organizations : []).map((o: any) => ({ value: o.id, label: o.name })))]}
+                  />
                 </div>
                 <div className="field">
                   <label className="label">Source of Truth (Primary Application)</label>
-                  <select value={formData.appOwnerId || ''} onChange={e => setFormData({...formData, appOwnerId: e.target.value || null})} style={{ padding: '0.75rem' }}>
-                    <option value="">Select System...</option>
-                    {Array.isArray(apps) && apps.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <ColoredSelect
+                    value={formData.appOwnerId || ''}
+                    onChange={(val) => setFormData({ ...formData, appOwnerId: val || null })}
+                    options={[{ value: '', label: 'Select System...' }, ...((Array.isArray(apps) ? apps : []).map((a: any) => ({ value: a.id, label: a.name })))]}
+                  />
                 </div>
               </div>
             </section>
@@ -291,23 +310,42 @@ export const EditInformationPage = () => {
                 <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <Edit2 size={18} /> Extended Metadata
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem', background: 'var(--card)', padding: '2rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
                   {infoMetaDefs.map(def => (
-                    <div key={def.id} className="field">
-                      <label className="label">{def.label}</label>
+                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.75rem' }}>
                       {def.fieldType === 'range' ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                          <input type="range" min={def.min ?? 0} max={def.max ?? 100} style={{ background: getScaleGradient(def.scaleType || 'neutral') }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
-                          <span style={{ fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                          <label className="label" style={{ marginBottom: '1rem' }}>{def.label}</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input type="range" min={def.min ?? 0} max={def.max ?? 100} style={{ background: getScaleGradient(def.scaleType || 'neutral') }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
+                            <span style={{ fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
+                          </div>
                         </div>
+                      ) : def.fieldType === 'boolean' ? (
+                        <>
+                          <CustomCheckbox 
+                            checked={!!dynamicValues[def.fieldName]} 
+                            onChange={checked => setDynamicValues({...dynamicValues, [def.fieldName]: checked})} 
+                          />
+                          <label className="label" style={{ margin: 0, cursor: 'pointer' }}>{def.label}</label>
+                        </>
                       ) : (
-                        <input value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} />
+                        <>
+                          <label className="label" style={{ marginBottom: '0.2rem' }}>{def.label}</label>
+                          {def.fieldType === 'textarea' ? (
+                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0 }} />
+                          ) : (
+                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0 }} />
+                          )}
+                        </>
                       )}
                     </div>
                   ))}
                 </div>
               </section>
             )}
+
+            <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>

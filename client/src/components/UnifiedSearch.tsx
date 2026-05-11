@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Search, Database, Boxes, X, Share2, Layers, Network, ArrowRight } from 'lucide-react';
+import { Search, Database, Boxes, X, FileText, Layers, Network, ArrowRight } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -83,7 +83,7 @@ export const UnifiedSearch = ({}: Props) => {
       >
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <Search size={16} />
-          <span style={{ fontSize: '0.875rem' }}>Search inventory...</span>
+          <span style={{ fontSize: '0.875rem' }}>Search everything...</span>
         </div>
         <kbd style={{ fontSize: '0.75rem', background: 'var(--muted)', padding: '0.1rem 0.3rem', borderRadius: '4px', opacity: 0.7 }}>⌘K</kbd>
       </button>
@@ -104,7 +104,7 @@ export const UnifiedSearch = ({}: Props) => {
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
                 <input 
                   autoFocus
-                  placeholder="Type to search everything..." 
+                  placeholder="Search everything..."
                   value={query}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -142,7 +142,7 @@ export const UnifiedSearch = ({}: Props) => {
             <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '0.5rem' }}>
               {!query && (
                 <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-                  Search for apps, capabilities, info or roles...
+                  Search for apps, capabilities, info or organizations...
                 </div>
               )}
 
@@ -211,7 +211,7 @@ export const UnifiedSearch = ({}: Props) => {
                   {results?.organizations?.length > 0 && (
                     <div style={{ marginBottom: '1rem' }}>
                       <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Layers size={12} /> Organizations & Roles
+                        <Layers size={12} /> Organizations
                       </div>
                       {results.organizations.map((org: any, idx: number) => {
                         const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + idx;
@@ -241,7 +241,7 @@ export const UnifiedSearch = ({}: Props) => {
                   {results?.informationObjects?.length > 0 && (
                     <div style={{ marginBottom: '1rem' }}>
                       <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Share2 size={12} /> Information Objects
+                        <FileText size={12} /> Information Objects
                       </div>
                       {results.informationObjects.map((io: any, idx: number) => {
                         const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + idx;

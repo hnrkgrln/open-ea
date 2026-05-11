@@ -83,11 +83,9 @@ async function seedPicklist(name: string, label: string, options: any[]) {
   await seedPicklist('cia_scale', 'CIA Scale', ciaOptions);
 
   await seedPicklist('organization_type', 'Organization Type', [
-    { value: 'Department', label: 'Department' },
     { value: 'Division', label: 'Division' },
-    { value: 'Role', label: 'Role' },
+    { value: 'Department', label: 'Department' },
     { value: 'Team', label: 'Team' },
-    { value: 'Person', label: 'Person' },
   ]);
 
   await seedPicklist('pii_category', 'PII Category', [

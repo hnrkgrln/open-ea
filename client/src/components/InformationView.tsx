@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Share2, PlusCircle, LayoutGrid, List, Trash2, Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { FileText, PlusCircle, LayoutGrid, List, Trash2, Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 
@@ -35,7 +35,7 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div onClick={() => navigate(`/information/${item.id}`)} style={{ cursor: 'pointer', flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <Share2 size={18} style={{ color: '#e67700' }} />
+            <FileText size={18} style={{ color: '#e67700' }} />
             <h3 style={{ fontSize: '1.125rem', fontWeight: 700, margin: 0 }}>{item.name}</h3>
           </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -82,7 +82,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
     <div>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Share2 size={32} /> Information Model</h1>
+          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><FileText size={32} /> Information Model</h1>
           <p style={{ color: 'var(--muted-foreground)' }}>Conceptual business data objects and compliance metadata.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>

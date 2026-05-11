@@ -83,8 +83,13 @@ html, body, #root {
   width: 100%;
 }
 
+html {
+  font-size: 14px;
+}
+
 body {
   font-family: var(--font-sans);
+  font-size: 0.9rem;
   background-color: var(--background);
   color: var(--foreground);
   -webkit-font-smoothing: antialiased;
@@ -94,12 +99,12 @@ body {
 }
 
 .header {
-  height: 4rem;
+  height: 3rem;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2rem;
+  padding: 0 1.25rem;
   background: var(--card);
   z-index: 10;
   flex-shrink: 0;
@@ -108,7 +113,7 @@ body {
 .main-container {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem;
+  padding: 0.75rem 1.25rem;
   width: 100%;
   max-width: 2400px; /* Ultra-wide for EA Tools */
   margin: 0 auto;
@@ -167,8 +172,16 @@ body {
 
 .masonry-grid {
   column-count: 3;
-  column-gap: 1.5rem;
+  column-gap: 1rem;
   width: 100%;
+}
+
+@media (min-width: 1600px) {
+  .masonry-grid { column-count: 4; }
+}
+
+@media (min-width: 2000px) {
+  .masonry-grid { column-count: 5; }
 }
 
 @media (max-width: 1200px) {
@@ -184,15 +197,16 @@ body {
   margin-bottom: 1.5rem;
 }
 
+
 button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius);
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  height: 2.5rem;
-  padding: 0 1rem;
+  height: 2rem;
+  padding: 0 0.75rem;
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s, border-color 0.2s;
   border: 1px solid var(--border);
@@ -208,11 +222,11 @@ button.primary {
 
 input, select, textarea {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.35rem 0.6rem;
   border-radius: var(--radius);
   border: 1px solid var(--input);
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
   background: var(--card);
   color: var(--foreground);
   /* High-contrast theme-adaptive cursor for visibility */
@@ -231,11 +245,11 @@ input:focus, textarea:focus, select:focus {
 }
 
 .field {
-  margin-bottom: 1rem;
+  margin-bottom: 0.6rem;
 }
 
 .label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--foreground);
 }

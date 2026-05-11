@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, FileCode, ShieldCheck, Palette, Database, Boxes, Layers, Share2, Network, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Settings2, FileCode, ShieldCheck, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
 import { useLocalStorage } from '../App';
+import { ColoredSelect } from './ColoredSelect';
 
 interface PicklistOption {
   id: string;
@@ -38,11 +39,13 @@ interface Props {
   onUpdateBrand: (val: string) => void;
   apps: any[];
   capabilities: any[];
+  organizations: any[];
+  informationObjects: any[];
   integrations: any[];
   onRefresh: () => void;
 }
 
-export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, integrations, onRefresh }: Props) => {
+export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, organizations, informationObjects, integrations, onRefresh }: Props) => {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useLocalStorage<'picklists' | 'metadata' | 'branding' | 'import-export'>('openea_settings_tab', 'picklists');
   const [selectedPicklistId, setSelectedPicklistId] = useLocalStorage<string | null>('openea_settings_picklist', null);
@@ -186,7 +189,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
     { 
       id: 'InformationObject', 
       label: 'Information Model', 
-      icon: <Share2 size={16} />, 
+      icon: <FileText size={16} />, 
       picklists: ['information_type', 'pii_category', 'cia_scale'] 
     },
     { 
@@ -394,9 +397,11 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.5rem', marginBottom: '2rem' }}>
                     <div className="field" style={{ margin: 0 }}>
                       <label className="label">Target Artifact</label>
-                      <select value={metaEntity} onChange={(e) => setMetaEntity(e.target.value)} style={{ height: '3rem' }}>
-                        {artifacts.map(art => <option key={art.id} value={art.id}>{art.label}</option>)}
-                      </select>
+                      <ColoredSelect
+                        value={metaEntity}
+                        onChange={setMetaEntity}
+                        options={artifacts.map(art => ({ value: art.id, label: art.label }))}
+                      />
                     </div>
                     <div className="field" style={{ margin: 0 }}>
                       <label className="label">Display Label</label>
@@ -416,14 +421,18 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
                     </div>
                     <div className="field" style={{ margin: 0 }}>
                       <label className="label">Input Type</label>
-                      <select value={metaType} onChange={(e) => setMetaType(e.target.value)} style={{ height: '3rem' }}>
-                        <option value="string">Text (Short)</option>
-                        <option value="textarea">Text (Long)</option>
-                        <option value="number">Number</option>
-                        <option value="range">Range Slider</option>
-                        <option value="date">Date</option>
-                        <option value="boolean">Boolean (Checkbox)</option>
-                      </select>
+                      <ColoredSelect
+                        value={metaType}
+                        onChange={setMetaType}
+                        options={[
+                          { value: 'string', label: 'Text (Short)' },
+                          { value: 'textarea', label: 'Text (Long)' },
+                          { value: 'number', label: 'Number' },
+                          { value: 'range', label: 'Range Slider' },
+                          { value: 'date', label: 'Date' },
+                          { value: 'boolean', label: 'Boolean (Checkbox)' },
+                        ]}
+                      />
                     </div>
                   </div>
 
@@ -439,13 +448,17 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
                       </div>
                       <div className="field" style={{ margin: 0 }}>
                         <label className="label">Scale Color Logic</label>
-                        <select value={metaScale} onChange={(e) => setMetaScale(e.target.value)} style={{ height: '3rem' }}>
-                          <option value="neutral">Neutral (Blue)</option>
-                          <option value="good-bad">Good to Bad (Green to Red)</option>
-                          <option value="bad-good">Bad to Good (Red to Green)</option>
-                          <option value="low-high">Low to High (Light to Dark)</option>
-                          <option value="importance">Low to High (Gray to Purple)</option>
-                        </select>
+                        <ColoredSelect
+                          value={metaScale}
+                          onChange={setMetaScale}
+                          options={[
+                            { value: 'neutral', label: 'Neutral (Blue)' },
+                            { value: 'good-bad', label: 'Good to Bad (Green to Red)' },
+                            { value: 'bad-good', label: 'Bad to Good (Red to Green)' },
+                            { value: 'low-high', label: 'Low to High (Light to Dark)' },
+                            { value: 'importance', label: 'Low to High (Gray to Purple)' },
+                          ]}
+                        />
                       </div>
                     </div>
                   )}
@@ -459,7 +472,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, in
               </div>
             </div>
           ) : activeTab === 'import-export' ? (
-            <ImportExportSettings apps={apps} capabilities={capabilities} integrations={integrations} onRefresh={onRefresh} />
+            <ImportExportSettings apps={apps} capabilities={capabilities} organizations={organizations} informationObjects={informationObjects} integrations={integrations} onRefresh={onRefresh} />
           ) : (
             <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--muted-foreground)' }}>
               Select a configuration category from the sidebar.

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import { Edit2, Layers, ChevronLeft, Database, Share2, Calendar, Info, User, Boxes } from 'lucide-react';
+import { Edit2, Layers, ChevronLeft, Database, FileText, Calendar, Info, User, Boxes } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { ReferencesList } from './References';
 
 interface Props {
   orgId: string | null;
@@ -104,18 +105,18 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
               
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Share2 size={16} /> Owned Information Objects
+                  <FileText size={16} /> Owned Information Objects
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
                   {org.informationObjects && org.informationObjects.length > 0 ? org.informationObjects.map((io: any) => (
                     <div key={io.id} onClick={() => navigate(`/information/${io.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
                       <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
-                        <Share2 size={16} />
+                        <FileText size={16} />
                       </div>
                       <span style={{ fontWeight: 700 }}>{io.name}</span>
                     </div>
                   )) : (
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No information objects currently owned by this role.</div>
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No information objects currently owned by this organization.</div>
                   )}
                 </div>
               </section>
@@ -123,7 +124,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
               {children.length > 0 && (
                 <section>
                   <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <Layers size={16} /> Child Organizations / Roles
+                    <Layers size={16} /> Child Organizations
                   </h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
                     {children.map(child => (
@@ -159,6 +160,8 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
               </section>
             </div>
           </div>
+
+          <ReferencesList raw={org.references} />
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, Share2, Layers } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -21,6 +21,7 @@ import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
 import { SearchInput, MultiSelect } from './components/FilterControls';
+import { ColoredSelect } from './components/ColoredSelect';
 
 // Helper for safe JSON parsing
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -186,21 +187,21 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <header className="header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', flex: 1 }}>
-          <Link to="/apps" className="logo" style={{ textDecoration: 'none' }}>{brandName}</Link>
-          <nav className="nav">
-            <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={16} /> Applications</NavLink>
-            <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Boxes size={16} /> Capabilities</NavLink>
-            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Layers size={16} /> Organizations</NavLink>
-            <NavLink to="/information" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Share2 size={16} /> Information</NavLink>
-            <NavLink to="/integrations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Network size={16} /> Integrations</NavLink>
-            <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</NavLink>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
+          <Link to="/apps" className="logo" style={{ textDecoration: 'none', fontSize: '1.1rem' }}>{brandName}</Link>
+          <nav className="nav" style={{ gap: '1rem' }}>
+            <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Database size={14} /> Applications</NavLink>
+            <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Boxes size={14} /> Capabilities</NavLink>
+            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Layers size={14} /> Organizations</NavLink>
+            <NavLink to="/information" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><FileText size={14} /> Information</NavLink>
+            <NavLink to="/integrations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Network size={14} /> Integrations</NavLink>
           </nav>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <UnifiedSearch />
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem' }}>
+          <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</NavLink>
           <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={18} /> Settings</NavLink>
           <ThemeToggle />
         </div>
@@ -213,38 +214,46 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
 };
 
 // Application Detail Wrapper for Route
+// Default: go "up a level" to the list/index page. This avoids landing on a
+// stale create form after saving. Honor browser history only when the page was
+// opened from a context-rich origin (e.g. a diagram), signaled via location.state.from.
+const useSmartBack = (fallback: string) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return () => {
+    const from = (location.state as { from?: string } | null)?.from;
+    if (from && location.key !== 'default') navigate(-1);
+    else navigate(fallback);
+  };
+};
+
 const AppDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  return <AppDetailsView appId={id || ''} onBack={() => navigate('/apps')} onRefresh={onRefresh} />;
+  return <AppDetailsView appId={id || ''} onBack={useSmartBack('/apps')} onRefresh={onRefresh} />;
 };
 
 // Capability Detail Wrapper for Route
 const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  return <CapabilityDetailsView capabilityId={id || ''} onBack={() => navigate('/capabilities')} onRefresh={onRefresh} />;
+  return <CapabilityDetailsView capabilityId={id || ''} onBack={useSmartBack('/capabilities')} onRefresh={onRefresh} />;
 };
 
 // Organization Detail Wrapper for Route
 const OrganizationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  return <OrganizationDetailsView orgId={id || ''} onBack={() => navigate('/organizations')} onRefresh={onRefresh} />;
+  return <OrganizationDetailsView orgId={id || ''} onBack={useSmartBack('/organizations')} onRefresh={onRefresh} />;
 };
 
 // Information Object Detail Wrapper for Route
 const InformationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  return <InformationDetailsView infoId={id || ''} onBack={() => navigate('/information')} onRefresh={onRefresh} />;
+  return <InformationDetailsView infoId={id || ''} onBack={useSmartBack('/information')} onRefresh={onRefresh} />;
 };
 
 // Integration Detail Wrapper for Route
 const IntegrationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  return <IntegrationDetailsView integrationId={id || ''} onBack={() => navigate('/integrations')} onRefresh={onRefresh} />;
+  return <IntegrationDetailsView integrationId={id || ''} onBack={useSmartBack('/integrations')} onRefresh={onRefresh} />;
 };
 
 const AppContent = () => {
@@ -327,10 +336,11 @@ const AppContent = () => {
         
         {/* Application Routes */}
         <Route path="/apps" element={
-          <InventoryView 
-            apps={apps || []} 
-            onSelectApp={(id) => navigate(`/apps/${id}`)} 
-            onEditApp={(app) => navigate(`/apps/${app.id}/edit`)} 
+          <InventoryView
+            apps={apps || []}
+            capabilities={capabilities || []}
+            onSelectApp={(id) => navigate(`/apps/${id}`)}
+            onEditApp={(app) => navigate(`/apps/${app.id}/edit`)}
             onNewApp={<button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button>}
           />
         } />
@@ -379,13 +389,13 @@ const AppContent = () => {
           />
         } />
         <Route path="/settings" element={
-          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} integrations={integrations || []} onRefresh={handleRefresh} />
+          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} organizations={organizations || []} informationObjects={informationObjects || []} integrations={integrations || []} onRefresh={handleRefresh} />
         } />
       </Routes>
     </Layout>
   );
 };
-const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Application[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
+const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEditApp, onNewApp }: { apps: Application[], capabilities: Capability[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
@@ -456,9 +466,22 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
       const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
       const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
-      const capScores = (app.capabilities || []).map((c: any) => Number(c.criticality)).filter((n: number) => !isNaN(n) && n > 0);
-      const isInherited = capScores.length > 0;
-      const inheritedCrit = isInherited ? String(Math.max(...capScores)) : String(app.criticality || 1);
+      const getRecursiveMaxCrit = (capIds: string[]): number => {
+        let max = 0;
+        capIds.forEach(id => {
+          const cap = allCapabilities.find(c => c.id === id);
+          if (cap) {
+            max = Math.max(max, Number(cap.criticality || 1));
+            const childIds = (allCapabilities.filter(c => c.parentId === id) || []).map(c => c.id);
+            if (childIds.length > 0) max = Math.max(max, getRecursiveMaxCrit(childIds));
+          }
+        });
+        return max;
+      };
+
+      const inheritedCrit = (app.capabilities && app.capabilities.length > 0)
+        ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities.map(c => c.id))))
+        : String(app.criticality || 1);
 
       const matchCrit = filters.criticality.length === 0 || filters.criticality.includes(inheritedCrit);
 
@@ -605,9 +628,24 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
         <div className="grid">
           {filteredApps.map(app => {
             const meta = safeJsonParse(app.metadata);
-            const capScores = (app.capabilities || []).map((c: any) => Number(c.criticality)).filter((n: number) => !isNaN(n) && n > 0);
-            const isInherited = capScores.length > 0;
-            const inheritedCrit = isInherited ? String(Math.max(...capScores)) : String(app.criticality || 1);
+            
+            const getRecursiveMaxCrit = (capIds: string[]): number => {
+              let max = 0;
+              capIds.forEach(id => {
+                const cap = allCapabilities.find(c => c.id === id);
+                if (cap) {
+                  max = Math.max(max, Number(cap.criticality || 1));
+                  const childIds = (allCapabilities.filter(c => c.parentId === id) || []).map(c => c.id);
+                  if (childIds.length > 0) max = Math.max(max, getRecursiveMaxCrit(childIds));
+                }
+              });
+              return max;
+            };
+
+            const isInherited = app.capabilities && app.capabilities.length > 0;
+            const inheritedCrit = isInherited 
+              ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities!.map(c => c.id))))
+              : String(app.criticality || 1);
 
             return (
               <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer' }}>
@@ -660,9 +698,24 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
             <tbody>
             {filteredApps.map(app => {
               const meta = safeJsonParse(app.metadata);
-              const capScores = (app.capabilities || []).map((c: any) => Number(c.criticality)).filter((n: number) => !isNaN(n) && n > 0);
-              const isInherited = capScores.length > 0;
-              const inheritedCrit = isInherited ? String(Math.max(...capScores)) : String(app.criticality || 1);
+              
+              const getRecursiveMaxCrit = (capIds: string[]): number => {
+                let max = 0;
+                capIds.forEach(id => {
+                  const cap = allCapabilities.find(c => c.id === id);
+                  if (cap) {
+                    max = Math.max(max, Number(cap.criticality || 1));
+                    const childIds = (allCapabilities.filter(c => c.parentId === id) || []).map(c => c.id);
+                    if (childIds.length > 0) max = Math.max(max, getRecursiveMaxCrit(childIds));
+                  }
+                });
+                return max;
+              };
+
+              const isInherited = app.capabilities && app.capabilities.length > 0;
+              const inheritedCrit = isInherited 
+                ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities!.map(c => c.id))))
+                : String(app.criticality || 1);
 
               return (
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -703,7 +756,7 @@ const InventoryView = ({ apps, onSelectApp, onEditApp, onNewApp }: { apps: Appli
 
 const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0, forceExpandState }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number, forceExpandState?: { state: boolean, timestamp: number } }) => {
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
   
   useEffect(() => {
@@ -719,7 +772,17 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
   };
   const appCount = useMemo(() => getRecursiveAppIds(node).length, [node]);
   
-  const criticality = criticalityOptions.find(o => o.value === node.criticality);
+  const getEffectiveCapabilityCriticality = (n: Capability): number => {
+    const local = Number(n.criticality || 1);
+    const childMax = n.children && n.children.length > 0 
+      ? Math.max(...n.children.map(c => getEffectiveCapabilityCriticality(c)))
+      : 0;
+    return Math.max(local, childMax);
+  };
+  
+  const effectiveCritValue = String(getEffectiveCapabilityCriticality(node));
+  const criticality = criticalityOptions.find(o => o.value === effectiveCritValue);
+  const isInherited = node.children && node.children.length > 0 && effectiveCritValue !== node.criticality;
 
   return (
     <div className={depth === 0 ? "" : "nested-node"} style={{ width: '100%' }}>
@@ -747,8 +810,8 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
               <Boxes size={depth === 0 ? 20 : 16} style={{ color: 'var(--muted-foreground)' }} /> {node.name}
             </span>
             {criticality && (
-              <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${criticality.color}20`, color: criticality.color, border: `1px solid ${criticality.color}40` }}>
-                {criticality.label}
+              <span title={isInherited ? "Inherited from sub-capability" : "Direct capability attribute"} style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${criticality.color}20`, color: criticality.color, border: isInherited ? `1px dashed ${criticality.color}` : `1px solid ${criticality.color}40` }}>
+                {criticality.label} {isInherited && <span style={{opacity: 0.7}}>(Inherited)</span>}
               </span>
             )}
             <span style={{ fontSize: '0.75rem', background: 'var(--secondary)', color: 'var(--secondary-foreground)', padding: '0.15rem 0.6rem', borderRadius: '12px', fontWeight: 600 }}>
@@ -795,7 +858,18 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
 
 const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
-  const crit = criticalityOptions.find(o => o.value === node.criticality);
+  
+  const getEffectiveCapabilityCriticality = (n: Capability): number => {
+    const local = Number(n.criticality || 1);
+    const childMax = n.children && n.children.length > 0 
+      ? Math.max(...n.children.map(c => getEffectiveCapabilityCriticality(c)))
+      : 0;
+    return Math.max(local, childMax);
+  };
+  
+  const effectiveCritValue = String(getEffectiveCapabilityCriticality(node));
+  const crit = criticalityOptions.find(o => o.value === effectiveCritValue);
+  const isInherited = node.children && node.children.length > 0 && effectiveCritValue !== node.criticality;
   const hasChildren = node.children && node.children.length > 0;
 
   return (
@@ -817,8 +891,8 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
         </td>
         <td style={{ padding: '1rem' }}>
           {crit && (
-            <span style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${crit.color}20`, color: crit.color, border: `1px solid ${crit.color}40` }}>
-              {crit.label}
+            <span title={isInherited ? "Inherited from sub-capability" : "Direct capability attribute"} style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${crit.color}20`, color: crit.color, border: isInherited ? `1px dashed ${crit.color}` : `1px solid ${crit.color}40` }}>
+              {crit.label} {isInherited && <span style={{opacity: 0.7}}>(Inherited)</span>}
             </span>
           )}
         </td>
@@ -843,7 +917,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
   const [isPending, startTransition] = useTransition();
-  const [forceExpandState, setForceExpandState] = useState({ state: true, timestamp: 0 });
+  const [forceExpandState, setForceExpandState] = useState({ state: false, timestamp: 0 });
 
   const handleToggleExpandAll = () => {
     setForceExpandState(prev => ({ state: !prev.state, timestamp: Date.now() }));
@@ -941,6 +1015,41 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
         </div>
       </div>
 
+      {criticalityOptions.length > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1.25rem',
+          flexWrap: 'wrap',
+          marginBottom: '1.5rem',
+          padding: '0.6rem 1rem',
+          background: 'var(--muted)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          fontSize: '0.75rem'
+        }}>
+          <span style={{ fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.06em', fontSize: '0.65rem' }}>Criticality</span>
+          <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap' }}>
+            {criticalityOptions.map((o: any) => (
+              <span key={o.value} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: o.color, flexShrink: 0 }} />
+                <span style={{ color: 'var(--foreground)', fontWeight: 600 }}>{o.label}</span>
+              </span>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '0.85rem', flexWrap: 'wrap', borderLeft: '1px solid var(--border)', paddingLeft: '1.25rem' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} title="Criticality set directly on this capability">
+              <span style={{ width: '14px', height: '10px', border: '1px solid var(--muted-foreground)', borderRadius: '3px', flexShrink: 0 }} />
+              <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct</span>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }} title="Criticality inherited from highest sub-capability">
+              <span style={{ width: '14px', height: '10px', border: '1px dashed var(--muted-foreground)', borderRadius: '3px', flexShrink: 0 }} />
+              <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Inherited from sub-capability</span>
+            </span>
+          </div>
+        </div>
+      )}
+
       {viewMode === 'list' && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
           <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
@@ -1017,6 +1126,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
     criticality: getParamArray('crit'),
     functionalFit: getParamArray('func'),
     technicalFit: getParamArray('tech'),
+    infoType: getParamArray('info'),
     custom: getCustomParams()
   }), [searchParams]);
 
@@ -1036,6 +1146,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
     if (newFilters.criticality !== undefined) setOrRemove('crit', newFilters.criticality);
     if (newFilters.functionalFit !== undefined) setOrRemove('func', newFilters.functionalFit);
     if (newFilters.technicalFit !== undefined) setOrRemove('tech', newFilters.technicalFit);
+    if (newFilters.infoType !== undefined) setOrRemove('info', newFilters.infoType);
     
     if (newFilters.custom !== undefined) {
       // Clear existing custom meta params
@@ -1089,7 +1200,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
 
-  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
+  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => d.fieldType !== 'range' && !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
   const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
@@ -1099,6 +1210,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
   const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
+  const infoTypeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
 
   const scoreFields = [
     { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
@@ -1191,57 +1303,54 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div><h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MapIcon size={24} /> Landscape Diagrams</h1><p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
-            <button onClick={() => setMode('landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={16} style={{ marginRight: '0.5rem' }} /> Capability Landscape</button>
-            <button onClick={() => setMode('app-landscape')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={16} style={{ marginRight: '0.5rem' }} /> Application Landscape</button>
-            <button onClick={() => setMode('network')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={16} style={{ marginRight: '0.5rem' }} /> Integrations</button>
+      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
+            <button onClick={() => setMode('landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={13} style={{ marginRight: '0.35rem' }} /> Capability Landscape</button>
+            <button onClick={() => setMode('app-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={13} style={{ marginRight: '0.35rem' }} /> Application Landscape</button>
+            <button onClick={() => setMode('network')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={13} style={{ marginRight: '0.35rem' }} /> Integrations</button>
           </div>
 
           {(mode === 'landscape' || mode === 'app-landscape') && (
-            <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.5rem', opacity: 0.6 }}>Group By</span>
-              <select 
-                value={groupingField || ''} 
-                onChange={(e) => setGroupingField(e.target.value || null)}
-                style={{ 
-                  height: '2rem', 
-                  background: 'var(--background)', 
-                  border: '1px solid var(--border)', 
-                  borderRadius: '4px', 
-                  fontSize: '12px', 
-                  padding: '0 0.5rem', 
-                  cursor: 'pointer', 
-                  color: groupingField ? 'var(--primary)' : 'var(--foreground)',
-                  fontWeight: groupingField ? 600 : 400,
-                  outline: 'none'
-                }}
-              >
-                <option value="">None</option>
-                <option value="lifecycle">Lifecycle</option>
-                <option value="criticality">Business Criticality</option>
-                <option value="functionalFit">Functional Fit</option>
-                <option value="technicalFit">Technical Fit</option>
-              </select>
+            <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Group By</span>
+              <div style={{ minWidth: '140px' }}>
+                <ColoredSelect
+                  value={groupingField || ''}
+                  onChange={(val) => setGroupingField(val || null)}
+                  options={[
+                    { value: '', label: 'None' },
+                    { value: 'lifecycle', label: 'Lifecycle' },
+                    { value: 'criticality', label: 'Business Criticality' },
+                    { value: 'functionalFit', label: 'Functional Fit' },
+                    { value: 'technicalFit', label: 'Technical Fit' },
+                  ]}
+                  style={{
+                    height: '1.65rem',
+                    marginTop: 0,
+                    background: 'var(--background)',
+                    fontSize: '10.5px',
+                    color: groupingField ? 'var(--primary)' : 'var(--foreground)',
+                    fontWeight: groupingField ? 600 : 400,
+                  }}
+                />
+              </div>
             </div>
           )}
 
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             {allRangeFields.filter(def => (mode === 'network' || mode === 'app-landscape') || def.fieldName !== 'criticality').map(def => (
-              <button key={def.id} onClick={() => setActiveOverlay(def.fieldName)} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: activeOverlay === def.fieldName ? 'var(--background)' : 'transparent', boxShadow: activeOverlay === def.fieldName ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: activeOverlay === def.fieldName ? 'var(--primary)' : 'var(--muted-foreground)', fontWeight: activeOverlay === def.fieldName ? 600 : 400 }}>{def.icon || null}{def.label}</button>
+              <button key={def.id} onClick={() => setActiveOverlay(def.fieldName)} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: activeOverlay === def.fieldName ? 'var(--background)' : 'transparent', boxShadow: activeOverlay === def.fieldName ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: activeOverlay === def.fieldName ? 'var(--primary)' : 'var(--muted-foreground)', fontWeight: activeOverlay === def.fieldName ? 600 : 400 }}>{def.icon || null}{def.label}</button>
             ))}
           </div>
 
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             {mode === 'landscape' && (
               <button 
                 onClick={() => setShowCriticality(!showCriticality)} 
-                style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: showCriticality ? 'var(--background)' : 'transparent', boxShadow: showCriticality ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCriticality ? 'var(--primary)' : 'var(--muted-foreground)' }}
-              >
-                <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} />
+                style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: showCriticality ? 'var(--background)' : 'transparent', boxShadow: showCriticality ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCriticality ? 'var(--primary)' : 'var(--muted-foreground)' }}>                <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} />
                 Business Criticality
               </button>
             )}
@@ -1276,35 +1385,54 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
             )}
           </div>
           
-          {overlayMetaDefs.length > 0 && (
-            <div style={{ width: '180px' }}>
-              <MultiSelect 
-                label=""
-                options={overlayMetaDefs.map(d => ({ value: d.fieldName, label: `${d.label} (${d.entityType === 'Application' ? 'App' : 'Cap'})` }))}
-                selectedValues={activeCustomOverlays}
-                onChange={setActiveCustomOverlays}
-                placeholder="Custom Labels..."
-              />
-            </div>
-          )}
-
           <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.5rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', marginTop: '0.25rem' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
         </div>
       </div>
       {showFilters && (
         <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            <SearchInput label="Diagram Search" value={filters.search} onChange={(val) => updateFilters({ search: val })} placeholder="App or Integration name..." />
-            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => updateFilters({ owner: val })} placeholder="All Owners" />
-            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => updateFilters({ type: val })} placeholder="All Types" />
-            <MultiSelect label="Capability Area" options={capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || []} selectedValues={filters.capabilityId || []} onChange={(val) => updateFilters({ capabilityId: val })} placeholder="All Areas" />
-            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => updateFilters({ lifecycle: val })} placeholder="All Lifecycles" />
-            
-            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => updateFilters({ criticality: val })} placeholder="All" />
-            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => updateFilters({ functionalFit: val })} placeholder="All" />
-            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => updateFilters({ technicalFit: val })} placeholder="All" />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+            <div style={{ gridColumn: 'span 2' }}>
+              <SearchInput 
+                label="Diagram Search" 
+                value={filters.search} 
+                onChange={(val) => updateFilters({ search: val })} 
+                placeholder="Search nodes and flows..." 
+                style={{ height: '2rem', fontSize: '0.875rem' }}
+              />
+            </div>
 
-            {/* Custom Field Filters */}
+            {[
+              { label: 'Owner', options: ownerOptions, key: 'owner' },
+              { label: 'Application Type', options: appTypeOptions, key: 'type' },
+              { label: 'Capability Area', options: capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || [], key: 'capabilityId' },
+              { label: 'Lifecycle Status', options: lifecycleOptions, key: 'lifecycle' },
+              { label: 'Criticality', options: criticalityOptions, key: 'criticality' },
+              { label: 'Functional Fit', options: funcFitOptions, key: 'functionalFit' },
+              { label: 'Technical Fit', options: techFitOptions, key: 'technicalFit' },
+              { label: 'Information Type', options: infoTypeOptions, key: 'infoType' }
+            ].map(item => (
+              <MultiSelect 
+                key={item.key}
+                label={item.label} 
+                options={item.options} 
+                selectedValues={(filters as any)[item.key] || []} 
+                onChange={(val) => updateFilters({ [item.key]: val })} 
+                placeholder="All" 
+                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+              />
+            ))}
+
+            {overlayMetaDefs.length > 0 && (
+              <MultiSelect 
+                label="Diagram Labels"
+                options={overlayMetaDefs.map(d => ({ value: d.fieldName, label: `${d.label}` }))}
+                selectedValues={activeCustomOverlays}
+                onChange={setActiveCustomOverlays}
+                placeholder="None"
+                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+              />
+            )}
+
             {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
               <MultiSelect 
                 key={def.id} 
@@ -1323,18 +1451,25 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 })()} 
                 selectedValues={(filters.custom || {})[def.fieldName] || []} 
                 onChange={(val) => updateFilters({ custom: { ...(filters.custom || {}), [def.fieldName]: val } })} 
-                placeholder={`All ${def.label}s`} 
+                placeholder="All"
+                style={{ height: '1.8rem', fontSize: '0.8rem' }}
               />
             ))}
 
-            <button onClick={() => updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], custom: {} })} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <button 
+              onClick={() => { updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], infoType: [], custom: {} }); setActiveCustomOverlays([]); }} 
+              style={{ height: '1.8rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.8rem' }}
+            >
+              <X size={14} style={{ marginRight: '0.5rem' }} /> Clear All
+            </button>
           </div>
         </div>
       )}
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <ApplicationDiagram 
-          onNodeClick={(app) => navigate(`/apps/${app.id}/edit`)} 
-          onCapabilityClick={(cap) => navigate(`/capabilities/${cap.id}/edit`)} 
+        <ApplicationDiagram
+          onNodeClick={(app) => navigate(`/apps/${app.id}`, { state: { from: 'diagram' } })}
+          onCapabilityClick={(cap) => navigate(`/capabilities/${cap.id}`, { state: { from: 'diagram' } })}
+          onIntegrationClick={(integration) => navigate(`/integrations/${integration.id}`, { state: { from: 'diagram' } })}
           apps={apps || []}
           filteredApps={filteredApps}
           categoricalFilteredApps={categoricalFilteredApps}

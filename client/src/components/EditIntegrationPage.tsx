@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { ChevronLeft, Info, Network, Trash2, Edit2, Database, Share2, Activity, Plus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MultiSelect } from './FilterControls';
+import { ColoredSelect } from './ColoredSelect';
+import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 
 export const EditIntegrationPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -12,7 +14,9 @@ export const EditIntegrationPage = () => {
   const isNew = !id || id === 'new';
 
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(isNew);
   const [formData, setFormData] = useState({
+    description: '',
     sourceAppId: '',
     targetAppId: '',
     infoObjectId: '' as string | null,
@@ -20,6 +24,7 @@ export const EditIntegrationPage = () => {
     frequency: 'Real-time',
     crud: [] as string[]
   });
+  const [references, setReferences] = useState<Reference[]>([]);
 
   const { data: item, isLoading: isItemLoading } = useQuery({
     queryKey: ['integration', id],
@@ -60,9 +65,14 @@ export const EditIntegrationPage = () => {
     }
   }, [isNew, location.search]);
 
-  useEffect(() => {
-    if (item && !isNew) {
+  // Populate formData from the DB before the form mounts. We gate rendering on
+  // `hydrated` below so Radix Select instances never see stale default values —
+  // they mount once with the correct DB-backed value, avoiding the case where
+  // a placeholder briefly registers and overwrites the real selection.
+  useLayoutEffect(() => {
+    if (item && !isNew && !hydrated) {
       setFormData({
+        description: item.description || '',
         sourceAppId: item.sourceAppId || '',
         targetAppId: item.targetAppId || '',
         infoObjectId: item.infoObjectId || '',
@@ -70,8 +80,10 @@ export const EditIntegrationPage = () => {
         frequency: item.frequency || 'Real-time',
         crud: item.crud ? item.crud.split(',').filter(Boolean) : []
       });
+      setReferences(parseReferences(item.references));
+      setHydrated(true);
     }
-  }, [item, isNew]);
+  }, [item, isNew, hydrated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,9 +103,10 @@ export const EditIntegrationPage = () => {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          ...formData, 
+          ...formData,
           infoObjectId: formData.infoObjectId === '' ? null : formData.infoObjectId,
-          crud: formData.crud.join(',')
+          crud: formData.crud.join(','),
+          references: serializeReferences(references)
         }),
       });
 
@@ -123,7 +136,12 @@ export const EditIntegrationPage = () => {
     } catch (err) { console.error(err); }
   };
 
-  if (!isNew && isItemLoading) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading flow...</div>;
+  // Don't render the form until both the integration AND the lookup data are loaded,
+  // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
+  // default values that then get committed back, overwriting real DB values.
+  if (!isNew && (isItemLoading || !item)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading flow...</div>;
+  if (!picklists || !apps || !infoObjects) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
+  if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading flow...</div>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
@@ -168,26 +186,36 @@ export const EditIntegrationPage = () => {
                 <Info size={18} /> Source & Payload
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                <div className="field" style={{ gridColumn: 'span 2' }}>
+                  <label className="label">Description</label>
+                  <textarea rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ padding: '1rem' }} placeholder="Purpose of this data flow..." />
+                </div>
                 <div className="field">
                   <label className="label">Source Application</label>
-                  <select required value={formData.sourceAppId} onChange={e => setFormData({...formData, sourceAppId: e.target.value})} style={{ padding: '0.75rem' }}>
-                    <option value="">Select Source...</option>
-                    {Array.isArray(apps) && apps.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <ColoredSelect
+                    required
+                    value={formData.sourceAppId}
+                    onChange={(val) => setFormData({ ...formData, sourceAppId: val })}
+                    options={[{ value: '', label: 'Select Source...' }, ...((Array.isArray(apps) ? apps : []).map((a: any) => ({ value: a.id, label: a.name })))]}
+                  />
                 </div>
                 <div className="field">
                   <label className="label">Information Object Payload</label>
-                  <select required value={formData.infoObjectId || ''} onChange={e => setFormData({...formData, infoObjectId: e.target.value})} style={{ padding: '0.75rem' }}>
-                    <option value="">Select Payload...</option>
-                    {Array.isArray(infoObjects) && infoObjects.map((io: any) => <option key={io.id} value={io.id}>{io.name}</option>)}
-                  </select>
+                  <ColoredSelect
+                    required
+                    value={formData.infoObjectId || ''}
+                    onChange={(val) => setFormData({ ...formData, infoObjectId: val })}
+                    options={[{ value: '', label: 'Select Payload...' }, ...((Array.isArray(infoObjects) ? infoObjects : []).map((io: any) => ({ value: io.id, label: io.name })))]}
+                  />
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Target Application</label>
-                  <select required value={formData.targetAppId} onChange={e => setFormData({...formData, targetAppId: e.target.value})} style={{ padding: '0.75rem' }}>
-                    <option value="">Select Target...</option>
-                    {Array.isArray(apps) && apps.map((a: any) => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
+                  <ColoredSelect
+                    required
+                    value={formData.targetAppId}
+                    onChange={(val) => setFormData({ ...formData, targetAppId: val })}
+                    options={[{ value: '', label: 'Select Target...' }, ...((Array.isArray(apps) ? apps : []).map((a: any) => ({ value: a.id, label: a.name })))]}
+                  />
                 </div>
               </div>
             </section>
@@ -200,27 +228,34 @@ export const EditIntegrationPage = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                 <div className="field">
                   <label className="label">Integration Pattern</label>
-                  <select value={formData.pattern} onChange={e => setFormData({...formData, pattern: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {patternOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <ColoredSelect
+                    value={formData.pattern}
+                    onChange={(val) => setFormData({ ...formData, pattern: val })}
+                    options={patternOptions}
+                  />
                 </div>
                 <div className="field">
                   <label className="label">Frequency</label>
-                  <select value={formData.frequency} onChange={e => setFormData({...formData, frequency: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {freqOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <ColoredSelect
+                    value={formData.frequency}
+                    onChange={(val) => setFormData({ ...formData, frequency: val })}
+                    options={freqOptions}
+                  />
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">CRUD Operations</label>
-                  <MultiSelect 
-                    options={crudOptions} 
-                    selectedValues={formData.crud} 
-                    onChange={(vals) => setFormData({...formData, crud: vals})} 
-                    placeholder="Select operations..." 
+                  <MultiSelect
+                    label="CRUD Operations"
+                    options={crudOptions}
+                    selectedValues={formData.crud}
+                    onChange={(vals) => setFormData({...formData, crud: vals})}
+                    placeholder="Select operations..."
                   />
                 </div>
               </div>
             </section>
+
+            <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>

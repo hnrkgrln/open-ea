@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Edit2 } from 'lucide-react';
+import { ColoredSelect } from './ColoredSelect';
 
 interface MetadataDefinition {
   id: string;
@@ -21,6 +22,7 @@ export const EditMetadataDialog = ({ definition, onSuccess }: Props) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState(definition.fieldType);
+  const [scaleType, setScaleType] = useState(definition.scaleType || 'neutral');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -32,7 +34,7 @@ export const EditMetadataDialog = ({ definition, onSuccess }: Props) => {
       fieldType: type,
       min: type === 'range' ? Number(formData.get('min')) : null,
       max: type === 'range' ? Number(formData.get('max')) : null,
-      scaleType: type === 'range' ? formData.get('scaleType') : null,
+      scaleType: type === 'range' ? scaleType : null,
     };
 
     try {
@@ -96,14 +98,18 @@ export const EditMetadataDialog = ({ definition, onSuccess }: Props) => {
 
             <div className="field">
               <label className="label">Field Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)}>
-                <option value="string">Text (Short)</option>
-                <option value="textarea">Text (Long)</option>
-                <option value="number">Number</option>
-                <option value="range">Range Slider</option>
-                <option value="date">Date</option>
-                <option value="boolean">Boolean (Checkbox)</option>
-              </select>
+              <ColoredSelect
+                value={type}
+                onChange={setType}
+                options={[
+                  { value: 'string', label: 'Text (Short)' },
+                  { value: 'textarea', label: 'Text (Long)' },
+                  { value: 'number', label: 'Number' },
+                  { value: 'range', label: 'Range Slider' },
+                  { value: 'date', label: 'Date' },
+                  { value: 'boolean', label: 'Boolean (Checkbox)' },
+                ]}
+              />
             </div>
 
             {type === 'range' && (
@@ -118,13 +124,17 @@ export const EditMetadataDialog = ({ definition, onSuccess }: Props) => {
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Scale Palette</label>
-                  <select name="scaleType" defaultValue={definition.scaleType || 'neutral'}>
-                    <option value="neutral">Neutral (Blue)</option>
-                    <option value="good-bad">Good to Bad (Green to Red)</option>
-                    <option value="bad-good">Bad to Good (Red to Green)</option>
-                    <option value="low-high">Low to High (Light to Dark)</option>
-                    <option value="importance">Low to High (Gray to Purple)</option>
-                  </select>
+                  <ColoredSelect
+                    value={scaleType}
+                    onChange={setScaleType}
+                    options={[
+                      { value: 'neutral', label: 'Neutral (Blue)' },
+                      { value: 'good-bad', label: 'Good to Bad (Green to Red)' },
+                      { value: 'bad-good', label: 'Bad to Good (Red to Green)' },
+                      { value: 'low-high', label: 'Low to High (Light to Dark)' },
+                      { value: 'importance', label: 'Low to High (Gray to Purple)' },
+                    ]}
+                  />
                 </div>
               </div>
             )}

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Edit2, Database, Boxes, ShieldCheck, ChevronLeft, Calendar, Info, Share2, Layers } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { ReferencesList } from './References';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -41,6 +42,47 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   const parent = useMemo(() => allCapabilities?.find(c => c.id === capability?.parentId), [allCapabilities, capability]);
   const children = useMemo(() => allCapabilities?.filter(c => c.parentId === capabilityId) || [], [allCapabilities, capabilityId]);
 
+  // Roll up applications from sub-capabilities (recursive). Each app appears
+  // once: if it's both directly linked AND comes via a sub-capability, "direct"
+  // wins. For inherited apps, record the nearest sub-capability that provides
+  // them so we can show a "via X" hint.
+  const supportingApps = useMemo(() => {
+    if (!capability) return [];
+    type Entry = { app: any; isDirect: boolean; viaCapName?: string };
+    const byId = new Map<string, Entry>();
+
+    // Direct apps first so they win on dedupe.
+    for (const a of (capability.applications || [])) {
+      byId.set(a.id, { app: a, isDirect: true });
+    }
+
+    // Recurse through descendants. We track the *immediate* sub-capability
+    // under this capability so the "via" label is meaningful (rather than
+    // pointing at some deeply-nested grandchild).
+    const walk = (parentId: string, viaCapName: string) => {
+      const descendants = (allCapabilities || []).filter(c => c.parentId === parentId);
+      for (const d of descendants) {
+        for (const a of (d.applications || [])) {
+          if (!byId.has(a.id)) {
+            byId.set(a.id, { app: a, isDirect: false, viaCapName });
+          }
+        }
+        walk(d.id, viaCapName);
+      }
+    };
+    for (const child of (allCapabilities || []).filter(c => c.parentId === capability.id)) {
+      // Each immediate child contributes its sub-tree under its own name.
+      for (const a of (child.applications || [])) {
+        if (!byId.has(a.id)) byId.set(a.id, { app: a, isDirect: false, viaCapName: child.name });
+      }
+      walk(child.id, child.name);
+    }
+
+    return Array.from(byId.values()).sort((a, b) =>
+      a.app.name.localeCompare(b.app.name, undefined, { numeric: true })
+    );
+  }, [allCapabilities, capability]);
+
   if (isLoading || !capability) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
@@ -57,6 +99,20 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
     const option = list?.options?.find((o: any) => o.value === String(value));
     return option || { label: value || 'Not Scored', color: 'var(--muted-foreground)' };
   };
+
+  const getEffectiveCapabilityCriticality = (nodeId: string): number => {
+    const node = allCapabilities?.find(c => c.id === nodeId);
+    if (!node) return 1;
+    const local = Number(node.criticality || 1);
+    const nodeChildren = allCapabilities?.filter(c => c.parentId === nodeId) || [];
+    const childMax = nodeChildren.length > 0 
+      ? Math.max(...nodeChildren.map(c => getEffectiveCapabilityCriticality(c.id)))
+      : 0;
+    return Math.max(local, childMax);
+  };
+
+  const effectiveCritValue = String(getEffectiveCapabilityCriticality(capabilityId!));
+  const isInherited = effectiveCritValue !== capability.criticality && children.length > 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
@@ -118,15 +174,19 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', maxWidth: '400px' }}>
                   {(() => {
-                    const info = getPicklistInfo('criticality', capability.criticality);
+                    const info = getPicklistInfo('criticality', effectiveCritValue);
                     return (
-                      <div style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>Business Criticality</div>
+                      <div style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: isInherited ? `2px dashed ${info.color}` : '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          Business Criticality
+                          {isInherited && <span style={{ fontSize: '0.6rem', background: info.color, color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>INHERITED</span>}
+                        </div>
                         <div style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                             {info.color && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: info.color }} />}
                             {info.label}
                         </div>
                         <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
+                        {isInherited && <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', fontStyle: 'italic' }}>Value inherited from the highest-rated sub-capability.</div>}
                       </div>
                     );
                   })()}
@@ -137,17 +197,28 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Database size={16} /> Supporting Applications
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 0 }}>
+                    {supportingApps.length} total
+                    {children.length > 0 && supportingApps.some(s => !s.isDirect) && ' · includes apps from sub-capabilities'}
+                  </span>
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                  {capability.applications && capability.applications.length > 0 ? capability.applications.map((app: any) => (
-                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }} className="row-hover">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}>
+                  {supportingApps.length > 0 ? supportingApps.map(({ app, isDirect, viaCapName }) => (
+                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                        <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px', flexShrink: 0 }}>
                           <Database size={16} />
                         </div>
-                        <span style={{ fontWeight: 700 }}>{app.name}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.name}</span>
+                          {!isDirect && viaCapName && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Inherited from sub-capability: ${viaCapName}`}>
+                              via {viaCapName}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <ShieldCheck size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5 }} />
+                      <ShieldCheck size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5, flexShrink: 0 }} />
                     </div>
                   )) : (
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>No applications currently mapped to this capability.</div>
@@ -161,13 +232,51 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                   <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                     <Layers size={16} /> Sub-Capabilities
                   </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
-                    {children.map(child => (
-                      <div key={child.id} onClick={() => navigate(`/capabilities/${child.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
-                        <Boxes size={16} style={{ color: 'var(--primary)' }} />
-                        <span style={{ fontWeight: 700 }}>{child.name}</span>
-                      </div>
-                    ))}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1rem' }}>
+                    {children.map(child => {
+                      const childInfo = getPicklistInfo('criticality', child.criticality);
+                      const childHasOwnChildren = (allCapabilities || []).some(c => c.parentId === child.id);
+                      return (
+                        <div
+                          key={child.id}
+                          onClick={() => navigate(`/capabilities/${child.id}`)}
+                          style={{
+                            cursor: 'pointer',
+                            padding: '1.25rem',
+                            background: 'var(--card)',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border)',
+                            borderLeft: `4px solid ${childInfo.color || 'var(--border)'}`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '0.75rem'
+                          }}
+                          className="row-hover"
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                            <Boxes size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{child.name}</span>
+                          </div>
+                          <span
+                            title={childHasOwnChildren ? 'Inherited from sub-capability' : 'Direct capability attribute'}
+                            style={{
+                              flexShrink: 0,
+                              fontSize: '0.65rem',
+                              fontWeight: 800,
+                              textTransform: 'uppercase',
+                              padding: '0.15rem 0.6rem',
+                              borderRadius: '4px',
+                              background: `${childInfo.color}20`,
+                              color: childInfo.color,
+                              border: childHasOwnChildren ? `1px dashed ${childInfo.color}` : `1px solid ${childInfo.color}40`
+                            }}
+                          >
+                            {childInfo.label}
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </section>
               )}
@@ -185,7 +294,9 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                       return (
                         <div key={key} style={{ background: 'var(--card)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
                           <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{def?.label || key}</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{String(val)}</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+                            {def?.fieldType === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}
+                          </div>
                         </div>
                       );
                     })}
@@ -214,6 +325,8 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               </section>
             </div>
           </div>
+
+          <ReferencesList raw={capability.references} />
         </div>
       </div>
     </div>

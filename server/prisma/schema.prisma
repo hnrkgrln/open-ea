@@ -20,12 +20,14 @@ model Application {
   functionalFit String?       @default("3")
   technicalFit  String?       @default("3")
   metadata      String?
+  references    String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   capabilities  Capability[]  @relation("ApplicationToCapability")
   sourceOf      Integration[] @relation("sourceApp")
   targetOf      Integration[] @relation("targetApp")
   ownedInformationObjects InformationObject[] @relation("AppOwner")
+  processedInformationObjects InformationObject[] @relation("AppProcessesInfoObject")
 }
 
 model Capability {
@@ -34,6 +36,7 @@ model Capability {
   description  String?
   criticality  String?       @default("3")
   metadata     String?
+  references   String?
   parentId     String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
@@ -48,6 +51,7 @@ model Organization {
   description       String?
   type              String?
   parentId          String?
+  references        String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   parent            Organization?       @relation("OrgToOrg", fields: [parentId], references: [id], onDelete: Cascade)
@@ -66,6 +70,7 @@ model InformationObject {
   piiCategory     String?       @default("1")
   type            String?
   metadata        String?
+  references      String?
   businessOwnerId String?
   appOwnerId      String?
   createdAt       DateTime      @default(now())
@@ -73,17 +78,20 @@ model InformationObject {
   businessOwner   Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
   appOwner        Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
   integrations    Integration[]
+  processingApplications Application[] @relation("AppProcessesInfoObject")
 }
 
 model Integration {
   id            String             @id @default(uuid())
   name          String?
+  description   String?
   sourceAppId   String
   targetAppId   String
   infoObjectId  String?
   pattern       String?
   frequency     String?
   crud          String?
+  references    String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   targetApp     Application        @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)

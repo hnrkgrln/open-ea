@@ -1,21 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useLayoutEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Info, Layers, Trash2, Edit2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ColoredSelect } from './ColoredSelect';
+import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 
 export const EditOrganizationPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   const isNew = !id || id === 'new' || id === 'undefined';
 
   const [loading, setLoading] = useState(false);
+  const [hydrated, setHydrated] = useState(isNew);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     type: 'Department',
-    parentId: '' as string | null
+    parentId: (isNew ? searchParams.get('parentId') : '') as string | null
   });
+  const [references, setReferences] = useState<Reference[]>([]);
 
   const { data: org, isLoading: isOrgLoading } = useQuery({
     queryKey: ['organization', id],
@@ -35,16 +40,22 @@ export const EditOrganizationPage = () => {
 
   const orgTypeOptions = picklists?.find(p => p.name === 'organization_type')?.options || [];
 
-  useEffect(() => {
-    if (org && !isNew) {
+  // Populate formData from the DB before the form mounts. We gate rendering on
+  // `hydrated` below so Radix Select instances never see stale default values —
+  // they mount once with the correct DB-backed value, avoiding the case where
+  // a placeholder briefly registers and overwrites the real selection.
+  useLayoutEffect(() => {
+    if (org && !isNew && !hydrated) {
       setFormData({
         name: org.name || '',
         description: org.description || '',
         type: org.type || 'Department',
         parentId: org.parentId || ''
       });
+      setReferences(parseReferences(org.references));
+      setHydrated(true);
     }
-  }, [org, isNew]);
+  }, [org, isNew, hydrated]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,7 +70,7 @@ export const EditOrganizationPage = () => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, parentId: formData.parentId === '' ? null : formData.parentId }),
+        body: JSON.stringify({ ...formData, parentId: formData.parentId === '' ? null : formData.parentId, references: serializeReferences(references) }),
       });
 
       if (res.ok) {
@@ -88,7 +99,12 @@ export const EditOrganizationPage = () => {
     } catch (err) { console.error(err); }
   };
 
-  if (!isNew && isOrgLoading) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
+  // Don't render the form until both the organization AND the lookup data are loaded,
+  // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
+  // default values that then get committed back, overwriting real DB values.
+  if (!isNew && (isOrgLoading || !org)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
+  if (!picklists || !allOrgs) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
+  if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
   const filteredOrgs = Array.isArray(allOrgs) ? allOrgs.filter(o => o.id !== id) : [];
 
@@ -118,7 +134,7 @@ export const EditOrganizationPage = () => {
                 </span>
               </div>
               <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Organization' : org?.name}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define accountability structures and roles.</p>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define accountability structures.</p>
             </div>
             <div style={{ display: 'flex', gap: '1rem' }}>
               <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard</button>
@@ -144,19 +160,24 @@ export const EditOrganizationPage = () => {
                 </div>
                 <div className="field">
                   <label className="label">Type</label>
-                  <select value={formData.type} onChange={e => setFormData({...formData, type: e.target.value})} style={{ padding: '0.75rem' }}>
-                    {orgTypeOptions.map((o: any) => <option key={o.id} value={o.value}>{o.label}</option>)}
-                  </select>
+                  <ColoredSelect
+                    value={formData.type}
+                    onChange={(val) => setFormData({ ...formData, type: val })}
+                    options={orgTypeOptions}
+                  />
                 </div>
                 <div className="field">
                   <label className="label">Parent Organization / Manager</label>
-                  <select value={formData.parentId || ''} onChange={e => setFormData({...formData, parentId: e.target.value || null})} style={{ padding: '0.75rem' }}>
-                    <option value="">None (Top Level)</option>
-                    {filteredOrgs.map((o: any) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                  </select>
+                  <ColoredSelect
+                    value={formData.parentId || ''}
+                    onChange={(val) => setFormData({ ...formData, parentId: val || null })}
+                    options={[{ value: '', label: 'None (Top Level)' }, ...filteredOrgs.map((o: any) => ({ value: o.id, label: o.name }))]}
+                  />
                 </div>
               </div>
             </section>
+
+            <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>

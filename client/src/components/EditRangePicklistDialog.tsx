@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Sliders, Wand2, Trash2 } from 'lucide-react';
+import { ColoredSelect } from './ColoredSelect';
 
 interface PicklistOption {
   id?: string;
@@ -154,13 +155,17 @@ export const EditRangePicklistDialog = ({ picklist, isScale, onSuccess }: Props)
                 </div>
                 <div className="field" style={{ margin: 0 }}>
                   <label className="label">Palette</label>
-                  <select value={palette} onChange={e => setPalette(e.target.value)}>
-                    <option value="good-bad">Good to Bad</option>
-                    <option value="bad-good">Bad to Good</option>
-                    <option value="low-high">Intensity (Blue)</option>
-                    <option value="importance">Importance (Purple)</option>
-                    <option value="neutral">Gray Scale</option>
-                  </select>
+                  <ColoredSelect
+                    value={palette}
+                    onChange={setPalette}
+                    options={[
+                      { value: 'good-bad', label: 'Good to Bad' },
+                      { value: 'bad-good', label: 'Bad to Good' },
+                      { value: 'low-high', label: 'Intensity (Blue)' },
+                      { value: 'importance', label: 'Importance (Purple)' },
+                      { value: 'neutral', label: 'Gray Scale' },
+                    ]}
+                  />
                 </div>
                 <button type="button" onClick={handleGenerate} className="primary" style={{ height: '2.5rem' }}>
                   <Wand2 size={16} style={{ marginRight: '0.5rem' }} /> Generate

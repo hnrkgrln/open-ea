@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { Edit2, Network, ChevronLeft, Database, Share2, Calendar, Info, ArrowRight, ArrowLeft, Activity, Tag } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { getContrastColor } from '../utils/colors';
+import { ReferencesList } from './References';
 
 interface Props {
   integrationId: string | null;
@@ -72,8 +74,8 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                   {i.sourceApp?.name} <ArrowRight size={24} style={{ opacity: 0.3, margin: '0 0.5rem' }} /> {i.targetApp?.name}
                 </h1>
               </div>
-              <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
-                System-to-system data exchange via {getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || 'standard interface'}.
+              <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8, whiteSpace: 'pre-wrap' }}>
+                {i.description || `System-to-system data exchange via ${getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || 'standard interface'}.`}
               </p>
             </div>
             <button onClick={() => navigate(`/integrations/${i.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
@@ -99,14 +101,20 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
                   {(() => {
                     const patternInfo = getPicklistInfo('integration_pattern', i.pattern);
+                    const hasColor = patternInfo?.color && patternInfo.color !== 'var(--secondary)';
+                    const bg = hasColor ? patternInfo!.color : 'var(--secondary)';
+                    const text = hasColor ? getContrastColor(patternInfo!.color) : 'var(--secondary-foreground)';
                     return (
-                      <span style={{ fontSize: '0.6rem', fontWeight: 800, background: patternInfo?.color !== 'var(--secondary)' ? patternInfo?.color : 'var(--secondary)', color: patternInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--secondary-foreground)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{patternInfo?.label || i.pattern || 'API'}</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{patternInfo?.label || i.pattern || 'API'}</span>
                     );
                   })()}
-                  {i.crud?.split(',').filter(Boolean).map(op => {
+                  {i.crud?.split(',').filter(Boolean).map((op: string) => {
                     const crudInfo = getPicklistInfo('integration_crud', op);
+                    const hasColor = crudInfo?.color && crudInfo.color !== 'var(--secondary)';
+                    const bg = hasColor ? crudInfo!.color : 'var(--primary)';
+                    const text = hasColor ? getContrastColor(crudInfo!.color) : 'var(--primary-foreground)';
                     return (
-                    <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: crudInfo?.color !== 'var(--secondary)' ? crudInfo?.color : 'var(--primary)', color: crudInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
+                    <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
                   )})}
                 </div>
               </div>
@@ -144,10 +152,13 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 <div style={{ gridColumn: 'span 2' }}>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operations</div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {i.crud?.split(',').filter(Boolean).map(op => {
+                    {i.crud?.split(',').filter(Boolean).map((op: string) => {
                       const crudInfo = getPicklistInfo('integration_crud', op);
+                      const hasColor = crudInfo?.color && crudInfo.color !== 'var(--secondary)';
+                      const bg = hasColor ? crudInfo!.color : 'var(--primary)';
+                      const text = hasColor ? getContrastColor(crudInfo!.color) : 'var(--primary-foreground)';
                       return (
-                        <span key={op} style={{ fontSize: '0.875rem', fontWeight: 800, background: crudInfo?.color !== 'var(--secondary)' ? crudInfo?.color : 'var(--primary)', color: crudInfo?.color !== 'var(--secondary)' ? 'white' : 'var(--primary-foreground)', padding: '0.25rem 0.75rem', borderRadius: '6px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
+                        <span key={op} style={{ fontSize: '0.875rem', fontWeight: 800, background: bg, color: text, padding: '0.25rem 0.75rem', borderRadius: '6px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
                       )
                     }) || '—'}
                   </div>
@@ -174,6 +185,8 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                 </div>
               </div>
             </section>
+
+            <ReferencesList raw={i.references} />
           </div>
         </div>
       </div>

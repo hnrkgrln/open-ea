@@ -7,6 +7,157 @@ import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fas
 const prisma = new PrismaClient();
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
+// ---------------------------------------------------------------------------
+// Criticality cascade
+// ---------------------------------------------------------------------------
+// Capabilities with children inherit `criticality = max(children.criticality)`.
+// Applications with linked capabilities inherit `criticality = max(...)`.
+// These helpers keep the stored values in sync so diagrams reading the raw DB
+// columns see the correct value without recomputing client-side.
+
+const parseCrit = (v: string | null | undefined) => {
+  const n = Number(v ?? '');
+  return Number.isFinite(n) && n > 0 ? n : 0;
+};
+
+// Recompute the stored criticality of a capability based on its direct children.
+// Returns the (possibly-changed) criticality string. No-op for leaves.
+async function recomputeCapabilityFromChildren(capabilityId: string): Promise<string | null> {
+  const cap = await prisma.capability.findUnique({
+    where: { id: capabilityId },
+    select: { id: true, criticality: true, children: { select: { criticality: true } } }
+  });
+  if (!cap) return null;
+  if (cap.children.length === 0) return cap.criticality;
+
+  const max = Math.max(...cap.children.map(c => parseCrit(c.criticality)));
+  const next = max > 0 ? String(max) : cap.criticality;
+  if (next !== cap.criticality) {
+    await prisma.capability.update({ where: { id: capabilityId }, data: { criticality: next } });
+  }
+  return next;
+}
+
+// Recompute the stored criticality of an application from its linked capabilities.
+// Apps with no capabilities keep their directly-set criticality.
+async function recomputeApplicationCriticality(appId: string): Promise<void> {
+  const app = await prisma.application.findUnique({
+    where: { id: appId },
+    select: { id: true, criticality: true, capabilities: { select: { criticality: true } } }
+  });
+  if (!app || app.capabilities.length === 0) return;
+  const max = Math.max(...app.capabilities.map(c => parseCrit(c.criticality)));
+  if (max <= 0) return;
+  const next = String(max);
+  if (next !== app.criticality) {
+    await prisma.application.update({ where: { id: appId }, data: { criticality: next } });
+  }
+}
+
+// Walk up the parent chain from `startCapabilityId`, recomputing each ancestor.
+// Returns the set of capability IDs whose criticality changed (used to find
+// which apps need re-cascading downstream).
+async function cascadeUpFrom(startCapabilityId: string | null | undefined): Promise<Set<string>> {
+  const changed = new Set<string>();
+  let cursor = startCapabilityId ?? null;
+  while (cursor) {
+    const node = await prisma.capability.findUnique({
+      where: { id: cursor },
+      select: { id: true, parentId: true, criticality: true }
+    });
+    if (!node) break;
+    const before = node.criticality;
+    const after = await recomputeCapabilityFromChildren(node.id);
+    if (after !== before) changed.add(node.id);
+    cursor = node.parentId;
+  }
+  return changed;
+}
+
+// Top-level cascade: walk up from one or more capabilities, then propagate any
+// ancestor changes down to linked applications.
+async function cascadeCapabilityCriticality(...startIds: (string | null | undefined)[]): Promise<void> {
+  const changed = new Set<string>();
+  for (const id of startIds) {
+    if (!id) continue;
+    const partial = await cascadeUpFrom(id);
+    partial.forEach(x => changed.add(x));
+    // The starting capability itself may also affect its apps (its own value
+    // changed in this PUT, even if no ancestors changed).
+    changed.add(id);
+  }
+  if (changed.size === 0) return;
+  const apps = await prisma.application.findMany({
+    where: { capabilities: { some: { id: { in: Array.from(changed) } } } },
+    select: { id: true }
+  });
+  for (const a of apps) {
+    await recomputeApplicationCriticality(a.id);
+  }
+}
+
+// Add (sourceApp, info) and (targetApp, info) into the Application–InformationObject
+// processing relation. Add-only: a `connect` on an existing pair is a no-op,
+// so this is idempotent and safe to call from cascades and the backfill.
+async function connectIntegrationProcessing(
+  sourceAppId: string | null | undefined,
+  targetAppId: string | null | undefined,
+  infoObjectId: string | null | undefined
+): Promise<void> {
+  if (!infoObjectId) return;
+  const appIds = [sourceAppId, targetAppId].filter((x): x is string => !!x);
+  if (appIds.length === 0) return;
+  await prisma.informationObject.update({
+    where: { id: infoObjectId },
+    data: { processingApplications: { connect: appIds.map(id => ({ id })) } }
+  }).catch((err: any) => {
+    // FK miss (app/info deleted out from under us) is not fatal here.
+    if (err?.code !== 'P2025') throw err;
+  });
+}
+
+// Backfill processing connections from existing integrations on startup.
+async function backfillProcessing() {
+  const ints = await prisma.integration.findMany({
+    select: { sourceAppId: true, targetAppId: true, infoObjectId: true }
+  });
+  for (const i of ints) {
+    await connectIntegrationProcessing(i.sourceAppId, i.targetAppId, i.infoObjectId);
+  }
+  console.log('Processing-relation backfill complete:', ints.length, 'integrations scanned');
+}
+
+// One-time backfill: ensure every capability's stored criticality reflects
+// max(children.criticality), and every app's reflects max(capabilities.criticality).
+// Idempotent — safe to run on every server start.
+async function backfillCriticality() {
+  // Walk capabilities leaves-first by repeatedly recomputing parents until no
+  // value changes. Any DAG with depth N converges in N passes; we bound at 32
+  // as a sanity check (real hierarchies are nowhere near that deep).
+  const allCaps = await prisma.capability.findMany({ select: { id: true, parentId: true } });
+  const parents = new Set(allCaps.filter(c => c.parentId).map(c => c.parentId!));
+  // Recompute parents bottom-up. Since we don't have a topological sort, just
+  // iterate until stable.
+  for (let pass = 0; pass < 32; pass++) {
+    let changed = false;
+    for (const id of parents) {
+      const before = await prisma.capability.findUnique({
+        where: { id },
+        select: { criticality: true }
+      });
+      const after = await recomputeCapabilityFromChildren(id);
+      if (before && after !== before.criticality) changed = true;
+    }
+    if (!changed) break;
+  }
+
+  const apps = await prisma.application.findMany({ select: { id: true } });
+  for (const a of apps) {
+    await recomputeApplicationCriticality(a.id);
+  }
+  console.log('Criticality backfill complete:', allCaps.length, 'capabilities,', apps.length, 'applications');
+}
+
 // One-time migration to rename Relation Type to Integration Type
 async function migrateMetadata() {
   const relType = await prisma.picklist.findUnique({ where: { name: 'relation_type' } });
@@ -19,6 +170,8 @@ async function migrateMetadata() {
   }
 }
 migrateMetadata().catch(console.error);
+backfillCriticality().catch(console.error);
+backfillProcessing().catch(console.error);
 
 server.setValidatorCompiler(validatorCompiler);
 server.setSerializerCompiler(serializerCompiler);
@@ -27,16 +180,20 @@ server.register(fastifyCors, {
   origin: true,
 });
 
-server.setErrorHandler((error: unknown, request, reply) => {
+server.setErrorHandler((error: any, request, reply) => {
   console.error('FASTIFY ERROR:', error);
+  // Validation errors from fastify-type-provider-zod should surface as 400, not 500.
+  const status = error?.statusCode && error.statusCode >= 400 && error.statusCode < 600
+    ? error.statusCode
+    : (error?.validation ? 400 : 500);
   if (error instanceof Error) {
-    reply.status(500).send({ 
+    reply.status(status).send({
       error: error.message || 'Internal Server Error',
       stack: error.stack,
       name: error.name
     });
   } else {
-    reply.status(500).send({ error: 'Unknown Error' });
+    reply.status(status).send({ error: 'Unknown Error' });
   }
 });
 
@@ -45,6 +202,7 @@ server.get('/applications', async () => {
   return prisma.application.findMany({
     include: {
       capabilities: true,
+      processedInformationObjects: true,
       sourceOf: { include: { targetApp: true, payload: true } },
       targetOf: { include: { sourceApp: true, payload: true } }
     },
@@ -60,8 +218,9 @@ server.get('/applications/:id', {
   try {
     const app = await prisma.application.findUnique({
       where: { id: request.params.id },
-      include: { 
+      include: {
         capabilities: true,
+        processedInformationObjects: true,
         sourceOf: { include: { targetApp: true, payload: true } },
         targetOf: { include: { sourceApp: true, payload: true } }
       }
@@ -88,12 +247,14 @@ server.post('/applications', {
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
       metadata: z.string().optional(),
+      references: z.string().optional().nullable(),
       capabilityIds: z.array(z.string()).optional(),
+      processedInformationObjectIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request) => {
-  const { capabilityIds, ...data } = request.body;
-  
+  const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
+
   // Filter for only existing capability IDs to prevent Prisma crash (P2025)
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -104,14 +265,30 @@ server.post('/applications', {
     validIds = existing.map(c => c.id);
   }
 
-  return prisma.application.create({
+  let validInfoIds: string[] = [];
+  if (processedInformationObjectIds && processedInformationObjectIds.length > 0) {
+    const existing = await prisma.informationObject.findMany({
+      where: { id: { in: processedInformationObjectIds } },
+      select: { id: true }
+    });
+    validInfoIds = existing.map(io => io.id);
+  }
+
+  const created = await prisma.application.create({
     data: {
       ...data,
       capabilities: validIds.length > 0 ? {
         connect: validIds.map(id => ({ id }))
+      } : undefined,
+      processedInformationObjects: validInfoIds.length > 0 ? {
+        connect: validInfoIds.map(id => ({ id }))
       } : undefined
     },
   });
+  // If linked to capabilities, the app's stored criticality is the max — apply
+  // that server-side so a stale UI can't write the wrong value.
+  if (validIds.length > 0) await recomputeApplicationCriticality(created.id);
+  return created;
 });
 
 server.put('/applications/:id', {
@@ -129,12 +306,14 @@ server.put('/applications/:id', {
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
       metadata: z.string().optional(),
+      references: z.string().optional().nullable(),
       capabilityIds: z.array(z.string()).optional(),
+      processedInformationObjectIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request, reply) => {
   const { id } = request.params;
-  const { capabilityIds, ...data } = request.body;
+  const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
 
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -145,16 +324,33 @@ server.put('/applications/:id', {
     validIds = existing.map(c => c.id);
   }
 
+  let validInfoIds: string[] = [];
+  if (processedInformationObjectIds && processedInformationObjectIds.length > 0) {
+    const existing = await prisma.informationObject.findMany({
+      where: { id: { in: processedInformationObjectIds } },
+      select: { id: true }
+    });
+    validInfoIds = existing.map(io => io.id);
+  }
+
   try {
-    return await prisma.application.update({
+    const updated = await prisma.application.update({
       where: { id },
       data: {
         ...data,
         capabilities: capabilityIds ? {
           set: validIds.map(id => ({ id }))
+        } : undefined,
+        processedInformationObjects: processedInformationObjectIds ? {
+          set: validInfoIds.map(id => ({ id }))
         } : undefined
       },
     });
+    // Inheritance: apps with capabilities take max(capabilities.criticality).
+    // Re-apply server-side after every update so direct API edits or stale
+    // clients can't drift the stored value.
+    await recomputeApplicationCriticality(updated.id);
+    return updated;
   } catch (err: any) {
     if (err.code === 'P2025') return reply.status(404).send({ error: 'Application not found' });
     throw err;
@@ -178,12 +374,15 @@ server.delete('/applications/:id', {
 
 // Capabilities API
 server.get('/capabilities', async (request) => {
-  return prisma.capability.findMany({
+  const caps = await prisma.capability.findMany({
     include: {
       applications: true,
     },
-    orderBy: { name: 'asc' }
   });
+  // Natural sort so "10. Foo" comes after "9. Foo" — matches the numeric
+  // prefix convention used for Excel traceability.
+  caps.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  return caps;
 });
 
 server.get('/capabilities/:id', {
@@ -211,6 +410,7 @@ server.post('/capabilities', {
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),
       metadata: z.string().optional(),
+      references: z.string().optional().nullable(),
       criticality: z.string().optional(),
       applicationIds: z.array(z.string()).optional(),
     }),
@@ -234,7 +434,7 @@ server.post('/capabilities', {
     validIds = existing.map(a => a.id);
   }
 
-  return prisma.capability.create({
+  const created = await prisma.capability.create({
     data: {
       ...data,
       applications: validIds.length > 0 ? {
@@ -242,6 +442,9 @@ server.post('/capabilities', {
       } : undefined
     },
   });
+  // New capability under a parent → parent chain may need recompute.
+  await cascadeCapabilityCriticality(created.parentId);
+  return created;
 });
 
 server.put('/capabilities/:id', {
@@ -252,6 +455,7 @@ server.put('/capabilities/:id', {
       description: z.string().optional(),
       parentId: z.string().optional().nullable(),
       metadata: z.string().optional(),
+      references: z.string().optional().nullable(),
       criticality: z.string().optional(),
       applicationIds: z.array(z.string()).optional(),
     }),
@@ -276,8 +480,23 @@ server.put('/capabilities/:id', {
     validIds = existing.map(a => a.id);
   }
 
+  // Capture the old parent before update so we can cascade up the old branch
+  // too if reparenting.
+  const before = await prisma.capability.findUnique({
+    where: { id },
+    select: { parentId: true, children: { select: { id: true, criticality: true } } }
+  });
+
+  // If this capability has children, its stored criticality must equal
+  // max(children.criticality). Override whatever was submitted — the UI locks
+  // the field, but defend against direct API calls or stale clients.
+  if (before && before.children.length > 0) {
+    const max = Math.max(...before.children.map(c => parseCrit(c.criticality)));
+    if (max > 0) data.criticality = String(max);
+  }
+
   try {
-    return await prisma.capability.update({
+    const updated = await prisma.capability.update({
       where: { id },
       data: {
         ...data,
@@ -286,6 +505,16 @@ server.put('/capabilities/:id', {
         } : undefined
       },
     });
+
+    // Cascade up from the new parent (and old parent if reparented) plus this
+    // capability itself, then propagate to linked apps.
+    const startIds: (string | null | undefined)[] = [updated.id, updated.parentId];
+    if (before && before.parentId && before.parentId !== updated.parentId) {
+      startIds.push(before.parentId);
+    }
+    await cascadeCapabilityCriticality(...startIds);
+
+    return updated;
   } catch (err: any) {
     if (err.code === 'P2025') return reply.status(404).send({ error: 'Capability not found' });
     throw err;
@@ -298,9 +527,23 @@ server.delete('/capabilities/:id', {
   },
 }, async (request, reply) => {
   try {
-    return await prisma.capability.delete({
+    // Capture parent + linked apps before delete so we can recompute.
+    const existing = await prisma.capability.findUnique({
+      where: { id: request.params.id },
+      select: { parentId: true, applications: { select: { id: true } } }
+    });
+    const deleted = await prisma.capability.delete({
       where: { id: request.params.id },
     });
+    // Walk up from the now-orphaned parent.
+    await cascadeCapabilityCriticality(existing?.parentId);
+    // Apps that linked through the deleted capability also need recompute.
+    if (existing) {
+      for (const a of existing.applications) {
+        await recomputeApplicationCriticality(a.id);
+      }
+    }
+    return deleted;
   } catch (err: any) {
     if (err.code === 'P2025') return reply.status(404).send({ error: 'Capability not found' });
     throw err;
@@ -353,6 +596,7 @@ server.post('/organizations', {
       description: z.string().optional(),
       type: z.string().optional(),
       parentId: z.string().optional().nullable(),
+      references: z.string().optional().nullable(),
     }),
   },
 }, async (request) => {
@@ -367,6 +611,7 @@ server.put('/organizations/:id', {
       description: z.string().optional(),
       type: z.string().optional(),
       parentId: z.string().optional().nullable(),
+      references: z.string().optional().nullable(),
     }),
   },
 }, async (request, reply) => {
@@ -397,9 +642,10 @@ server.get('/information-objects', async (request, reply) => {
   console.log('GET /information-objects');
   try {
     const info = await prisma.informationObject.findMany({
-      include: { 
-        businessOwner: true, 
+      include: {
+        businessOwner: true,
         appOwner: true,
+        processingApplications: true,
         integrations: { include: { sourceApp: true, targetApp: true } }
       },
       orderBy: { name: 'asc' }
@@ -418,7 +664,7 @@ server.get('/information-objects/:id', {
   try {
     const io = await prisma.informationObject.findUnique({
       where: { id: request.params.id },
-      include: { businessOwner: true, appOwner: true, integrations: { include: { sourceApp: true, targetApp: true } } }
+      include: { businessOwner: true, appOwner: true, processingApplications: true, integrations: { include: { sourceApp: true, targetApp: true } } }
     });
     if (!io) return reply.status(404).send({ error: 'Information Object not found' });
     return io;
@@ -439,6 +685,7 @@ server.post('/information-objects', {
       piiCategory: z.string().optional(),
       type: z.string().optional(),
       metadata: z.string().optional(),
+      references: z.string().optional().nullable(),
       businessOwnerId: z.string().optional().nullable(),
       appOwnerId: z.string().optional().nullable(),
     }),
@@ -460,6 +707,7 @@ server.put('/information-objects/:id', {
       piiCategory: z.string().optional(),
       type: z.string().optional(),
       metadata: z.string().optional(),
+      references: z.string().optional().nullable(),
       businessOwnerId: z.string().optional().nullable(),
       appOwnerId: z.string().optional().nullable(),
     }),
@@ -526,12 +774,14 @@ server.post('/integrations', {
     body: z.object({
       id: z.string().optional(),
       name: z.string().optional(),
+      description: z.string().optional(),
       sourceAppId: z.string(),
       targetAppId: z.string(),
       infoObjectId: z.string().optional().nullable(),
       pattern: z.string().optional(),
       frequency: z.string().optional(),
       crud: z.string().optional(),
+      references: z.string().optional().nullable(),
     }),
   },
 }, async (request, reply) => {
@@ -549,9 +799,14 @@ server.post('/integrations', {
     });
   }
 
-  return prisma.integration.create({
+  const created = await prisma.integration.create({
     data: request.body,
   });
+  // Convenience cascade: an integration implies both apps process the payload.
+  // Add-only — manual edits to the processing relation must survive integration
+  // changes and deletes.
+  await connectIntegrationProcessing(created.sourceAppId, created.targetAppId, created.infoObjectId);
+  return created;
 });
 
 server.put('/integrations/:id', {
@@ -559,12 +814,14 @@ server.put('/integrations/:id', {
     params: z.object({ id: z.string() }),
     body: z.object({
       name: z.string().optional(),
+      description: z.string().optional(),
       sourceAppId: z.string().optional(),
       targetAppId: z.string().optional(),
       infoObjectId: z.string().optional().nullable(),
       pattern: z.string().optional(),
       frequency: z.string().optional(),
       crud: z.string().optional(),
+      references: z.string().optional().nullable(),
     }),
   },
 }, async (request, reply) => {
@@ -582,10 +839,14 @@ server.put('/integrations/:id', {
   }
 
   try {
-    return await prisma.integration.update({
+    const updated = await prisma.integration.update({
       where: { id: request.params.id },
       data: request.body,
     });
+    // Add new processing connections implied by the (possibly updated)
+    // source/target/payload. Never remove — manual edits must persist.
+    await connectIntegrationProcessing(updated.sourceAppId, updated.targetAppId, updated.infoObjectId);
+    return updated;
   } catch (err: any) {
     if (err.code === 'P2025') return reply.status(404).send({ error: 'Integration not found' });
     throw err;
@@ -624,7 +885,7 @@ server.post('/picklists/:id/options', {
     body: z.object({
       value: z.string(),
       label: z.string(),
-      color: z.string().optional(),
+      color: z.string().nullish(),
       order: z.number().optional(),
     }),
   },
@@ -643,7 +904,7 @@ server.put('/picklists/:id/options', {
     body: z.array(z.object({
       value: z.string(),
       label: z.string(),
-      color: z.string().optional(),
+      color: z.string().nullish(),
       order: z.number().optional(),
     })),
   },
@@ -688,9 +949,9 @@ server.post('/metadata-definitions', {
       fieldType: z.string(),
       label: z.string(),
       required: z.boolean().optional(),
-      min: z.number().optional(),
-      max: z.number().optional(),
-      scaleType: z.string().optional(),
+      min: z.number().optional().nullable(),
+      max: z.number().optional().nullable(),
+      scaleType: z.string().optional().nullable(),
     }),
   },
 }, async (request) => {
@@ -708,9 +969,9 @@ server.put('/metadata-definitions/:id', {
       fieldType: z.string().optional(),
       label: z.string().optional(),
       required: z.boolean().optional(),
-      min: z.number().optional(),
-      max: z.number().optional(),
-      scaleType: z.string().optional(),
+      min: z.number().optional().nullable(),
+      max: z.number().optional().nullable(),
+      scaleType: z.string().optional().nullable(),
     }),
   },
 }, async (request) => {

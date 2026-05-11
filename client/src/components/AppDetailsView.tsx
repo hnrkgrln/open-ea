@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
-import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { LifecycleBadge } from './LifecycleBadge';
+import { InlineFilter } from './FilterControls';
+import { ReferencesList } from './References';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -21,6 +23,7 @@ interface Props {
 
 export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
+  const [flowFilter, setFlowFilter] = useState('');
 
   const { data: latestApps } = useQuery<any[]>({ 
     queryKey: ['applications'], 
@@ -165,42 +168,81 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                 </div>
               </section>
 
-              {/* Integrations Section */}
+              {/* Processed Information Objects */}
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Network size={16} /> Integrations & Data Flows
+                  <FileText size={16} /> Processed Information
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {(app.sourceOf?.length > 0 || app.targetOf?.length > 0) ? (
-                    <>
-                      {app.sourceOf?.map((i: any) => (
-                        <div key={i.id} onClick={() => navigate(`/integrations/${i.id}`)} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} className="row-hover">
-                          <ArrowRight size={18} style={{ color: 'var(--primary)' }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>PROVIDES TO</div>
-                            <div style={{ fontWeight: 700 }}>{i.targetApp?.name}</div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</div>
-                          </div>
-                        </div>
-                      ))}
-                      {app.targetOf?.map((i: any) => (
-                        <div key={i.id} onClick={() => navigate(`/integrations/${i.id}`)} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} className="row-hover">
-                          <ArrowLeft size={18} style={{ color: 'var(--muted-foreground)' }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>CONSUMES FROM</div>
-                            <div style={{ fontWeight: 700 }}>{i.sourceApp?.name}</div>
-                          </div>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  ) : (
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No integrations recorded for this system.</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                  {app.processedInformationObjects && app.processedInformationObjects.length > 0 ? app.processedInformationObjects.map((io: any) => (
+                    <div key={io.id} onClick={() => navigate(`/information/${io.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
+                      <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
+                        <FileText size={16} />
+                      </div>
+                      <span style={{ fontWeight: 700 }}>{io.name}</span>
+                    </div>
+                  )) : (
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No information objects linked to this application.</div>
                   )}
+                </div>
+              </section>
+
+              {/* Integrations Section */}
+              <section>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0 }}>
+                    <Network size={16} /> Integrations & Data Flows
+                  </h3>
+                  {((app.sourceOf?.length || 0) + (app.targetOf?.length || 0)) > 0 && (
+                    <InlineFilter value={flowFilter} onChange={setFlowFilter} placeholder="Filter by app or type..." />
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {(() => {
+                    const totalCount = (app.sourceOf?.length || 0) + (app.targetOf?.length || 0);
+                    if (totalCount === 0) {
+                      return <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No integrations recorded for this system.</div>;
+                    }
+                    const q = flowFilter.trim().toLowerCase();
+                    const matches = (i: any, otherName: string) => {
+                      if (!q) return true;
+                      const pat = (i.pattern || '').toLowerCase();
+                      return otherName.toLowerCase().includes(q) || pat.includes(q);
+                    };
+                    const outgoing = (app.sourceOf || []).filter((i: any) => matches(i, i.targetApp?.name || ''));
+                    const incoming = (app.targetOf || []).filter((i: any) => matches(i, i.sourceApp?.name || ''));
+                    if (q && outgoing.length === 0 && incoming.length === 0) {
+                      return <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No integrations match "{flowFilter}".</div>;
+                    }
+                    return (
+                      <>
+                        {outgoing.map((i: any) => (
+                          <div key={i.id} onClick={() => navigate(`/integrations/${i.id}`)} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} className="row-hover">
+                            <ArrowRight size={18} style={{ color: 'var(--primary)' }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>PROVIDES TO</div>
+                              <div style={{ fontWeight: 700 }}>{i.targetApp?.name}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</div>
+                            </div>
+                          </div>
+                        ))}
+                        {incoming.map((i: any) => (
+                          <div key={i.id} onClick={() => navigate(`/integrations/${i.id}`)} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }} className="row-hover">
+                            <ArrowLeft size={18} style={{ color: 'var(--muted-foreground)' }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>CONSUMES FROM</div>
+                              <div style={{ fontWeight: 700 }}>{i.sourceApp?.name}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </div>
               </section>
             </div>
@@ -254,7 +296,9 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                       return (
                         <div key={key} style={{ background: 'var(--card)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                           <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{def?.label || key}</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{String(val)}</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+                            {def?.fieldType === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}
+                          </div>
                         </div>
                       );
                     })}
@@ -276,6 +320,8 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
               </section>
             </div>
           </div>
+
+          <ReferencesList raw={app.references} />
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X, Network } from 'lucide-react';
+import { ColoredSelect } from './ColoredSelect';
 
 interface Application {
   id: string;
@@ -15,14 +16,27 @@ interface Props {
 export const NewIntegrationDialog = ({ applications, onSuccess }: Props) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sourceAppId, setSourceAppId] = useState('');
+  const [targetAppId, setTargetAppId] = useState('');
+  const [type, setType] = useState('API');
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     const formData = new FormData(e.currentTarget);
-    const data = Object.fromEntries(formData.entries());
+    const data = {
+      ...Object.fromEntries(formData.entries()),
+      sourceAppId,
+      targetAppId,
+      type,
+    };
 
-    if (data.sourceAppId === data.targetAppId) {
+    if (!sourceAppId || !targetAppId) {
+      alert('Please select both a source and target application.');
+      setLoading(false);
+      return;
+    }
+    if (sourceAppId === targetAppId) {
       alert("Source and Target applications must be different.");
       setLoading(false);
       return;
@@ -78,32 +92,34 @@ export const NewIntegrationDialog = ({ applications, onSuccess }: Props) => {
           <form onSubmit={handleSubmit}>
             <div className="field">
               <label className="label">Source Application</label>
-              <select name="sourceAppId" required>
-                <option value="">Select source...</option>
-                {applications.map(app => (
-                  <option key={app.id} value={app.id}>{app.name}</option>
-                ))}
-              </select>
+              <ColoredSelect
+                value={sourceAppId}
+                onChange={setSourceAppId}
+                options={[{ value: '', label: 'Select source...' }, ...applications.map(app => ({ value: app.id, label: app.name }))]}
+              />
             </div>
-            
+
             <div className="field">
               <label className="label">Target Application</label>
-              <select name="targetAppId" required>
-                <option value="">Select target...</option>
-                {applications.map(app => (
-                  <option key={app.id} value={app.id}>{app.name}</option>
-                ))}
-              </select>
+              <ColoredSelect
+                value={targetAppId}
+                onChange={setTargetAppId}
+                options={[{ value: '', label: 'Select target...' }, ...applications.map(app => ({ value: app.id, label: app.name }))]}
+              />
             </div>
 
             <div className="field">
               <label className="label">Integration Type</label>
-              <select name="type">
-                <option value="API">API</option>
-                <option value="Batch">Batch</option>
-                <option value="Messaging">Messaging</option>
-                <option value="Manual">Manual</option>
-              </select>
+              <ColoredSelect
+                value={type}
+                onChange={setType}
+                options={[
+                  { value: 'API', label: 'API' },
+                  { value: 'Batch', label: 'Batch' },
+                  { value: 'Messaging', label: 'Messaging' },
+                  { value: 'Manual', label: 'Manual' },
+                ]}
+              />
             </div>
 
             <div className="field">

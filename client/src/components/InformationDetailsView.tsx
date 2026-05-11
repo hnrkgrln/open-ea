@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
-import { Edit2, Share2, ChevronLeft, ShieldCheck, Database, Calendar, Info, Network, ArrowRight } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Edit2, FileText, ChevronLeft, ShieldCheck, Database, Calendar, Info, Network, ArrowRight } from 'lucide-react';
+import { InlineFilter } from './FilterControls';
+import { ReferencesList } from './References';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,9 +22,10 @@ interface Props {
 
 export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
+  const [flowFilter, setFlowFilter] = useState('');
 
-  const { data: latestInfo } = useQuery<any[]>({ 
-    queryKey: ['information-objects'], 
+  const { data: latestInfo } = useQuery<any[]>({
+    queryKey: ['information-objects'],
     queryFn: () => fetch('/api/information-objects').then(res => res.json()),
     staleTime: 1000 * 60 * 5,
   });
@@ -75,7 +78,7 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
                 <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#e67700', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Share2 size={12} /> Information Object
+                  <FileText size={12} /> Information Object
                 </span>
               </div>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
@@ -135,30 +138,70 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                 </div>
               </section>
 
-              {/* Integrations Flow Section */}
+              {/* Processing Applications Section */}
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Network size={16} /> Data Flows (Active Integrations)
+                  <Database size={16} /> Processed by
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {item.integrations && item.integrations.length > 0 ? item.integrations.map((i: any) => (
-                    <div key={i.id} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '2rem' }}>
-                      <div onClick={() => navigate(`/apps/${i.sourceAppId}`)} style={{ cursor: 'pointer', flex: 1, textAlign: 'right' }} className="row-hover">
-                        <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>SOURCE</div>
-                        <div style={{ fontWeight: 700 }}>{i.sourceApp?.name}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
+                  {item.processingApplications && item.processingApplications.length > 0 ? item.processingApplications.map((app: any) => (
+                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
+                      <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
+                        <Database size={16} />
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
-                        <ArrowRight size={20} style={{ opacity: 0.3 }} />
-                        <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</span>
-                      </div>
-                      <div onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', flex: 1 }} className="row-hover">
-                        <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>TARGET</div>
-                        <div style={{ fontWeight: 700 }}>{i.targetApp?.name}</div>
-                      </div>
+                      <span style={{ fontWeight: 700 }}>{app.name}</span>
                     </div>
                   )) : (
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No active integrations are currently moving this data payload.</div>
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No applications process this information object.</div>
                   )}
+                </div>
+              </section>
+
+              {/* Integrations Flow Section */}
+              <section>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0 }}>
+                    <Network size={16} /> Data Flows (Active Integrations)
+                  </h3>
+                  {item.integrations && item.integrations.length > 0 && (
+                    <InlineFilter value={flowFilter} onChange={setFlowFilter} placeholder="Filter by app or type..." />
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {(() => {
+                    const allIntegrations = item.integrations || [];
+                    if (allIntegrations.length === 0) {
+                      return <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No active integrations are currently moving this data payload.</div>;
+                    }
+                    const q = flowFilter.trim().toLowerCase();
+                    const filtered = q
+                      ? allIntegrations.filter((i: any) => {
+                          const src = i.sourceApp?.name?.toLowerCase() || '';
+                          const tgt = i.targetApp?.name?.toLowerCase() || '';
+                          const pat = (i.pattern || '').toLowerCase();
+                          return src.includes(q) || tgt.includes(q) || pat.includes(q);
+                        })
+                      : allIntegrations;
+                    if (filtered.length === 0) {
+                      return <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No integrations match "{flowFilter}".</div>;
+                    }
+                    return filtered.map((i: any) => (
+                      <div key={i.id} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                        <div onClick={() => navigate(`/apps/${i.sourceAppId}`)} style={{ cursor: 'pointer', flex: 1, textAlign: 'right' }} className="row-hover">
+                          <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>SOURCE</div>
+                          <div style={{ fontWeight: 700 }}>{i.sourceApp?.name}</div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                          <ArrowRight size={20} style={{ opacity: 0.3 }} />
+                          <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{i.pattern || 'API'}</span>
+                        </div>
+                        <div onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', flex: 1 }} className="row-hover">
+                          <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>TARGET</div>
+                          <div style={{ fontWeight: 700 }}>{i.targetApp?.name}</div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
                 </div>
               </section>
             </div>
@@ -194,7 +237,9 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                       return (
                         <div key={key} style={{ background: 'var(--card)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                           <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{def?.label || key}</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>{String(val)}</div>
+                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+                            {def?.fieldType === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}
+                          </div>
                         </div>
                       );
                     })}
@@ -216,6 +261,8 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
               </section>
             </div>
           </div>
+
+          <ReferencesList raw={item.references} />
         </div>
       </div>
     </div>
