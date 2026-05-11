@@ -580,7 +580,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
           <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '1.8rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.8rem' }}><Filter size={14} style={{ marginRight: '0.4rem' }} /> Filters</button>
+          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '1.8rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.8rem' }}><Filter size={14} style={{ marginRight: '0.4rem' }} /> Filters</button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={14} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={14} /></button>
@@ -999,10 +999,10 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <button 
             onClick={() => startTransition(() => setShowApps(!showApps))} 
             className="secondary" 
-            style={{ height: '2.5rem', padding: '0 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', fontWeight: 600, opacity: isPending ? 0.6 : 1 }}
+            style={{ height: '1.8rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, opacity: isPending ? 0.6 : 1 }}
             disabled={isPending}
           >
-            {showApps ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showApps ? <EyeOff size={14} /> : <Eye size={14} />}
             {isPending ? 'Processing...' : (showApps ? 'Hide Apps' : 'Show Apps')}
           </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
@@ -1052,9 +1052,9 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
       )}
 
       {viewMode === 'list' && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-          <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-            <Download size={16} /> Export CSV
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+          <button onClick={exportToCSV} className="secondary" style={{ height: '1.8rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+            <Download size={14} /> Export CSV
           </button>
         </div>
       )}
@@ -1079,10 +1079,10 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Capability Name (Hierarchy)</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem', width: '120px' }}>Actions</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Criticality</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Supporting Applications</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capability Name (Hierarchy)</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', width: '110px' }}>Actions</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Criticality</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Supporting Applications</th>
               </tr>
             </thead>
             <tbody>
@@ -1391,7 +1391,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
         </div>
       </div>
       {showFilters && (
-        <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
+        <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
             <div style={{ gridColumn: 'span 2' }}>
               <SearchInput 

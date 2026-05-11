@@ -387,7 +387,7 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .loading-logo {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--primary);
@@ -395,7 +395,7 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .loading-text {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--muted-foreground);
   font-weight: 500;
   letter-spacing: 0.05em;

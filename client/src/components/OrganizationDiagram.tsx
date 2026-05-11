@@ -28,38 +28,20 @@ interface Organization {
 interface PicklistOption { value: string; label: string; color?: string; }
 interface Picklist { name: string; options: PicklistOption[]; }
 
-const NODE_W = 220;
-const NODE_H = 70;
-// Roots render larger and bolder so the top of the hierarchy stands out.
-const ROOT_NODE_W = 300;
-const ROOT_NODE_H = 96;
+const NODE_W = 190;
+const NODE_H = 60;
+const ROOT_NODE_W = 260;
+const ROOT_NODE_H = 84;
 
-// Each root gets a base hue from this palette. Descendants derive their colors
-// from their parent — same hue family, small offsets between siblings, and a
-// lightness shift per depth — so the diagram visually highlights inheritance
-// while still giving every node its own shade.
-// Ordered for maximum perceptual contrast between adjacent roots — when there
-// are only 2-4 root orgs (the common case), the most dissimilar hues are used.
 const ROOT_PALETTE = [
-  '#fa5252', // red
-  '#228be6', // blue
-  '#fcc419', // yellow
-  '#51cf66', // green
-  '#be4bdb', // magenta
-  '#ff922b', // orange
-  '#15aabf', // cyan
-  '#7950f2', // violet
-  '#20c997', // teal
-  '#4c6ef5', // indigo
+  '#fa5252', '#228be6', '#fcc419', '#51cf66', '#be4bdb', 
+  '#ff922b', '#15aabf', '#7950f2', '#20c997', '#4c6ef5',
 ];
 
-// Per-level hue spread: siblings fan out within ±SIBLING_HUE_SPREAD/2 around
-// their parent's hue. The fan shrinks with depth (multiplied by SHRINK^depth)
-// so the family identity holds, but more gradually than 1/depth.
-const SIBLING_HUE_SPREAD = 90; // degrees fan across siblings at depth 1
-const SHRINK_PER_DEPTH = 0.7;  // 70% of the previous level's spread
-const DEPTH_LIGHTEN = 9;       // % L per level
-const DEPTH_DESATURATE = 3;    // % S per level
+const SIBLING_HUE_SPREAD = 90;
+const SHRINK_PER_DEPTH = 0.7;
+const DEPTH_LIGHTEN = 9;
+const DEPTH_DESATURATE = 3;
 const MAX_LIGHTNESS = 75;
 const MIN_SATURATION = 35;
 
@@ -111,32 +93,31 @@ const getTypeOption = (picklists: Picklist[], type?: string): PicklistOption | u
   return picklists.find(p => p.name === 'organization_type')?.options.find(o => o.value === String(type));
 };
 
-const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[]; subtreeColor: string; isRoot: boolean }>) => {
-  const { org, picklists, subtreeColor, isRoot } = data;
+const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[]; subtreeColor: string; isRoot: boolean; isStacked: boolean }>) => {
+  const { org, picklists, subtreeColor, isRoot, isStacked } = data;
   const typeOpt = getTypeOption(picklists, org.type);
   const useColored = typeOpt?.color && typeOpt.color !== 'var(--secondary)';
+  
   return (
     <div
       style={{
         width: isRoot ? ROOT_NODE_W : NODE_W,
-        padding: isRoot ? '0.85rem 1rem' : '0.55rem 0.75rem',
-        // Subtle tint on roots so they read as anchor points; descendants stay
-        // on the plain card background to keep the page calm.
+        padding: isRoot ? '0.75rem 0.9rem' : '0.5rem 0.65rem',
         background: isRoot ? `${subtreeColor}1F` : 'var(--card)',
         color: 'var(--foreground)',
         border: '1px solid var(--border)',
-        borderTop: `${isRoot ? 6 : 3}px solid ${subtreeColor}`,
-        borderRadius: isRoot ? 12 : 10,
+        borderTop: `${isRoot ? 5 : 3}px solid ${subtreeColor}`,
+        borderRadius: isRoot ? 10 : 8,
         boxShadow: isRoot
-          ? `0 6px 14px rgba(0, 0, 0, 0.12), 0 0 0 1px ${subtreeColor}55`
-          : '0 2px 4px rgba(0, 0, 0, 0.06)',
+          ? `0 4px 10px rgba(0, 0, 0, 0.12), 0 0 0 1px ${subtreeColor}55`
+          : '0 1px 3px rgba(0, 0, 0, 0.06)',
         cursor: 'pointer',
-        fontSize: isRoot ? 15 : 13,
+        fontSize: isRoot ? 14 : 12,
         textAlign: 'left',
         boxSizing: 'border-box',
       }}
     >
-      <Handle type="target" position={Position.Top} style={{ opacity: 0 }} />
+      <Handle type="target" position={isStacked ? Position.Left : Position.Top} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
       <div
         style={{
@@ -183,27 +164,22 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
   if (!orgs.length) return { nodes: [], edges: [] };
 
   const byId = new Map(orgs.map(o => [o.id, o] as const));
-
-  // Sibling lookup, sorted by name natural order — used both for sibling
-  // index assignment when deriving colors, and as a stable iteration order.
+  const hasChildren = (id: string) => orgs.some(o => o.parentId === id);
+  
   const siblingsOf = (parentId: string | null | undefined): Organization[] =>
     orgs
       .filter(o => (o.parentId || null) === (parentId || null) && (!o.parentId || byId.has(o.parentId)))
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
 
-  // Roots in stable order — each gets a base color from the palette.
   const roots = siblingsOf(null);
   const rootColor = new Map<string, string>();
   roots.forEach((r, i) => rootColor.set(r.id, ROOT_PALETTE[i % ROOT_PALETTE.length]));
 
-  // Memoized per-node color. Recurses up to parent then derives a hue/L/S
-  // shift based on depth and sibling position so children stay in the parent's
-  // family while remaining individually distinguishable.
   const colorByNode = new Map<string, string>();
   const depthByNode = new Map<string, number>();
   const colorOf = (id: string, depth = 0): string => {
     if (colorByNode.has(id)) return colorByNode.get(id)!;
-    if (depth > 64) return ROOT_PALETTE[0]; // cycle guard
+    if (depth > 64) return ROOT_PALETTE[0];
     const o = byId.get(id);
     if (!o) return ROOT_PALETTE[0];
     let result: string;
@@ -216,106 +192,131 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
       const myDepth = parentDepth + 1;
       depthByNode.set(o.id, myDepth);
 
-      const siblings = siblingsOf(o.parentId);
-      const idx = siblings.findIndex(s => s.id === o.id);
-      const n = siblings.length;
-
-      // Spread siblings around the parent's hue. Spread shrinks with depth
-      // (multiplicative — gentler falloff than 1/d) so deep descendants stay
-      // in the family while the spread at level 1 is wide enough that direct
-      // siblings actually look distinct.
-      const spread = SIBLING_HUE_SPREAD * Math.pow(SHRINK_PER_DEPTH, myDepth - 1);
-      const hueShift = n > 1 ? ((idx / (n - 1)) - 0.5) * spread : 0;
-
-      const [h, s, l] = hexToHsl(parentColor);
-      const newH = ((h + hueShift) % 360 + 360) % 360;
-      const newS = Math.max(MIN_SATURATION, s - DEPTH_DESATURATE);
-      const newL = Math.min(MAX_LIGHTNESS, l + DEPTH_LIGHTEN);
-      result = hslToHex(newH, newS, newL);
+      // Rule: If this node is a leaf (no children), inherit parent color exactly.
+      if (!hasChildren(o.id)) {
+        result = parentColor;
+      } else {
+        const siblings = siblingsOf(o.parentId);
+        const idx = siblings.findIndex(s => s.id === o.id);
+        const spread = SIBLING_HUE_SPREAD * Math.pow(SHRINK_PER_DEPTH, myDepth - 1);
+        const hueShift = siblings.length > 1 ? ((idx / (siblings.length - 1)) - 0.5) * spread : 0;
+        const [h, s, l] = hexToHsl(parentColor);
+        result = hslToHex(((h + hueShift) % 360 + 360) % 360, Math.max(MIN_SATURATION, s - DEPTH_DESATURATE), Math.min(MAX_LIGHTNESS, l + DEPTH_LIGHTEN));
+      }
     }
     colorByNode.set(id, result);
     return result;
   };
-  // Pre-compute so layout/render order doesn't matter.
-  for (const o of orgs) colorOf(o.id);
-  const colorFor = (id: string) => colorByNode.get(id) || ROOT_PALETTE[0];
+  orgs.forEach(o => colorOf(o.id));
 
-  const isRootId = (id: string) => {
-    const o = byId.get(id);
-    return !!o && (!o.parentId || !byId.has(o.parentId));
-  };
-
+  // HYBRID LAYOUT LOGIC
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', nodesep: 40, ranksep: 90, marginx: 24, marginy: 24 });
+  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 80, marginx: 40, marginy: 40 });
   g.setDefaultEdgeLabel(() => ({}));
 
-  for (const o of orgs) {
-    const isRoot = isRootId(o.id);
-    g.setNode(o.id, {
-      width: isRoot ? ROOT_NODE_W : NODE_W,
-      height: isRoot ? ROOT_NODE_H : NODE_H,
-    });
-  }
-  for (const o of orgs) {
-    if (o.parentId && byId.has(o.parentId)) g.setEdge(o.parentId, o.id);
-  }
-  dagre.layout(g);
-
-  const nodes: Node[] = orgs.map(o => {
-    const pos = g.node(o.id);
-    const isRoot = isRootId(o.id);
-    const w = isRoot ? ROOT_NODE_W : NODE_W;
-    const h = isRoot ? ROOT_NODE_H : NODE_H;
-    return {
-      id: o.id,
-      type: 'org',
-      position: { x: pos.x - w / 2, y: pos.y - h / 2 },
-      data: { org: o, picklists, subtreeColor: colorFor(o.id), isRoot },
-      draggable: false,
-    };
+  // Rule: Stack children if ALL of them are leaves.
+  const isLeaf = (id: string) => !hasChildren(id);
+  const stackParentIds = new Set<string>();
+  
+  orgs.forEach(o => {
+    const children = siblingsOf(o.id);
+    if (children.length > 1 && children.every(c => isLeaf(c.id))) {
+      stackParentIds.add(o.id);
+    }
   });
 
-  const edges: Edge[] = [];
-  for (const o of orgs) {
-    if (o.parentId && byId.has(o.parentId)) {
-      // Edges leaving a root are slightly thicker, reinforcing the root's
-      // anchor role visually as the line travels down.
-      const fromRoot = isRootId(o.parentId);
-      edges.push({
-        id: `${o.parentId}->${o.id}`,
-        source: o.parentId,
-        target: o.id,
+  const stackedNodeIds = new Set<string>();
+
+  orgs.forEach(o => {
+    if (o.parentId && stackParentIds.has(o.parentId)) {
+      stackedNodeIds.add(o.id);
+      return; 
+    }
+    const isRoot = !o.parentId;
+    g.setNode(o.id, { width: isRoot ? ROOT_NODE_W : NODE_W, height: isRoot ? ROOT_NODE_H : NODE_H });
+  });
+
+  // Placeholder for leaf stacks
+  stackParentIds.forEach(pId => {
+    const leaves = siblingsOf(pId);
+    const stackHeight = leaves.length * (NODE_H + 12);
+    const stackWidth = NODE_W + 30;
+    const placeholderId = `stack-${pId}`;
+    g.setNode(placeholderId, { width: stackWidth, height: stackHeight });
+    g.setEdge(pId, placeholderId);
+  });
+
+  orgs.forEach(o => {
+    if (o.parentId && !stackedNodeIds.has(o.id)) {
+      g.setEdge(o.parentId, o.id);
+    }
+  });
+
+  dagre.layout(g);
+
+  const finalNodes: Node[] = [];
+  const finalEdges: Edge[] = [];
+
+  orgs.forEach(o => {
+    if (stackedNodeIds.has(o.id)) return;
+    const pos = g.node(o.id);
+    const isRoot = !o.parentId;
+    const w = isRoot ? ROOT_NODE_W : NODE_W;
+    const h = isRoot ? ROOT_NODE_H : NODE_H;
+    finalNodes.push({
+      id: o.id, type: 'org',
+      position: { x: pos.x - w/2, y: pos.y - h/2 },
+      data: { org: o, picklists, subtreeColor: colorByNode.get(o.id)!, isRoot, isStacked: false }
+    });
+  });
+
+  stackParentIds.forEach(pId => {
+    const placeholderPos = g.node(`stack-${pId}`);
+    const leaves = siblingsOf(pId);
+    let currentY = placeholderPos.y - placeholderPos.height/2;
+    const indentX = placeholderPos.x - placeholderPos.width/2 + 20;
+
+    leaves.forEach(leaf => {
+      finalNodes.push({
+        id: leaf.id, type: 'org',
+        position: { x: indentX, y: currentY },
+        data: { org: leaf, picklists, subtreeColor: colorByNode.get(leaf.id)!, isRoot: false, isStacked: true }
+      });
+      
+      finalEdges.push({
+        id: `${pId}->${leaf.id}`, source: pId, target: leaf.id,
         type: 'smoothstep',
-        style: { stroke: colorFor(o.id), strokeWidth: fromRoot ? 2.5 : 2 },
+        style: { stroke: colorByNode.get(leaf.id), strokeWidth: 2 }
+      });
+      
+      currentY += NODE_H + 12;
+    });
+  });
+
+  orgs.forEach(o => {
+    if (o.parentId && !stackedNodeIds.has(o.id)) {
+      finalEdges.push({
+        id: `${o.parentId}->${o.id}`, source: o.parentId, target: o.id,
+        type: 'smoothstep',
+        style: { stroke: colorByNode.get(o.id), strokeWidth: o.parentId && !byId.get(o.parentId)?.parentId ? 2.5 : 2 }
       });
     }
-  }
+  });
 
-  return { nodes, edges };
+  return { nodes: finalNodes, edges: finalEdges };
 };
 
 const DiagramInner = ({ organizations, picklists }: { organizations: Organization[]; picklists: Picklist[] }) => {
   const navigate = useNavigate();
-
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => layoutOrgs(organizations, picklists),
-    [organizations, picklists]
-  );
-
+  const { nodes: initialNodes, edges: initialEdges } = useMemo(() => layoutOrgs(organizations, picklists), [organizations, picklists]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { fitView } = useReactFlow();
   const initialized = useNodesInitialized();
   const fittedKey = useRef('');
 
-  // Re-layout when input data changes.
-  useEffect(() => {
-    setNodes(initialNodes);
-    setEdges(initialEdges);
-  }, [initialNodes, initialEdges, setNodes, setEdges]);
+  useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
 
-  // Fit once after the first layout settles, and again whenever the dataset
-  // changes shape (different node count).
   useEffect(() => {
     const key = `${nodes.length}:${edges.length}`;
     if (initialized && nodes.length > 0 && fittedKey.current !== key) {
@@ -324,23 +325,12 @@ const DiagramInner = ({ organizations, picklists }: { organizations: Organizatio
     }
   }, [initialized, nodes.length, edges.length, fitView]);
 
-  const nodeTypes = useMemo(() => NODE_TYPES, []);
-
   return (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      nodeTypes={nodeTypes}
-      onNodeClick={(_event, node) => navigate(`/organizations/${node.id}`)}
-      proOptions={{ hideAttribution: true }}
-      fitView
-      minZoom={0.2}
-      maxZoom={1.5}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      elementsSelectable={false}
+      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+      nodeTypes={NODE_TYPES} onNodeClick={(_event, node) => navigate(`/organizations/${node.id}`)}
+      proOptions={{ hideAttribution: true }} fitView minZoom={0.1} maxZoom={1.5}
+      nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
     >
       <Background gap={20} size={1} color="var(--border)" />
       <Controls showInteractive={false} />
