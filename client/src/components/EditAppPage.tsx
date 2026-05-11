@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { X, Edit2, Plus, Trash2, CheckCircle2, ArrowRight, ArrowLeft, Search, Database, Boxes, ShieldCheck, Share2, Info, Network, User, Tag, Activity, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText } from 'lucide-react';
+import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatePicker } from './DatePicker';
 import { ColoredSelect } from './ColoredSelect';
@@ -224,57 +224,57 @@ export const EditAppPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
-      <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
-          <ChevronLeft size={20} />
+      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.35rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
+          <ChevronLeft size={18} />
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
           <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={() => navigate('/apps')}>Inventory</span>
           <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--foreground)', fontWeight: 600 }}>
-            <Edit2 size={14} style={{ opacity: 0.6 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600 }}>
+            <Edit2 size={12} style={{ opacity: 0.6 }} />
             <span>{isNew ? 'New Application' : 'Edit Application'}</span>
           </div>
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '1000px' }}>
-          <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '2rem 1.25rem 4rem 1.25rem', maxWidth: '1000px' }}>
+          <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Database size={12} /> Application
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'var(--primary)', color: 'var(--primary-foreground)', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Database size={10} /> Application
                 </span>
               </div>
-              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Application' : app?.name}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define technical characteristics and strategic fit.</p>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{isNew ? 'New Application' : app?.name}</h1>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1rem', marginTop: '0.4rem' }}>Define technical characteristics and strategic fit.</p>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard</button>
-              <button type="submit" className="primary" disabled={loading} style={{ height: '3rem', padding: '0 2rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '2.4rem', padding: '0 1.25rem', fontSize: '0.85rem' }}>Discard</button>
+              <button type="submit" className="primary" disabled={loading} style={{ height: '2.4rem', padding: '0 1.5rem', fontWeight: 800, fontSize: '0.85rem' }}>
                 {loading ? 'Saving...' : (isNew ? 'Create Application' : 'Save Changes')}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {/* BASIC INFO */}
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Info size={18} /> Basic Information
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Info size={16} /> Basic Information
               </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">Application Name</label>
-                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '1rem', fontSize: '1.25rem', fontWeight: 600 }} placeholder="e.g. Core Banking System" />
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. Core Banking System" />
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">Description</label>
-                  <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '1rem' }} placeholder="Purpose and primary functions..." />
+                  <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Purpose and primary functions..." />
                 </div>
                 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div className="field" style={{ marginBottom: 0 }}>
                     <label className="label">Business Owner</label>
                     <ColoredSelect
@@ -285,6 +285,7 @@ export const EditAppPage = () => {
                         { value: '', label: 'Unassigned' },
                         ...((organizations || []).map((o: any) => ({ value: o.name, label: o.name })))
                       ]}
+                      style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
                   <div className="field" style={{ marginBottom: 0 }}>
@@ -293,11 +294,12 @@ export const EditAppPage = () => {
                       value={formData.type}
                       onChange={(val) => setFormData({ ...formData, type: val })}
                       options={[{ value: '', label: 'Select Type...' }, ...(picklists?.find(p => p.name === 'application_type')?.options || [])]}
+                      style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem', background: 'rgba(0,0,0,0.02)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                   <div className="field" style={{ marginBottom: 0 }}>
                     <label className="label">Lifecycle Status</label>
                     <ColoredSelect
@@ -305,6 +307,7 @@ export const EditAppPage = () => {
                       onChange={(val) => setFormData({ ...formData, lifecycle: val })}
                       options={picklists?.find(p => p.name === 'lifecycle')?.options || []}
                       placeholder="Select lifecycle..."
+                      style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
                   <div style={{ marginBottom: 0 }}>
@@ -326,23 +329,23 @@ export const EditAppPage = () => {
             </section>
 
             {/* STRATEGIC ASSESSMENT */}
-            <section style={{ background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <ShieldCheck size={18} /> Strategic Assessment
+            <section style={{ background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <ShieldCheck size={16} /> Strategic Assessment
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '3rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
                   {strategicPicklists.map(item => {
                     const isDisabled = item.key === 'criticality' && isFieldDisabled;
                     return (
                         <div key={item.key} className="field" style={{ opacity: isDisabled ? 0.6 : 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{item.label}</label>
-                                {isDisabled && <span style={{ fontSize: '0.7rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM CAPABILITIES</span>}
-                                {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
+                                <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{item.label}</label>
+                                {isDisabled && <span style={{ fontSize: '0.65rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM CAPABILITIES</span>}
+                                {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
                             </div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            {item.options.find((o:any) => o.value === (formData as any)[item.key])?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }} />}
+                            <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            {item.options.find((o:any) => o.value === (formData as any)[item.key])?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }} />}
                             {item.options.find((o:any) => o.value === (formData as any)[item.key])?.label}
                             </div>
                         </div>
@@ -361,9 +364,9 @@ export const EditAppPage = () => {
                   })}
                   {rangeMetaDefs.map(def => (
                     <div key={def.id} className="field">
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{def.label}</label>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{def.label}</label>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</div>
                       </div>
                       <input type="range" min={def.min ?? 0} max={def.max ?? 100} step="1" style={{ background: getScaleGradient(def.scaleType) }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
                     </div>
@@ -373,16 +376,16 @@ export const EditAppPage = () => {
 
             {/* CAPABILITIES */}
             <section>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Boxes size={18} /> Business Capabilities
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Boxes size={16} /> Business Capabilities
                 </h3>
-                <InlineFilter value={capSearch} onChange={setCapSearch} placeholder="Search capabilities..." width="300px" size="md" />
+                <InlineFilter value={capSearch} onChange={setCapSearch} placeholder="Search capabilities..." width="250px" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem', maxHeight: '400px', overflowY: 'auto', padding: '1.5rem', background: 'var(--card)', borderRadius: '24px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', padding: '1rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)' }}>
                 {filteredCaps.map(cap => (
-                  <button key={cap.id} type="button" onClick={() => setSelectedCapIds(prev => prev.includes(cap.id) ? prev.filter(c => c !== cap.id) : [...prev, cap.id])} style={{ height: 'auto', padding: '1rem', justifyContent: 'flex-start', background: selectedCapIds.includes(cap.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(cap.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left' }}>
-                    {selectedCapIds.includes(cap.id) ? <CheckCircle2 size={16} style={{ marginRight: '0.5rem' }} /> : <Plus size={16} style={{ marginRight: '0.5rem', opacity: 0.3 }} />}
+                  <button key={cap.id} type="button" onClick={() => setSelectedCapIds(prev => prev.includes(cap.id) ? prev.filter(c => c !== cap.id) : [...prev, cap.id])} style={{ height: 'auto', padding: '0.75rem', justifyContent: 'flex-start', background: selectedCapIds.includes(cap.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(cap.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem' }}>
+                    {selectedCapIds.includes(cap.id) ? <CheckCircle2 size={14} style={{ marginRight: '0.4rem' }} /> : <Plus size={14} style={{ marginRight: '0.4rem', opacity: 0.3 }} />}
                     {cap.name}
                   </button>
                 ))}
@@ -391,18 +394,18 @@ export const EditAppPage = () => {
 
             {/* PROCESSED INFORMATION OBJECTS */}
             <section>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <FileText size={18} /> Processed Information
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <FileText size={16} /> Processed Information
                 </h3>
-                <InlineFilter value={infoSearch} onChange={setInfoSearch} placeholder="Search information objects..." width="300px" size="md" />
+                <InlineFilter value={infoSearch} onChange={setInfoSearch} placeholder="Search information objects..." width="250px" />
               </div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginTop: '-1rem', marginBottom: '1rem' }}>
-                Information objects this application processes. New integrations involving this app auto-link the payload here for convenience; you can also add or remove links manually.
+              <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '-0.75rem', marginBottom: '0.75rem' }}>
+                Information objects this application processes. New integrations involving this app auto-link the payload here for convenience.
               </p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem', maxHeight: '400px', overflowY: 'auto', padding: '1.5rem', background: 'var(--card)', borderRadius: '24px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', padding: '1rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)' }}>
                 {filteredInfoObjects.length === 0 ? (
-                  <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>
+                  <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>
                     {informationObjects && informationObjects.length === 0 ? 'No information objects defined yet.' : 'No matches.'}
                   </div>
                 ) : filteredInfoObjects.map((io: any) => (
@@ -412,15 +415,16 @@ export const EditAppPage = () => {
                     onClick={() => setSelectedInfoIds(prev => prev.includes(io.id) ? prev.filter(x => x !== io.id) : [...prev, io.id])}
                     style={{
                       height: 'auto',
-                      padding: '1rem',
+                      padding: '0.75rem',
                       justifyContent: 'flex-start',
                       background: selectedInfoIds.includes(io.id) ? 'var(--primary)' : 'var(--background)',
                       color: selectedInfoIds.includes(io.id) ? 'var(--primary-foreground)' : 'var(--foreground)',
                       border: '1px solid var(--border)',
-                      textAlign: 'left'
+                      textAlign: 'left',
+                      fontSize: '0.8rem'
                     }}
                   >
-                    {selectedInfoIds.includes(io.id) ? <CheckCircle2 size={16} style={{ marginRight: '0.5rem' }} /> : <Plus size={16} style={{ marginRight: '0.5rem', opacity: 0.3 }} />}
+                    {selectedInfoIds.includes(io.id) ? <CheckCircle2 size={14} style={{ marginRight: '0.4rem' }} /> : <Plus size={14} style={{ marginRight: '0.4rem', opacity: 0.3 }} />}
                     {io.name}
                   </button>
                 ))}
@@ -429,15 +433,15 @@ export const EditAppPage = () => {
 
             {/* INTEGRATIONS */}
             <section>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Network size={18} /> Integrations & Data Flows
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Network size={16} /> Integrations & Data Flows
                 </h3>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                 {appIntegrations.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.4rem' }}>
                     {appIntegrations.map(int => {
                       const isSource = int.sourceAppId === id;
                       const otherApp = isSource ? int.targetApp : int.sourceApp;
@@ -446,46 +450,46 @@ export const EditAppPage = () => {
                           key={int.id} 
                           onClick={() => navigate(`/integrations/${int.id}/edit`)}
                           className="card row-hover" 
-                          style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1.5rem', cursor: 'pointer' }}
+                          style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
                         >
-                          <div style={{ background: isSource ? '#d6336c' : 'var(--primary)', color: 'white', padding: '0.4rem', borderRadius: '6px', display: 'flex' }}>
-                            {isSource ? <LogOut size={16} aria-label="Outgoing" /> : <LogIn size={16} aria-label="Incoming" />}
+                          <div style={{ background: isSource ? '#d6336c' : 'var(--primary)', color: 'white', padding: '0.35rem', borderRadius: '6px', display: 'flex' }}>
+                            {isSource ? <LogOut size={14} aria-label="Outgoing" /> : <LogIn size={14} aria-label="Incoming" />}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{otherApp?.name || 'Unknown System'}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{otherApp?.name || 'Unknown System'}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
                               Payload: <strong>{int.payload?.name || 'Generic Object'}</strong> • {int.pattern || 'API'}
                             </div>
                           </div>
-                          <ArrowUpRight size={16} style={{ opacity: 0.3 }} />
+                          <ArrowUpRight size={14} style={{ opacity: 0.3 }} />
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div style={{ padding: '2.5rem', background: 'var(--card)', borderRadius: '24px', border: '1px dashed var(--border)', textAlign: 'center' }}>
-                    <Network size={32} style={{ color: 'var(--muted-foreground)', opacity: 0.2, marginBottom: '1rem' }} />
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>No integrations defined for this application.</div>
+                  <div style={{ padding: '2rem', background: 'var(--card)', borderRadius: '16px', border: '1px dashed var(--border)', textAlign: 'center' }}>
+                    <Network size={24} style={{ color: 'var(--muted-foreground)', opacity: 0.2, marginBottom: '0.75rem' }} />
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>No integrations defined for this application.</div>
                   </div>
                 )}
 
                 {!isNew && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.4rem' }}>
                     <button 
                       type="button" 
                       className="secondary" 
                       onClick={() => navigate(`/integrations/new?sourceAppId=${id}`)}
-                      style={{ height: '3.5rem', gap: '0.75rem', justifyContent: 'center', padding: '0 1.5rem' }}
+                      style={{ height: '2.5rem', gap: '0.6rem', justifyContent: 'center', padding: '0 1rem', fontSize: '0.85rem' }}
                     >
-                      <Plus size={16} /> Establish Outbound
+                      <Plus size={14} /> Establish Outbound
                     </button>
                     <button 
                       type="button" 
                       className="secondary" 
                       onClick={() => navigate(`/integrations/new?targetAppId=${id}`)}
-                      style={{ height: '3.5rem', gap: '0.75rem', justifyContent: 'center', padding: '0 1.5rem' }}
+                      style={{ height: '2.5rem', gap: '0.6rem', justifyContent: 'center', padding: '0 1rem', fontSize: '0.85rem' }}
                     >
-                      <Plus size={16} /> Establish Inbound
+                      <Plus size={14} /> Establish Inbound
                     </button>
                   </div>
                 )}
@@ -495,27 +499,27 @@ export const EditAppPage = () => {
             {/* CUSTOM META */}
             {otherMetaDefs.length > 0 && (
               <section>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <User size={18} /> Extended Metadata
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <User size={16} /> Extended Metadata
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem', background: 'var(--card)', padding: '2rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
                   {otherMetaDefs.map(def => (
-                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.75rem' }}>
+                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
                       {def.fieldType === 'boolean' ? (
                         <>
                           <CustomCheckbox 
                             checked={!!dynamicValues[def.fieldName]} 
                             onChange={checked => setDynamicValues({...dynamicValues, [def.fieldName]: checked})} 
                           />
-                          <label className="label" style={{ margin: 0, cursor: 'pointer' }}>{def.label}</label>
+                          <label className="label" style={{ margin: 0, cursor: 'pointer', fontSize: '0.8rem' }}>{def.label}</label>
                         </>
                       ) : (
                         <>
-                          <label className="label" style={{ marginBottom: '0.2rem' }}>{def.label}</label>
+                          <label className="label" style={{ marginBottom: '0.15rem', fontSize: '0.75rem' }}>{def.label}</label>
                           {def.fieldType === 'textarea' ? (
-                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0 }} />
+                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0, fontSize: '0.85rem' }} />
                           ) : (
-                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0 }} />
+                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0, fontSize: '0.85rem', height: '2rem' }} />
                           )}
                         </>
                       )}
@@ -528,9 +532,9 @@ export const EditAppPage = () => {
             <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
-              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>
-                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '3.5rem', padding: '0 2rem' }} disabled={deleting}>
-                  <Trash2 size={20} style={{ marginRight: '0.75rem' }} /> {deleting ? 'Deleting...' : 'Decommission Application'}
+              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>
+                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '2.5rem', padding: '0 1.5rem', fontSize: '0.85rem' }} disabled={deleting}>
+                  <Trash2 size={16} style={{ marginRight: '0.6rem' }} /> {deleting ? 'Deleting...' : 'Decommission Application'}
                 </button>
               </section>
             )}

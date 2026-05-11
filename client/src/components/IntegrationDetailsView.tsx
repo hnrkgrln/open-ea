@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Edit2, Network, ChevronLeft, Database, Share2, Calendar, Info, ArrowRight, ArrowLeft, Activity, Tag } from 'lucide-react';
+import React from 'react';
+import { Edit2, Network, ChevronLeft, Database, Calendar, Info, ArrowRight, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../utils/colors';

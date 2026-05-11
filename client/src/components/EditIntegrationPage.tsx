@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ChevronLeft, Info, Network, Trash2, Edit2, Database, Share2, Activity, Plus } from 'lucide-react';
+import { ChevronLeft, Info, Network, Trash2, Edit2, Activity } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MultiSelect } from './FilterControls';
 import { ColoredSelect } from './ColoredSelect';
@@ -145,50 +145,50 @@ export const EditIntegrationPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
-      <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
-          <ChevronLeft size={20} />
+      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.35rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
+          <ChevronLeft size={18} />
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
           <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={() => navigate('/integrations')}>Integrations</span>
           <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--foreground)', fontWeight: 600 }}>
-            <Edit2 size={14} style={{ opacity: 0.6 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600 }}>
+            <Edit2 size={12} style={{ opacity: 0.6 }} />
             <span>{isNew ? 'New Integration' : 'Edit Flow'}</span>
           </div>
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '800px' }}>
-          <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '2rem 1.25rem 4rem 1.25rem', maxWidth: '800px' }}>
+          <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#d6336c', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Network size={12} /> Integration Flow
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: '#d6336c', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Network size={10} /> Integration Flow
                 </span>
               </div>
-              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Data Flow' : 'Refine Integration'}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define how data moves between systems.</p>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{isNew ? 'New Data Flow' : 'Refine Integration'}</h1>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1rem', marginTop: '0.4rem' }}>Define how data moves between systems.</p>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard</button>
-              <button type="submit" className="primary" disabled={loading} style={{ height: '3rem', padding: '0 2rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '2.4rem', padding: '0 1.25rem', fontSize: '0.85rem' }}>Discard</button>
+              <button type="submit" className="primary" disabled={loading} style={{ height: '2.4rem', padding: '0 1.5rem', fontWeight: 800, fontSize: '0.85rem' }}>
                 {loading ? 'Saving...' : (isNew ? 'Establish Flow' : 'Save Changes')}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {/* SYSTEMS & PAYLOAD */}
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Info size={18} /> Source & Payload
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Info size={16} /> Source & Payload
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Description</label>
-                  <textarea rows={3} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ padding: '1rem' }} placeholder="Purpose of this data flow..." />
+                  <textarea rows={2} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ padding: '0.75rem' }} placeholder="Purpose of this data flow..." />
                 </div>
                 <div className="field">
                   <label className="label">Source Application</label>
@@ -197,6 +197,7 @@ export const EditIntegrationPage = () => {
                     value={formData.sourceAppId}
                     onChange={(val) => setFormData({ ...formData, sourceAppId: val })}
                     options={[{ value: '', label: 'Select Source...' }, ...((Array.isArray(apps) ? apps : []).map((a: any) => ({ value: a.id, label: a.name })))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
                 <div className="field">
@@ -206,6 +207,7 @@ export const EditIntegrationPage = () => {
                     value={formData.infoObjectId || ''}
                     onChange={(val) => setFormData({ ...formData, infoObjectId: val })}
                     options={[{ value: '', label: 'Select Payload...' }, ...((Array.isArray(infoObjects) ? infoObjects : []).map((io: any) => ({ value: io.id, label: io.name })))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
@@ -215,23 +217,25 @@ export const EditIntegrationPage = () => {
                     value={formData.targetAppId}
                     onChange={(val) => setFormData({ ...formData, targetAppId: val })}
                     options={[{ value: '', label: 'Select Target...' }, ...((Array.isArray(apps) ? apps : []).map((a: any) => ({ value: a.id, label: a.name })))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
             </section>
 
             {/* TECHNICAL DETAILS */}
-            <section style={{ background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Activity size={18} /> Delivery Context
+            <section style={{ background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Activity size={16} /> Delivery Context
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div className="field">
                   <label className="label">Integration Pattern</label>
                   <ColoredSelect
                     value={formData.pattern}
                     onChange={(val) => setFormData({ ...formData, pattern: val })}
                     options={patternOptions}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
                 <div className="field">
@@ -240,6 +244,7 @@ export const EditIntegrationPage = () => {
                     value={formData.frequency}
                     onChange={(val) => setFormData({ ...formData, frequency: val })}
                     options={freqOptions}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
@@ -250,6 +255,7 @@ export const EditIntegrationPage = () => {
                     selectedValues={formData.crud}
                     onChange={(vals) => setFormData({...formData, crud: vals})}
                     placeholder="Select operations..."
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
@@ -258,9 +264,9 @@ export const EditIntegrationPage = () => {
             <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
-              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>
-                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '3.5rem', padding: '0 2rem' }}>
-                  <Trash2 size={20} style={{ marginRight: '0.75rem' }} /> Decommission this flow
+              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>
+                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '2.5rem', padding: '0 1.5rem', fontSize: '0.85rem' }}>
+                  <Trash2 size={16} style={{ marginRight: '0.6rem' }} /> Decommission this flow
                 </button>
               </section>
             )}

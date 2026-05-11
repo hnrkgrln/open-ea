@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { X, Edit2, CheckCircle2, Trash2, Search, Boxes, Info, Share2, Database, ChevronLeft, Plus } from 'lucide-react';
+import { Edit2, CheckCircle2, Trash2, Boxes, Info, Share2, Database, ChevronLeft, Plus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
@@ -184,83 +184,84 @@ export const EditCapabilityPage = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
       {/* Navigation Header */}
-      <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
-          <ChevronLeft size={20} />
+      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.35rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
+          <ChevronLeft size={18} />
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
           <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={() => navigate('/capabilities')}>Hierarchy</span>
           <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>
           {!isNew && <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={() => navigate(`/capabilities/${id}`)}>{capability?.name}</span>}
           {!isNew && <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--foreground)', fontWeight: 600 }}>
-            <Edit2 size={14} style={{ opacity: 0.6 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600 }}>
+            <Edit2 size={12} style={{ opacity: 0.6 }} />
             <span>{isNew ? 'Define New Capability' : 'Edit Capability'}</span>
           </div>
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '1000px' }}>
-          <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '2rem 1.25rem 4rem 1.25rem', maxWidth: '1000px' }}>
+          <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#7048e8', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Boxes size={12} /> Capability
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: '#7048e8', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Boxes size={10} /> Capability
                 </span>
               </div>
-              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Capability' : capability?.name}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>{isNew ? 'Establish a new functional area in your enterprise hierarchy.' : 'Refine functional scope and strategic importance.'}</p>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{isNew ? 'New Capability' : capability?.name}</h1>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1rem', marginTop: '0.4rem' }}>{isNew ? 'Establish a new functional area.' : 'Refine functional scope and strategic importance.'}</p>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard Changes</button>
-              <button type="submit" className="primary" disabled={loading} style={{ height: '3rem', padding: '0 2rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '2.4rem', padding: '0 1.25rem', fontSize: '0.85rem' }}>Discard</button>
+              <button type="submit" className="primary" disabled={loading} style={{ height: '2.4rem', padding: '0 1.5rem', fontWeight: 800, fontSize: '0.85rem' }}>
                 {loading ? 'Saving...' : (isNew ? 'Create Capability' : 'Save Changes')}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {/* FUNCTIONAL DEFINITION */}
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Info size={18} /> Functional Definition
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Info size={16} /> Functional Definition
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Capability Name</label>
-                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '1rem', fontSize: '1.25rem', fontWeight: 600 }} placeholder="e.g. Talent Management" />
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. Talent Management" />
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Purpose & Outcome</label>
-                  <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '1rem', lineHeight: 1.6 }} placeholder="Describe the business outcomes this function delivers..." />
+                  <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem', lineHeight: 1.5 }} placeholder="Describe the business outcomes..." />
                 </div>
                 <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="label">Parent Capability (Hierarchy Position)</label>
+                  <label className="label">Parent Capability</label>
                   <ColoredSelect
                     value={formData.parentId || ''}
                     onChange={(val) => setFormData({ ...formData, parentId: val || null })}
                     options={[{ value: '', label: 'None (Root Level Capability)' }, ...((allCapabilities || []).filter((c: any) => c.id !== id).map((c: any) => ({ value: c.id, label: c.name })))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
             </section>
 
             {/* STRATEGIC IMPORTANCE */}
-            <section style={{ background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)', opacity: isFieldDisabled ? 0.85 : 1 }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Share2 size={18} /> Strategic Importance
+            <section style={{ background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)', opacity: isFieldDisabled ? 0.85 : 1 }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Share2 size={16} /> Strategic Importance
               </h3>
               <div className="field">
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <label className="label" style={{ fontSize: '1.125rem', fontWeight: 700 }}>Business Criticality</label>
+                    <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>Business Criticality</label>
                     {isFieldDisabled
-                      ? <span style={{ fontSize: '0.7rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM SUB-CAPABILITIES</span>
-                      : <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Capability Attribute</span>
+                      ? <span style={{ fontSize: '0.65rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM SUB-CAPABILITIES</span>
+                      : <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Capability Attribute</span>
                     }
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                     {criticalityOptions.find((o:any) => o.value === formData.criticality)?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: criticalityOptions.find((o:any) => o.value === formData.criticality)?.color }} />}
                     {criticalityOptions.find((o:any) => o.value === formData.criticality)?.label || '1 - Low'}
                   </div>
@@ -280,16 +281,16 @@ export const EditCapabilityPage = () => {
 
             {/* SUPPORTING APPLICATIONS */}
             <section>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Database size={18} /> Supporting Applications
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Database size={16} /> Supporting Applications
                 </h3>
-                <InlineFilter value={appSearch} onChange={setAppSearch} placeholder="Search applications..." width="300px" size="md" />
+                <InlineFilter value={appSearch} onChange={setAppSearch} placeholder="Search applications..." width="250px" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem', maxHeight: '400px', overflowY: 'auto', padding: '1.5rem', background: 'var(--card)', borderRadius: '24px', border: '1px solid var(--border)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', padding: '1rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)' }}>
                 {filteredApps.map(app => (
-                  <button key={app.id} type="button" onClick={() => setSelectedAppIds(prev => prev.includes(app.id) ? prev.filter(a => a !== app.id) : [...prev, app.id])} style={{ height: 'auto', padding: '1rem', justifyContent: 'flex-start', background: selectedAppIds.includes(app.id) ? 'var(--primary)' : 'var(--background)', color: selectedAppIds.includes(app.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left' }}>
-                    {selectedAppIds.includes(app.id) ? <CheckCircle2 size={16} style={{ marginRight: '0.5rem' }} /> : <Plus size={16} style={{ marginRight: '0.5rem', opacity: 0.3 }} />}
+                  <button key={app.id} type="button" onClick={() => setSelectedAppIds(prev => prev.includes(app.id) ? prev.filter(a => a !== app.id) : [...prev, app.id])} style={{ height: 'auto', padding: '0.75rem', justifyContent: 'flex-start', background: selectedAppIds.includes(app.id) ? 'var(--primary)' : 'var(--background)', color: selectedAppIds.includes(app.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem' }}>
+                    {selectedAppIds.includes(app.id) ? <CheckCircle2 size={14} style={{ marginRight: '0.4rem' }} /> : <Plus size={14} style={{ marginRight: '0.4rem', opacity: 0.3 }} />}
                     {app.name}
                   </button>
                 ))}
@@ -299,18 +300,18 @@ export const EditCapabilityPage = () => {
             {/* CUSTOM META */}
             {otherMetaDefs.length > 0 && (
               <section>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Edit2 size={18} /> Extended Metadata
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Edit2 size={16} /> Extended Metadata
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem', background: 'var(--card)', padding: '2rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
                   {otherMetaDefs.map(def => (
-                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.75rem' }}>
+                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
                       {def.fieldType === 'range' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                          <label className="label" style={{ marginBottom: '1rem' }}>{def.label}</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <label className="label" style={{ marginBottom: '0.75rem', fontSize: '0.75rem' }}>{def.label}</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <input type="range" min={def.min ?? 0} max={def.max ?? 100} style={{ background: getScaleGradient(def.scaleType) }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
-                            <span style={{ fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
+                            <span style={{ fontWeight: 800, fontSize: '0.8rem' }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
                           </div>
                         </div>
                       ) : def.fieldType === 'boolean' ? (
@@ -319,15 +320,15 @@ export const EditCapabilityPage = () => {
                             checked={!!dynamicValues[def.fieldName]} 
                             onChange={checked => setDynamicValues({...dynamicValues, [def.fieldName]: checked})} 
                           />
-                          <label className="label" style={{ margin: 0, cursor: 'pointer' }}>{def.label}</label>
+                          <label className="label" style={{ margin: 0, cursor: 'pointer', fontSize: '0.8rem' }}>{def.label}</label>
                         </>
                       ) : (
                         <>
-                          <label className="label" style={{ marginBottom: '0.2rem' }}>{def.label}</label>
+                          <label className="label" style={{ marginBottom: '0.15rem', fontSize: '0.75rem' }}>{def.label}</label>
                           {def.fieldType === 'textarea' ? (
-                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0 }} />
+                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0, fontSize: '0.85rem' }} />
                           ) : (
-                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0 }} />
+                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0, fontSize: '0.85rem', height: '2rem' }} />
                           )}
                         </>
                       )}
@@ -340,9 +341,9 @@ export const EditCapabilityPage = () => {
             <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
-              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>
-                <button type="button" onClick={handleDelete} disabled={deleting} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '3.5rem', padding: '0 2rem' }}>
-                  <Trash2 size={20} style={{ marginRight: '0.75rem' }} /> Delete this capability artifact
+              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>
+                <button type="button" onClick={handleDelete} disabled={deleting} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '2.5rem', padding: '0 1.5rem', fontSize: '0.85rem' }}>
+                  <Trash2 size={16} style={{ marginRight: '0.6rem' }} /> Delete this capability artifact
                 </button>
               </section>
             )}

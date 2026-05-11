@@ -275,12 +275,12 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
   return (
     <>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-          <Download size={14} /> Export CSV
+      <div style={{ display: 'flex', gap: '0.4rem' }}>
+        <button onClick={exportToCSV} className="secondary" style={{ height: '1.8rem', padding: '0 0.6rem', display: 'flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.8rem' }}>
+          <Download size={13} /> Export CSV
         </button>
-        <button onClick={() => fileInputRef.current?.click()} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-          <Upload size={14} /> Import CSV
+        <button onClick={() => fileInputRef.current?.click()} className="secondary" style={{ height: '1.8rem', padding: '0 0.6rem', display: 'flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.8rem' }}>
+          <Upload size={13} /> Import CSV
         </button>
         <input
           type="file"
@@ -296,29 +296,29 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
           <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
           <Dialog.Content style={{ 
             position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-            width: '90vw', maxWidth: '400px', background: 'var(--card)', color: 'var(--card-foreground)', 
-            padding: '1.5rem', borderRadius: 'var(--radius)', zIndex: 250, border: '1px solid var(--border)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            width: '90vw', maxWidth: '380px', background: 'var(--card)', color: 'var(--card-foreground)', 
+            padding: '1.25rem', borderRadius: 'var(--radius)', zIndex: 250, border: '1px solid var(--border)',
+            boxShadow: '0 20px 40px -10px rgba(0, 0, 0, 0.25)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <Dialog.Title style={{ fontWeight: 700, fontSize: '1.125rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <Dialog.Title style={{ fontWeight: 700, fontSize: '1rem' }}>
                 {status.isFinished ? 'Import Complete' : `Importing ${type}...`}
               </Dialog.Title>
               {status.isFinished && (
                 <Dialog.Close asChild>
-                  <button style={{ border: 'none', background: 'transparent', padding: '0.25rem', cursor: 'pointer' }}><X size={18} /></button>
+                  <button style={{ border: 'none', background: 'transparent', padding: '0.2rem', cursor: 'pointer' }}><X size={16} /></button>
                 </Dialog.Close>
               )}
             </div>
             <Dialog.Description style={{ display: 'none' }}>Data import progress and summary.</Dialog.Description>
 
             {!status.isFinished ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
                   <span>Processing item {status.current} of {status.total}</span>
                   <span>{progressPercentage}%</span>
                 </div>
-                <div style={{ height: '8px', background: 'var(--secondary)', borderRadius: '4px', overflow: 'hidden' }}>
+                <div style={{ height: '6px', background: 'var(--secondary)', borderRadius: '3px', overflow: 'hidden' }}>
                   <div 
                     style={{ 
                       height: '100%', 
@@ -328,38 +328,38 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
                     }} 
                   />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: '0.875rem' }}>
-                  <Loader2 size={16} className="spin" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', justifyContent: 'center', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>
+                  <Loader2 size={14} className="spin" />
                   <span>Please wait, do not close this window...</span>
                 </div>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>
-                      <CheckCircle2 size={20} />
-                      <strong style={{ fontSize: '1.25rem' }}>{status.success}</strong>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div style={{ padding: '0.75rem', background: 'var(--muted)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--primary)', marginBottom: '0.4rem' }}>
+                      <CheckCircle2 size={18} />
+                      <strong style={{ fontSize: '1.1rem' }}>{status.success}</strong>
                     </div>
-                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted-foreground)' }}>Success</span>
+                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted-foreground)' }}>Success</span>
                   </div>
-                  <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: status.error > 0 ? 'var(--destructive)' : 'var(--muted-foreground)', marginBottom: '0.5rem' }}>
-                      <XCircle size={20} />
-                      <strong style={{ fontSize: '1.25rem' }}>{status.error}</strong>
+                  <div style={{ padding: '0.75rem', background: 'var(--muted)', borderRadius: 'var(--radius)', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: status.error > 0 ? 'var(--destructive)' : 'var(--muted-foreground)', marginBottom: '0.4rem' }}>
+                      <XCircle size={18} />
+                      <strong style={{ fontSize: '1.1rem' }}>{status.error}</strong>
                     </div>
-                    <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted-foreground)' }}>Failed</span>
+                    <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 600, color: 'var(--muted-foreground)' }}>Failed</span>
                   </div>
                 </div>
                 {status.error > 0 && (
-                  <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textAlign: 'center' }}>
                     Check the browser console for details on failed items.
                   </p>
                 )}
                 <button 
                   onClick={() => setShowStatus(false)} 
                   className="primary" 
-                  style={{ width: '100%', marginTop: '0.5rem' }}
+                  style={{ width: '100%', marginTop: '0.4rem', height: '2rem', fontSize: '0.85rem' }}
                 >
                   Close
                 </button>
@@ -374,56 +374,56 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
 export const ImportExportSettings = ({ onRefresh, apps, capabilities, organizations, informationObjects, integrations }: { onRefresh: () => void, apps: any[], capabilities: any[], organizations: any[], informationObjects: any[], integrations: any[] }) => {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-      <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>Data Portability</h2>
-        <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>Bulk import and export of your architecture artifacts.</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Data Portability</h2>
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>Bulk import and export of your architecture artifacts.</p>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
-        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Applications</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Applications</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
             Import or export your application inventory.
           </p>
           <ImportExport type="applications" data={apps} onImportSuccess={onRefresh} />
         </div>
-        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Capabilities</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Capabilities</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
             Import or export your business capability map.
           </p>
           <ImportExport type="capabilities" data={capabilities} onImportSuccess={onRefresh} />
         </div>
-        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Organizations</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Organizations</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
             Import or export accountability structures.
           </p>
           <ImportExport type="organizations" data={organizations} onImportSuccess={onRefresh} />
         </div>
-        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Information Model</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Information Model</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
             Import or export conceptual business data objects.
           </p>
           <ImportExport type="information-objects" data={informationObjects} onImportSuccess={onRefresh} />
         </div>
-        <div style={{ padding: '1.25rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Integrations</h3>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem' }}>
+        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
+          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Integrations</h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
             Import or export system-to-system dependencies.
           </p>
           <ImportExport type="integrations" data={integrations} onImportSuccess={onRefresh} />
         </div>
       </div>
-      <div style={{ marginTop: '1.5rem', padding: '1.25rem', borderRadius: 'var(--radius)', background: 'var(--accent)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          <AlertCircle size={20} style={{ color: 'var(--primary)' }} />
-          <strong style={{ fontSize: '0.875rem' }}>Recommended Import Sequence</strong>
+      <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: 'var(--radius)', background: 'var(--accent)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+          <AlertCircle size={18} style={{ color: 'var(--primary)' }} />
+          <strong style={{ fontSize: '0.8rem' }}>Recommended Import Sequence</strong>
         </div>
-        <div style={{ fontSize: '0.875rem', color: 'var(--foreground)', lineHeight: 1.5 }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--foreground)', lineHeight: 1.4 }}>
           To correctly restore all relationships between your data, please import files in this specific order:
-          <ol style={{ marginTop: '0.5rem', paddingLeft: '1.5rem' }}>
+          <ol style={{ marginTop: '0.4rem', paddingLeft: '1.25rem' }}>
             <li><strong>Organizations</strong> (Owner references)</li>
             <li><strong>Capabilities</strong> (Initial hierarchy)</li>
             <li><strong>Information Model</strong> (Payload definitions)</li>
@@ -433,8 +433,8 @@ export const ImportExportSettings = ({ onRefresh, apps, capabilities, organizati
         </div>
       </div>
 
-      <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-        <div style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
+      <div style={{ marginTop: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
           <strong>Pro tip:</strong> To update existing records, include the <code>id</code> column in your CSV. To create new records, leave the <code>id</code> empty or omit the column.
         </div>
       </div>

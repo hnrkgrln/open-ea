@@ -1,6 +1,6 @@
 import React, { useState, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Info, Share2, FileText, Trash2, Edit2, ShieldCheck, Database, Plus } from 'lucide-react';
+import { ChevronLeft, Info, Share2, FileText, Trash2, Edit2, ShieldCheck } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
 import { CustomCheckbox } from './CustomCheckbox';
@@ -163,43 +163,43 @@ export const EditInformationPage = () => {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '800px' }}>
-          <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '2rem 1.25rem 4rem 1.25rem', maxWidth: '800px' }}>
+          <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#e67700', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <FileText size={12} /> Information Object
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: '#e67700', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <FileText size={10} /> Information Object
                 </span>
               </div>
-              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Data Concept' : item?.name}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define governed business data and its CIA profile.</p>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{isNew ? 'New Data Concept' : item?.name}</h1>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1rem', marginTop: '0.4rem' }}>Define governed business data and its CIA profile.</p>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard</button>
-              <button type="submit" className="primary" disabled={loading} style={{ height: '3rem', padding: '0 2rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '2.4rem', padding: '0 1.25rem', fontSize: '0.85rem' }}>Discard</button>
+              <button type="submit" className="primary" disabled={loading} style={{ height: '2.4rem', padding: '0 1.5rem', fontWeight: 800, fontSize: '0.85rem' }}>
                 {loading ? 'Saving...' : (isNew ? 'Create Concept' : 'Save Changes')}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             {/* DEFINITION */}
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Info size={18} /> Functional Definition
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Info size={16} /> Functional Definition
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
                 <div className="field">
                   <label className="label">Governed Name</label>
-                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '1rem', fontSize: '1.25rem', fontWeight: 600 }} placeholder="e.g. Employee Record" />
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. Employee Record" />
                 </div>
                 <div className="field">
                   <label className="label">Aliases (Comma separated)</label>
-                  <input value={formData.aliases} onChange={e => setFormData({...formData, aliases: e.target.value})} style={{ padding: '0.75rem' }} placeholder="e.g. Staff Data, Worker Profile" />
+                  <input value={formData.aliases} onChange={e => setFormData({...formData, aliases: e.target.value})} style={{ padding: '0.6rem' }} placeholder="e.g. Staff Data, Worker Profile" />
                 </div>
                 <div className="field">
                   <label className="label">Business Definition</label>
-                  <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '1rem' }} placeholder="Clear definition of what this concept represents..." />
+                  <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Clear definition of what this concept represents..." />
                 </div>
                 <div className="field">
                   <label className="label">Information Type</label>
@@ -207,18 +207,19 @@ export const EditInformationPage = () => {
                     value={formData.type}
                     onChange={(val) => setFormData({ ...formData, type: val })}
                     options={typeOptions}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
             </section>
 
             {/* CIA TRIAD & PII */}
-            <section style={{ background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <ShieldCheck size={18} /> CIA Model & Compliance
+            <section style={{ background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <ShieldCheck size={16} /> CIA Model & Compliance
               </h3>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {[
                   { label: 'Confidentiality', key: 'confidentiality' },
                   { label: 'Integrity', key: 'integrity' },
@@ -233,10 +234,10 @@ export const EditInformationPage = () => {
                    
                    return (
                     <div key={cia.key} className="field">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>{cia.label}</label>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            {opt?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: opt.color }} />}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                        <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{cia.label}</label>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            {opt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color }} />}
                             {opt?.label || `${currentVal} - Not Set`}
                         </div>
                         </div>
@@ -253,10 +254,10 @@ export const EditInformationPage = () => {
                    );
                 })}
 
-                <div className="field" style={{ marginTop: '1rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                    <label className="label" style={{ fontSize: '1rem', fontWeight: 700 }}>PII Category</label>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <div className="field" style={{ marginTop: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>PII Category</label>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                       {piiOptions.find((o:any) => o.value === formData.piiCategory)?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }} />}
                       {piiOptions.find((o:any) => o.value === formData.piiCategory)?.label || `${formData.piiCategory} - Not Set`}
                     </div>
@@ -281,24 +282,26 @@ export const EditInformationPage = () => {
 
             {/* ACCOUNTABILITY */}
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Share2 size={18} /> Accountability
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Share2 size={16} /> Accountability
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div className="field">
-                  <label className="label">Business Owner (Organization)</label>
+                  <label className="label">Business Owner</label>
                   <ColoredSelect
                     value={formData.businessOwnerId || ''}
                     onChange={(val) => setFormData({ ...formData, businessOwnerId: val || null })}
                     options={[{ value: '', label: 'Select Owner...' }, ...((Array.isArray(organizations) ? organizations : []).map((o: any) => ({ value: o.id, label: o.name })))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
                 <div className="field">
-                  <label className="label">Source of Truth (Primary Application)</label>
+                  <label className="label">Source of Truth</label>
                   <ColoredSelect
                     value={formData.appOwnerId || ''}
                     onChange={(val) => setFormData({ ...formData, appOwnerId: val || null })}
                     options={[{ value: '', label: 'Select System...' }, ...((Array.isArray(apps) ? apps : []).map((a: any) => ({ value: a.id, label: a.name })))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
@@ -307,18 +310,18 @@ export const EditInformationPage = () => {
             {/* CUSTOM META */}
             {infoMetaDefs.length > 0 && (
               <section>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <Edit2 size={18} /> Extended Metadata
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Edit2 size={16} /> Extended Metadata
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '2rem', background: 'var(--card)', padding: '2rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
                   {infoMetaDefs.map(def => (
-                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.75rem' }}>
+                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
                       {def.fieldType === 'range' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-                          <label className="label" style={{ marginBottom: '1rem' }}>{def.label}</label>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                          <label className="label" style={{ marginBottom: '0.75rem', fontSize: '0.75rem' }}>{def.label}</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <input type="range" min={def.min ?? 0} max={def.max ?? 100} style={{ background: getScaleGradient(def.scaleType || 'neutral') }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
-                            <span style={{ fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
+                            <span style={{ fontWeight: 800, fontSize: '0.8rem' }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</span>
                           </div>
                         </div>
                       ) : def.fieldType === 'boolean' ? (
@@ -327,15 +330,15 @@ export const EditInformationPage = () => {
                             checked={!!dynamicValues[def.fieldName]} 
                             onChange={checked => setDynamicValues({...dynamicValues, [def.fieldName]: checked})} 
                           />
-                          <label className="label" style={{ margin: 0, cursor: 'pointer' }}>{def.label}</label>
+                          <label className="label" style={{ margin: 0, cursor: 'pointer', fontSize: '0.8rem' }}>{def.label}</label>
                         </>
                       ) : (
                         <>
-                          <label className="label" style={{ marginBottom: '0.2rem' }}>{def.label}</label>
+                          <label className="label" style={{ marginBottom: '0.15rem', fontSize: '0.75rem' }}>{def.label}</label>
                           {def.fieldType === 'textarea' ? (
-                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0 }} />
+                            <textarea value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} rows={3} style={{ marginTop: 0, fontSize: '0.85rem' }} />
                           ) : (
-                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0 }} />
+                            <input type={def.fieldType === 'date' ? 'date' : 'text'} value={dynamicValues[def.fieldName] || ''} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: e.target.value})} style={{ marginTop: 0, fontSize: '0.85rem', height: '2rem' }} />
                           )}
                         </>
                       )}
@@ -348,9 +351,9 @@ export const EditInformationPage = () => {
             <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
-              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>
-                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '3.5rem', padding: '0 2rem' }}>
-                  <Trash2 size={20} style={{ marginRight: '0.75rem' }} /> Delete this artifact
+              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>
+                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '2.5rem', padding: '0 1.5rem', fontSize: '0.85rem' }}>
+                  <Trash2 size={16} style={{ marginRight: '0.6rem' }} /> Delete this artifact
                 </button>
               </section>
             )}

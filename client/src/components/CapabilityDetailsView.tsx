@@ -117,76 +117,76 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '1400px', position: 'relative' }}>
+        <div className="main-container" style={{ padding: '2rem 1.25rem 4rem 1.25rem', maxWidth: '1400px', position: 'relative' }}>
           <button 
             onClick={onBack} 
             style={{ 
-              position: 'absolute', top: '3rem', left: '-1rem', // Floats slightly to the left of the container
-              background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', 
+              position: 'absolute', top: '2rem', left: '-0.75rem', // Floats slightly to the left of the container
+              background: 'none', border: 'none', padding: '0.4rem', cursor: 'pointer', 
               display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', 
               borderRadius: '6px', transition: 'all 0.2s' 
             }} 
             className="row-hover"
             title="Go Back"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={20} />
           </button>
 
           {/* Hero Header */}
-          <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ marginBottom: '1.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#7048e8', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Boxes size={12} /> Capability
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: '#7048e8', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Boxes size={10} /> Capability
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
-                <h1 style={{ fontSize: '2.25rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{capability.name}</h1>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{capability.name}</h1>
               </div>
-              <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
+              <p style={{ fontSize: '1rem', color: 'var(--foreground)', lineHeight: 1.5, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {capability.description || 'No description provided for this business capability.'}
               </p>
               {parent && (
-                <div style={{ marginTop: '1.5rem' }}>
+                <div style={{ marginTop: '1rem' }}>
                   <span 
                     onClick={() => navigate(`/capabilities/${parent.id}`)}
-                    style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '4px' }}
+                    style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer', padding: '0.2rem 0.4rem', borderRadius: '4px' }}
                     className="row-hover"
                   >
-                    <Layers size={16} /> Part of <strong>{parent.name}</strong>
+                    <Layers size={14} /> Part of <strong>{parent.name}</strong>
                   </span>
                 </div>
               )}
             </div>
-            <button onClick={() => navigate(`/capabilities/${capability.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
-              <Edit2 size={18} /> Edit Capability
+            <button onClick={() => navigate(`/capabilities/${capability.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+              <Edit2 size={16} /> Edit Capability
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '3rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
             {/* Left Column: Core Strategic Data */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               
               {/* Strategic Assessment */}
               <section>
-                <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Share2 size={16} /> Strategic Assessment
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Share2 size={14} /> Strategic Assessment
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', maxWidth: '400px' }}>
                   {(() => {
                     const info = getPicklistInfo('criticality', effectiveCritValue);
                     return (
-                      <div style={{ padding: '1.5rem', background: 'var(--card)', borderRadius: '16px', border: isInherited ? `2px dashed ${info.color}` : '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.75rem', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <div style={{ padding: '1rem', background: 'var(--card)', borderRadius: '12px', border: isInherited ? `2px dashed ${info.color}` : '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                        <div style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--muted-foreground)', marginBottom: '0.5rem', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                           Business Criticality
-                          {isInherited && <span style={{ fontSize: '0.6rem', background: info.color, color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>INHERITED</span>}
+                          {isInherited && <span style={{ fontSize: '0.55rem', background: info.color, color: 'white', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>INHERITED</span>}
                         </div>
-                        <div style={{ fontSize: '1.25rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                            {info.color && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: info.color }} />}
+                        <div style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            {info.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.color }} />}
                             {info.label}
                         </div>
-                        <div style={{ marginTop: '0.75rem', width: '60px', height: '6px', borderRadius: '3px', background: info.color }} />
-                        {isInherited && <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', fontStyle: 'italic' }}>Value inherited from the highest-rated sub-capability.</div>}
+                        <div style={{ marginTop: '0.5rem', width: '40px', height: '4px', borderRadius: '2px', background: info.color }} />
+                        {isInherited && <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.4rem', fontStyle: 'italic' }}>Value inherited from the highest-rated sub-capability.</div>}
                       </div>
                     );
                   })()}
@@ -195,33 +195,33 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
 
               {/* Supported Applications Section */}
               <section>
-                <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Database size={16} /> Supporting Applications
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 0 }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Database size={14} /> Supporting Applications
+                  <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 0, marginLeft: '0.5rem' }}>
                     {supportingApps.length} total
                     {children.length > 0 && supportingApps.some(s => !s.isDirect) && ' · includes apps from sub-capabilities'}
                   </span>
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
                   {supportingApps.length > 0 ? supportingApps.map(({ app, isDirect, viaCapName }) => (
-                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                        <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px', flexShrink: 0 }}>
-                          <Database size={16} />
+                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '0.85rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem' }} className="row-hover">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                        <div style={{ background: 'var(--accent)', padding: '0.35rem', borderRadius: '8px', flexShrink: 0 }}>
+                          <Database size={14} />
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                          <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.name}</span>
+                          <span style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.name}</span>
                           {!isDirect && viaCapName && (
-                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Inherited from sub-capability: ${viaCapName}`}>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Inherited from sub-capability: ${viaCapName}`}>
                               via {viaCapName}
                             </span>
                           )}
                         </div>
                       </div>
-                      <ShieldCheck size={14} style={{ color: 'var(--muted-foreground)', opacity: 0.5, flexShrink: 0 }} />
+                      <ShieldCheck size={12} style={{ color: 'var(--muted-foreground)', opacity: 0.5, flexShrink: 0 }} />
                     </div>
                   )) : (
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>No applications currently mapped to this capability.</div>
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>No applications currently mapped to this capability.</div>
                   )}
                 </div>
               </section>
@@ -229,10 +229,10 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               {/* Sub-Capabilities Section */}
               {children.length > 0 && (
                 <section>
-                  <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <Layers size={16} /> Sub-Capabilities
+                  <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Layers size={14} /> Sub-Capabilities
                   </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
                     {children.map(child => {
                       const childInfo = getPicklistInfo('criticality', child.criticality);
                       const childHasOwnChildren = (allCapabilities || []).some(c => c.parentId === child.id);
@@ -242,30 +242,30 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                           onClick={() => navigate(`/capabilities/${child.id}`)}
                           style={{
                             cursor: 'pointer',
-                            padding: '1.25rem',
+                            padding: '0.85rem',
                             background: 'var(--card)',
-                            borderRadius: '12px',
+                            borderRadius: '10px',
                             border: '1px solid var(--border)',
                             borderLeft: `4px solid ${childInfo.color || 'var(--border)'}`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'space-between',
-                            gap: '0.75rem'
+                            gap: '0.6rem'
                           }}
                           className="row-hover"
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                            <Boxes size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                            <span style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{child.name}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                            <Boxes size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{child.name}</span>
                           </div>
                           <span
                             title={childHasOwnChildren ? 'Inherited from sub-capability' : 'Direct capability attribute'}
                             style={{
                               flexShrink: 0,
-                              fontSize: '0.65rem',
+                              fontSize: '0.6rem',
                               fontWeight: 800,
                               textTransform: 'uppercase',
-                              padding: '0.15rem 0.6rem',
+                              padding: '0.1rem 0.4rem',
                               borderRadius: '4px',
                               background: `${childInfo.color}20`,
                               color: childInfo.color,
@@ -283,18 +283,18 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
             </div>
 
             {/* Right Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               {/* Dynamic Metadata Section */}
               {Object.keys(meta).length > 0 && (
                 <section>
-                  <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>Extended Attributes</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Extended Attributes</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                     {Object.entries(meta).map(([key, val]: [string, any]) => {
                       const def = metaDefs?.find(d => d.fieldName === key);
                       return (
-                        <div key={key} style={{ background: 'var(--card)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>{def?.label || key}</div>
-                          <div style={{ fontSize: '1rem', fontWeight: 700 }}>
+                        <div key={key} style={{ background: 'var(--card)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border)', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                          <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>{def?.label || key}</div>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>
                             {def?.fieldType === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}
                           </div>
                         </div>
@@ -305,20 +305,20 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               )}
 
               <section>
-                <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>Audit Trail</h3>
-                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                    <div style={{ background: 'var(--muted)', padding: '0.5rem', borderRadius: '8px' }}><Calendar size={18} style={{ opacity: 0.7 }} /></div>
+                <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Audit Trail</h3>
+                <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--muted)', padding: '0.4rem', borderRadius: '8px' }}><Calendar size={16} style={{ opacity: 0.7 }} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>System Creation</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{capability.createdAt ? new Date(capability.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>System Creation</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{capability.createdAt ? new Date(capability.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                    <div style={{ background: 'var(--muted)', padding: '0.5rem', borderRadius: '8px' }}><Info size={18} style={{ opacity: 0.7 }} /></div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--muted)', padding: '0.4rem', borderRadius: '8px' }}><Info size={16} style={{ opacity: 0.7 }} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
-                      <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{capability.updatedAt ? new Date(capability.updatedAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{capability.updatedAt ? new Date(capability.updatedAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
                     </div>
                   </div>
                 </div>

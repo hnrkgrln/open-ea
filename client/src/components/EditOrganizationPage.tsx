@@ -110,53 +110,53 @@ export const EditOrganizationPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
-      <div style={{ padding: '0.75rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
-        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.5rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
-          <ChevronLeft size={20} />
+      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', padding: '0.35rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--muted-foreground)', borderRadius: '6px' }} className="row-hover">
+          <ChevronLeft size={18} />
         </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
           <span style={{ color: 'var(--muted-foreground)', cursor: 'pointer' }} onClick={() => navigate('/organizations')}>Hierarchy</span>
           <span style={{ color: 'var(--border)', fontWeight: 300 }}>/</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--foreground)', fontWeight: 600 }}>
-            <Edit2 size={14} style={{ opacity: 0.6 }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 600 }}>
+            <Edit2 size={12} style={{ opacity: 0.6 }} />
             <span>{isNew ? 'New Organization' : 'Edit Artifact'}</span>
           </div>
         </div>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '3rem 2rem 6rem 2rem', maxWidth: '800px' }}>
-          <div style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <form onSubmit={handleSubmit} className="main-container" style={{ padding: '2rem 1.25rem 4rem 1.25rem', maxWidth: '800px' }}>
+          <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.65rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.2rem 0.6rem', borderRadius: '4px', background: '#0b7285', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Layers size={12} /> Organization Unit
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: '#0b7285', color: 'white', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Layers size={10} /> Organization Unit
                 </span>
               </div>
-              <h1 style={{ fontSize: '2.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.03em' }}>{isNew ? 'New Organization' : org?.name}</h1>
-              <p style={{ color: 'var(--muted-foreground)', fontSize: '1.125rem', marginTop: '0.5rem' }}>Define accountability structures.</p>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{isNew ? 'New Organization' : org?.name}</h1>
+              <p style={{ color: 'var(--muted-foreground)', fontSize: '1rem', marginTop: '0.4rem' }}>Define accountability structures.</p>
             </div>
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '3rem', padding: '0 1.5rem' }}>Discard</button>
-              <button type="submit" className="primary" disabled={loading} style={{ height: '3rem', padding: '0 2rem', fontWeight: 800 }}>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button type="button" onClick={() => navigate(-1)} className="secondary" style={{ height: '2.4rem', padding: '0 1.25rem', fontSize: '0.85rem' }}>Discard</button>
+              <button type="submit" className="primary" disabled={loading} style={{ height: '2.4rem', padding: '0 1.5rem', fontWeight: 800, fontSize: '0.85rem' }}>
                 {loading ? 'Saving...' : (isNew ? 'Create Artifact' : 'Save Changes')}
               </button>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
             <section>
-              <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Info size={18} /> Definition
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <Info size={16} /> Definition
               </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1.25rem' }}>
                 <div className="field">
                   <label className="label">Name</label>
-                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '1rem', fontSize: '1.25rem', fontWeight: 600 }} placeholder="e.g. VP of HR or Finance Dept" />
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. VP of HR or Finance Dept" />
                 </div>
                 <div className="field">
                   <label className="label">Description</label>
-                  <textarea rows={4} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '1rem' }} placeholder="Accountabilities and scope..." />
+                  <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Accountabilities and scope..." />
                 </div>
                 <div className="field">
                   <label className="label">Type</label>
@@ -164,6 +164,7 @@ export const EditOrganizationPage = () => {
                     value={formData.type}
                     onChange={(val) => setFormData({ ...formData, type: val })}
                     options={orgTypeOptions}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
                 <div className="field">
@@ -172,6 +173,7 @@ export const EditOrganizationPage = () => {
                     value={formData.parentId || ''}
                     onChange={(val) => setFormData({ ...formData, parentId: val || null })}
                     options={[{ value: '', label: 'None (Top Level)' }, ...filteredOrgs.map((o: any) => ({ value: o.id, label: o.name }))]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
               </div>
@@ -180,9 +182,9 @@ export const EditOrganizationPage = () => {
             <ReferencesEditor value={references} onChange={setReferences} />
 
             {!isNew && (
-              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '4rem', display: 'flex', justifyContent: 'center' }}>
-                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '3.5rem', padding: '0 2rem' }}>
-                  <Trash2 size={20} style={{ marginRight: '0.75rem' }} /> Delete this artifact
+              <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>
+                <button type="button" onClick={handleDelete} className="secondary" style={{ color: 'var(--destructive)', borderColor: 'var(--destructive)', height: '2.5rem', padding: '0 1.5rem', fontSize: '0.85rem' }}>
+                  <Trash2 size={16} style={{ marginRight: '0.6rem' }} /> Delete this artifact
                 </button>
               </section>
             )}

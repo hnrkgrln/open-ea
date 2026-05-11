@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Edit2, Layers, ChevronLeft, Database, FileText, Calendar, Info, User, Boxes } from 'lucide-react';
+import { Edit2, Layers, ChevronLeft, FileText, Calendar, Info } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';

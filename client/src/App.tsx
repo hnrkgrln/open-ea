@@ -574,31 +574,31 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
 
   return (
     <div>
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Database size={32} /> Application Inventory</h1>
-          <p style={{ color: 'var(--muted-foreground)' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Database size={24} /> Application Inventory</h1>
+          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
-            <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
-            <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
+          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '1.8rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.8rem' }}><Filter size={14} style={{ marginRight: '0.4rem' }} /> Filters</button>
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
+            <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={14} /></button>
+            <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={14} /></button>
           </div>
-          {onNewApp}
+          {React.cloneElement(onNewApp as React.ReactElement, { style: { ...(onNewApp as React.ReactElement).props.style, height: '1.8rem', fontSize: '0.8rem' } })}
         </div>
       </div>
       {showFilters && (
-        <div className="card" style={{ marginBottom: '2rem', background: 'var(--background)', padding: '1.25rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
-            <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." />
-            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All Owners" />
-            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All Types" />
-            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All Lifecycles" />
+        <div className="card" style={{ marginBottom: '1.25rem', background: 'var(--background)', padding: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
+            <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
             
-            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" />
-            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" />
-            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" />
+            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
 
             {/* Custom Field Filters */}
             {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
@@ -608,19 +608,20 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
                 options={getCustomOptions(def.fieldName)} 
                 selectedValues={(filters.custom || {})[def.fieldName] || []} 
                 onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
-                placeholder={`All ${def.label}s`} 
+                placeholder="All" 
+                style={{ height: '1.8rem', fontSize: '0.8rem' }}
               />
             ))}
 
-            <button onClick={clearFilters} style={{ height: '2.5rem', borderColor: 'transparent', color: 'var(--muted-foreground)' }}><X size={16} style={{ marginRight: '0.5rem' }} /> Clear</button>
+            <button onClick={clearFilters} style={{ height: '1.8rem', borderColor: 'transparent', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}><X size={14} style={{ marginRight: '0.4rem' }} /> Clear</button>
           </div>
         </div>
       )}
 
       {viewMode === 'list' && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
-          <button onClick={exportToCSV} className="secondary" style={{ height: '2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-            <Download size={16} /> Export CSV
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
+          <button onClick={exportToCSV} className="secondary" style={{ height: '1.8rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+            <Download size={14} /> Export CSV
           </button>
         </div>
       )}
@@ -648,11 +649,11 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
               : String(app.criticality || 1);
 
             return (
-              <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.5rem', borderRadius: 'var(--radius)' }}><Database size={20} /></div>
-                    <div style={{ display: 'flex', gap: '4px' }}>
+              <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', padding: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.35rem', borderRadius: 'var(--radius)' }}><Database size={16} /></div>
+                    <div style={{ display: 'flex', gap: '3px' }}>
                       {allRangeFields.map(def => {
                         const val = def.fieldName === 'criticality' ? inheritedCrit : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
                         const isThisInherited = def.fieldName === 'criticality' && isInherited;
@@ -661,7 +662,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
                             key={def.id} 
                             title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`}
                             style={{ 
-                              width: '10px', height: '10px', borderRadius: '50%', 
+                              width: '8px', height: '8px', borderRadius: '50%', 
                               background: getOverlayColor(Number(val), def),
                               border: isThisInherited ? '1px solid var(--primary)' : 'none'
                             }} 
@@ -670,22 +671,22 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
                       })}
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                     <LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} />
                     <button 
                       onClick={(e) => { e.stopPropagation(); onEditApp(app); }} 
                       className="secondary" 
-                      style={{ border: 'none', height: '2rem', width: '2rem', padding: 0, background: 'transparent' }}
+                      style={{ border: 'none', height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent' }}
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={12} />
                     </button>
                   </div>
                 </div>
-                <h3 style={{ marginBottom: '0.5rem' }}>{app.name}</h3>
-                <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', marginBottom: '1rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description || 'No description provided.'}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '1rem', marginTop: 'auto' }}>
+                <h3 style={{ marginBottom: '0.35rem', fontSize: '1rem' }}>{app.name}</h3>
+                <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description || 'No description provided.'}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.7rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: 'auto' }}>
                   <div><strong>Owner:</strong> {ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || 'Unassigned'}</div>
-                  <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.color && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: appTypeOptions.find((o: any) => o.value === app.type)?.color }} />} {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
+                  <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: appTypeOptions.find((o: any) => o.value === app.type)?.color }} />} {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
                 </div>
               </div>
             );
@@ -694,7 +695,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Name</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Owner</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Type</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Status</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Lifecycle</th><th style={{ padding: '1rem', fontSize: '0.875rem' }}>Capabilities</th><th style={{ padding: '1rem', fontSize: '0.875rem', textAlign: 'right' }}>Actions</th></tr></thead>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
             {filteredApps.map(app => {
               const meta = safeJsonParse(app.metadata);
@@ -719,29 +720,29 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
 
               return (
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Database size={14} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600 }}>{(() => { const opt = appTypeOptions.find((o: any) => o.value === app.type); return opt ? <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}><div style={{ width: '8px', height: '8px', borderRadius: '50%', background: opt.color }} />{opt.label}</div> : (app.type || '—'); })()}</td>
-                  <td style={{ padding: '1rem' }}>
-                    <div style={{ display: 'flex', gap: '4px' }}>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={12} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 600 }}>{(() => { const opt = appTypeOptions.find((o: any) => o.value === app.type); return opt ? <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color }} />{opt.label}</div> : (app.type || '—'); })()}</td>
+                  <td style={{ padding: '0.6rem 1rem' }}>
+                    <div style={{ display: 'flex', gap: '3px' }}>
                       {allRangeFields.map(def => {
                         const val = def.fieldName === 'criticality' ? inheritedCrit : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
                         const isThisInherited = def.fieldName === 'criticality' && isInherited;
                         return (
-                          <div key={def.id} title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`} style={{ width: '8px', height: '8px', borderRadius: '50%', background: getOverlayColor(Number(val), def), border: isThisInherited ? '1px solid var(--primary)' : 'none' }} />
+                          <div key={def.id} title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`} style={{ width: '6px', height: '6px', borderRadius: '50%', background: getOverlayColor(Number(val), def), border: isThisInherited ? '1px solid var(--primary)' : 'none' }} />
                         );
                       })}
                     </div>
                   </td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}><LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} /></td>
-                  <td style={{ padding: '1rem', fontSize: '0.875rem' }}><div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>{app.capabilities?.map(cap => (<span key={cap.id} style={{ background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem' }}>{cap.name}</span>))}{(!app.capabilities || app.capabilities.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</div></td>
-                  <td style={{ padding: '1rem', textAlign: 'right' }}>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}><LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} /></td>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}><div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap' }}>{app.capabilities?.map(cap => (<span key={cap.id} style={{ background: 'var(--accent)', padding: '0.05rem 0.35rem', borderRadius: '3px', fontSize: '0.65rem' }}>{cap.name}</span>))}{(!app.capabilities || app.capabilities.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</div></td>
+                  <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
                     <button 
                       onClick={(e) => { e.stopPropagation(); onEditApp(app); }} 
                       className="secondary" 
-                      style={{ border: 'none', height: '2rem', width: '2rem', padding: 0, background: 'transparent' }}
+                      style={{ border: 'none', height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent' }}
                     >
-                      <Edit2 size={14} />
+                      <Edit2 size={12} />
                     </button>
                   </td>
                 </tr>
@@ -875,31 +876,31 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
   return (
     <>
       <tr key={node.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
-        <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, paddingLeft: `${1 + depth * 2}rem` }}>
-          <div onClick={() => navigate(`/capabilities/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-            {depth > 0 && <ChevronRight size={14} style={{ color: 'var(--muted-foreground)' }} />}
-            <Boxes size={14} style={{ color: 'var(--muted-foreground)' }} />
+        <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 600, paddingLeft: `${0.75 + depth * 1.5}rem` }}>
+          <div onClick={() => navigate(`/capabilities/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+            {depth > 0 && <ChevronRight size={12} style={{ color: 'var(--muted-foreground)' }} />}
+            <Boxes size={12} style={{ color: 'var(--muted-foreground)' }} />
             {node.name}
           </div>
         </td>
-        <td style={{ padding: '1rem', width: '120px' }}>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>
-            <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
-            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
+        <td style={{ padding: '0.6rem 1rem', width: '110px' }}>
+          <div style={{ display: 'flex', gap: '0.2rem' }}>
+            <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '1.6rem', padding: '0 0.5rem' }} title="Add Sub-capability"><Plus size={12} /></button>
+            <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0 }}><Edit2 size={12} /></button>
+            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={12} /></button>
           </div>
         </td>
-        <td style={{ padding: '1rem' }}>
+        <td style={{ padding: '0.6rem 1rem' }}>
           {crit && (
-            <span title={isInherited ? "Inherited from sub-capability" : "Direct capability attribute"} style={{ fontSize: '0.65rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.15rem 0.6rem', borderRadius: '4px', background: `${crit.color}20`, color: crit.color, border: isInherited ? `1px dashed ${crit.color}` : `1px solid ${crit.color}40` }}>
+            <span title={isInherited ? "Inherited from sub-capability" : "Direct capability attribute"} style={{ fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase', padding: '0.1rem 0.5rem', borderRadius: '4px', background: `${crit.color}20`, color: crit.color, border: isInherited ? `1px dashed ${crit.color}` : `1px solid ${crit.color}40` }}>
               {crit.label} {isInherited && <span style={{opacity: 0.7}}>(Inherited)</span>}
             </span>
           )}
         </td>
-        <td style={{ padding: '1rem', fontSize: '0.875rem' }}>
-          <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+        <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap' }}>
             {showApps && node.applications?.map(app => (
-              <span key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', background: 'var(--accent)', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Database size={10} /> {app.name}</span>
+              <span key={app.id} onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', background: 'var(--accent)', padding: '0.05rem 0.35rem', borderRadius: '3px', fontSize: '0.65rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.2rem' }}><Database size={9} /> {app.name}</span>
             ))}
             {(!showApps || !node.applications || node.applications.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>{showApps ? '—' : (node.applications?.length || 0) + ' Apps'}</span>}
           </div>
@@ -981,8 +982,8 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
     <div>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Boxes size={32} /> Business Capabilities</h1>
-          <p style={{ color: 'var(--muted-foreground)' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Boxes size={24} /> Business Capabilities</h1>
+          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {viewMode === 'grid' && (
@@ -1004,12 +1005,12 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
             {showApps ? <EyeOff size={16} /> : <Eye size={16} />}
             {isPending ? 'Processing...' : (showApps ? 'Hide Apps' : 'Show Apps')}
           </button>
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
-            <button onClick={() => setViewMode('grid')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
-            <button onClick={() => setViewMode('list')} style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
+            <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={14} /></button>
+            <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={14} /></button>
           </div>
-          <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <PlusCircle size={18} />
+          <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
+            <PlusCircle size={14} />
             New Capability
           </button>
         </div>
@@ -1350,25 +1351,26 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
             {mode === 'landscape' && (
               <button 
                 onClick={() => setShowCriticality(!showCriticality)} 
-                style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: showCriticality ? 'var(--background)' : 'transparent', boxShadow: showCriticality ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCriticality ? 'var(--primary)' : 'var(--muted-foreground)' }}>                <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} />
-                Business Criticality
+                style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: showCriticality ? 'var(--background)' : 'transparent', boxShadow: showCriticality ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCriticality ? 'var(--primary)' : 'var(--muted-foreground)' }}>
+                <ShieldAlert size={14} style={{ marginRight: '0.35rem' }} />
+                Criticality
               </button>
             )}
             {mode === 'landscape' && (
               <button 
                 onClick={() => setShowApplications(!showApplications)} 
-                style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: showApplications ? 'var(--background)' : 'transparent', boxShadow: showApplications ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showApplications ? 'var(--primary)' : 'var(--muted-foreground)' }}
+                style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: showApplications ? 'var(--background)' : 'transparent', boxShadow: showApplications ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showApplications ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
               >
-                {showApplications ? <Eye size={16} style={{ marginRight: '0.5rem' }} /> : <EyeOff size={16} style={{ marginRight: '0.5rem' }} />}
+                {showApplications ? <Eye size={14} style={{ marginRight: '0.35rem' }} /> : <EyeOff size={14} style={{ marginRight: '0.35rem' }} />}
                 Apps
               </button>
             )}
             {mode === 'app-landscape' && (
               <button 
                 onClick={() => setShowCapabilities(!showCapabilities)} 
-                style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: showCapabilities ? 'var(--background)' : 'transparent', boxShadow: showCapabilities ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCapabilities ? 'var(--primary)' : 'var(--muted-foreground)' }}
+                style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: showCapabilities ? 'var(--background)' : 'transparent', boxShadow: showCapabilities ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCapabilities ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
               >
-                {showCapabilities ? <Eye size={16} style={{ marginRight: '0.5rem' }} /> : <EyeOff size={16} style={{ marginRight: '0.5rem' }} />}
+                {showCapabilities ? <Eye size={14} style={{ marginRight: '0.35rem' }} /> : <EyeOff size={14} style={{ marginRight: '0.35rem' }} />}
                 Capabilities
               </button>
             )}
@@ -1377,27 +1379,27 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
               <button 
                 onClick={() => setHideOrphanApps(!hideOrphanApps)} 
                 title={hideOrphanApps ? `Currently hiding ${orphanCount} apps without integrations` : "Show apps without integrations"}
-                style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: hideOrphanApps ? 'var(--background)' : 'transparent', boxShadow: hideOrphanApps ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: hideOrphanApps ? 'var(--primary)' : 'var(--muted-foreground)' }}
+                style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: hideOrphanApps ? 'var(--background)' : 'transparent', boxShadow: hideOrphanApps ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: hideOrphanApps ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
               >
-                {hideOrphanApps ? <EyeOff size={16} style={{ marginRight: '0.5rem' }} /> : <Eye size={16} style={{ marginRight: '0.5rem' }} />}
+                {hideOrphanApps ? <EyeOff size={14} style={{ marginRight: '0.35rem' }} /> : <Eye size={14} style={{ marginRight: '0.35rem' }} />}
                 Hide Orphans {hideOrphanApps && orphanCount > 0 ? `(${orphanCount})` : ''}
               </button>
             )}
           </div>
           
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.5rem', padding: '0 0.75rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', marginTop: '0.25rem' }}><Filter size={16} style={{ marginRight: '0.5rem' }} /> Filters</button>
+          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '1.8rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.8rem' }}><Filter size={14} style={{ marginRight: '0.4rem' }} /> Filters</button>
         </div>
       </div>
       {showFilters && (
-        <div style={{ padding: '1rem 2rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+        <div style={{ padding: '0.75rem 1.5rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
             <div style={{ gridColumn: 'span 2' }}>
               <SearchInput 
                 label="Diagram Search" 
                 value={filters.search} 
                 onChange={(val) => updateFilters({ search: val })} 
                 placeholder="Search nodes and flows..." 
-                style={{ height: '2rem', fontSize: '0.875rem' }}
+                style={{ height: '1.8rem', fontSize: '0.8rem' }}
               />
             </div>
 

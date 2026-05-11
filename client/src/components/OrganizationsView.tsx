@@ -29,27 +29,27 @@ const OrgListRow = ({ node, picklists, onRefresh, depth = 0 }: { node: Organizat
   return (
     <>
       <tr key={node.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
-        <td style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: 600, paddingLeft: `${1 + depth * 2}rem` }}>
-          <div onClick={() => navigate(`/organizations/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-            {depth > 0 && <ChevronRight size={14} style={{ color: 'var(--muted-foreground)' }} />}
-            <Layers size={14} style={{ color: 'var(--muted-foreground)' }} />
+        <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 600, paddingLeft: `${0.75 + depth * 1.5}rem` }}>
+          <div onClick={() => navigate(`/organizations/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+            {depth > 0 && <ChevronRight size={12} style={{ color: 'var(--muted-foreground)' }} />}
+            <Layers size={12} style={{ color: 'var(--muted-foreground)' }} />
             {node.name}
           </div>
         </td>
-        <td style={{ padding: '1rem', width: '120px' }}>
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            <button onClick={() => navigate(`/organizations/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-organization"><Plus size={14} /></button>
-            <button onClick={() => navigate(`/organizations/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
-            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/organizations/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
+        <td style={{ padding: '0.6rem 1rem', width: '110px' }}>
+          <div style={{ display: 'flex', gap: '0.2rem' }}>
+            <button onClick={() => navigate(`/organizations/new?parentId=${node.id}`)} className="secondary" style={{ height: '1.6rem', padding: '0 0.5rem' }} title="Add Sub-organization"><Plus size={12} /></button>
+            <button onClick={() => navigate(`/organizations/${node.id}/edit`)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0 }}><Edit2 size={12} /></button>
+            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/organizations/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={12} /></button>
           </div>
         </td>
-        <td style={{ padding: '1rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            {typeInfo?.color && typeInfo.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: typeInfo.color }} />}
+        <td style={{ padding: '0.6rem 1rem' }}>
+          <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            {typeInfo?.color && typeInfo.color !== 'var(--secondary)' && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: typeInfo.color }} />}
             {typeInfo?.label || '—'}
           </span>
         </td>
-        <td style={{ padding: '1rem', fontSize: '0.875rem', color: 'var(--muted-foreground)' }}>
+        <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
           {node.description || '—'}
         </td>
       </tr>
@@ -88,18 +88,18 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
 
   return (
     <div style={isDiagram ? { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } : undefined}>
-      <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexShrink: 0 }}>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexShrink: 0 }}>
         <div>
-          <h1 style={{ fontSize: '1.875rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem' }}><Layers size={32} /> Organizations</h1>
-          <p style={{ color: 'var(--muted-foreground)' }}>Accountable divisions, departments and teams. Showing <strong>{organizations?.length || 0}</strong> artifacts.</p>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Layers size={24} /> Organizations</h1>
+          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Accountable divisions, departments and teams. Showing <strong>{organizations?.length || 0}</strong> artifacts.</p>
         </div>
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.25rem', borderRadius: 'var(--radius)', gap: '0.25rem' }}>
-            <button onClick={() => setViewMode('tree')} title="Diagram view" style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'tree' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'tree' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><GitBranch size={16} /></button>
-            <button onClick={() => setViewMode('list')} title="Table view" style={{ height: '2rem', padding: '0 0.75rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={16} /></button>
+        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
+            <button onClick={() => setViewMode('tree')} title="Diagram view" style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'tree' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'tree' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><GitBranch size={14} /></button>
+            <button onClick={() => setViewMode('list')} title="Table view" style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={14} /></button>
           </div>
-          <button onClick={() => navigate('/organizations/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <PlusCircle size={18} />
+          <button onClick={() => navigate('/organizations/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
+            <PlusCircle size={14} />
             New Organization
           </button>
         </div>
@@ -110,10 +110,10 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Organization</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem', width: '120px' }}>Actions</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Type</th>
-                <th style={{ padding: '1rem', fontSize: '0.875rem' }}>Description</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Organization</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', width: '110px' }}>Actions</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Description</th>
               </tr>
             </thead>
             <tbody>
@@ -131,7 +131,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
             <OrganizationDiagram organizations={organizations} picklists={picklists || []} />
           </div>
         ) : (
-          <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No organizations defined.</div>
+          <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic', fontSize: '0.8rem' }}>No organizations defined.</div>
         )
       )}
     </div>
