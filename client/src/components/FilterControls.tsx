@@ -12,8 +12,8 @@ interface InlineFilterProps {
 // Compact filter input for section headers: Search icon + text input + clear button.
 export const InlineFilter = ({ value, onChange, placeholder = 'Filter...', width = '260px', size = 'sm' }: InlineFilterProps) => {
   const dims = size === 'md'
-    ? { height: '2.5rem', iconSize: 16, iconLeft: '0.75rem', padLeft: '2.5rem', font: '0.875rem', xSize: 14 }
-    : { height: '2rem', iconSize: 14, iconLeft: '0.6rem', padLeft: '1.85rem', font: '0.8rem', xSize: 12 };
+    ? { height: '2.5rem', iconSize: 18, iconLeft: '0.75rem', padLeft: '2.5rem', font: '0.9rem', xSize: 16 }
+    : { height: '2.2rem', iconSize: 16, iconLeft: '0.6rem', padLeft: '1.85rem', font: '0.85rem', xSize: 14 };
   return (
     <div style={{ position: 'relative', width }}>
       <Search size={dims.iconSize} style={{ position: 'absolute', left: dims.iconLeft, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none' }} />
@@ -69,8 +69,8 @@ export const SearchInput = ({ value, onChange, placeholder = "Search...", label,
             paddingLeft: '2.75rem', 
             paddingRight: '2.5rem', 
             caretColor: 'var(--primary)',
-            height: '2.25rem',
-            fontSize: '0.875rem',
+            height: '2.5rem',
+            fontSize: '0.9rem',
             ...style 
           }}
         />
@@ -184,7 +184,7 @@ export const MultiSelect = ({ label, options, selectedValues = [], onChange, pla
                       padding: '0.6rem 0.75rem',
                       borderRadius: 'var(--radius)',
                       cursor: 'pointer',
-                      fontSize: '0.875rem',
+                      fontSize: '0.9rem',
                       color: '#ff4b4b',
                       background: 'rgba(255, 75, 75, 0.05)',
                       fontWeight: 800,
@@ -211,7 +211,7 @@ export const MultiSelect = ({ label, options, selectedValues = [], onChange, pla
                       padding: '0.5rem 0.75rem',
                       borderRadius: 'var(--radius)',
                       cursor: 'pointer',
-                      fontSize: '0.875rem',
+                      fontSize: '0.9rem',
                       background: selectedValues.includes(option.value) ? 'var(--accent)' : 'transparent',
                       color: 'var(--foreground)'
                     }}
@@ -224,7 +224,7 @@ export const MultiSelect = ({ label, options, selectedValues = [], onChange, pla
                   </div>
                 ))}
                 {options.length === 0 && (
-                  <div style={{ padding: '0.5rem', fontSize: '0.875rem', color: 'var(--muted-foreground)', textAlign: 'center' }}>
+                  <div style={{ padding: '0.5rem', fontSize: '0.9rem', color: 'var(--muted-foreground)', textAlign: 'center' }}>
                     No options available
                   </div>
                 )}

@@ -83,9 +83,9 @@ export const UnifiedSearch = ({}: Props) => {
       >
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
           <Search size={14} />
-          <span style={{ fontSize: '0.8rem' }}>Search everything...</span>
+          <span style={{ fontSize: '0.9rem' }}>Search everything...</span>
         </div>
-        <kbd style={{ fontSize: '0.7rem', background: 'var(--muted)', padding: '0.1rem 0.3rem', borderRadius: '4px', opacity: 0.7 }}>⌘K</kbd>
+        <kbd style={{ fontSize: '0.8rem', background: 'var(--muted)', padding: '0.15rem 0.4rem', borderRadius: '4px', opacity: 0.7 }}>⌘K</kbd>
       </button>
 
       <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -93,14 +93,14 @@ export const UnifiedSearch = ({}: Props) => {
           <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
           <Dialog.Content style={{ 
             position: 'fixed', top: '20%', left: '50%', transform: 'translateX(-50%)',
-            width: '90vw', maxWidth: '580px', background: 'var(--card)', padding: '0',
+            width: '90vw', maxWidth: '640px', background: 'var(--card)', padding: '0',
             borderRadius: 'var(--radius)', zIndex: 250, border: '1px solid var(--border)',
             boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
           }}>
             <Dialog.Title style={{ display: 'none' }}>Search</Dialog.Title>
             <Dialog.Description style={{ display: 'none' }}>Quickly find artifacts in the enterprise landscape.</Dialog.Description>
-            <div style={{ padding: '0.75rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-              <Search size={18} style={{ color: 'var(--muted-foreground)' }} />
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <Search size={20} style={{ color: 'var(--muted-foreground)' }} />
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
                 <input 
                   autoFocus
@@ -108,7 +108,7 @@ export const UnifiedSearch = ({}: Props) => {
                   value={query}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  style={{ border: 'none', background: 'transparent', width: '100%', fontSize: '0.9rem', outline: 'none', paddingRight: '2rem' }}
+                  style={{ border: 'none', background: 'transparent', width: '100%', fontSize: '1rem', outline: 'none', paddingRight: '2rem' }}
                 />
                 {query && (
                   <button
@@ -130,18 +130,18 @@ export const UnifiedSearch = ({}: Props) => {
                       cursor: 'pointer'
                     }}
                   >
-                    <X size={12} />
+                    <X size={14} />
                   </button>
                 )}
               </div>
               <Dialog.Close asChild>
-                <button style={{ border: 'none', background: 'transparent', padding: '0.2rem', cursor: 'pointer' }}><X size={16} /></button>
+                <button style={{ border: 'none', background: 'transparent', padding: '0.25rem', cursor: 'pointer' }}><X size={18} /></button>
               </Dialog.Close>
             </div>
 
-            <div style={{ maxHeight: '350px', overflowY: 'auto', padding: '0.4rem' }}>
+            <div style={{ maxHeight: '450px', overflowY: 'auto', padding: '0.5rem' }}>
               {!query && (
-                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
                   Search for apps, capabilities, info or organizations...
                 </div>
               )}
@@ -150,9 +150,9 @@ export const UnifiedSearch = ({}: Props) => {
                 <>
                   {/* Applications Section */}
                   {results?.applications?.length > 0 && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Database size={11} /> Applications
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Database size={13} /> Applications
                       </div>
                       {results.applications.map((app: any, idx: number) => {
                         const isSelected = selectedIndex === idx;
@@ -162,15 +162,15 @@ export const UnifiedSearch = ({}: Props) => {
                             onClick={() => closeAndSelect('app', app)}
                             onMouseEnter={() => setSelectedIndex(idx)}
                             style={{ 
-                              width: '100%', padding: '0.6rem 0.75rem', textAlign: 'left', 
+                              width: '100%', padding: '0.75rem 1rem', textAlign: 'left', 
                               background: isSelected ? 'var(--accent)' : 'transparent', 
                               border: 'none', display: 'flex', flexDirection: 'column', 
                               borderRadius: '4px', cursor: 'pointer' 
                             }}
                             className="search-result-item"
                           >
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{app.name}</span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.description}</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{app.name}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.description}</span>
                           </button>
                         );
                       })}
@@ -179,9 +179,9 @@ export const UnifiedSearch = ({}: Props) => {
 
                   {/* Capabilities Section */}
                   {results?.capabilities?.length > 0 && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Boxes size={11} /> Capabilities
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Boxes size={13} /> Capabilities
                       </div>
                       {results.capabilities.map((cap: any, idx: number) => {
                         const actualIdx = (results.applications?.length || 0) + idx;
@@ -192,15 +192,15 @@ export const UnifiedSearch = ({}: Props) => {
                             onClick={() => closeAndSelect('cap', cap)}
                             onMouseEnter={() => setSelectedIndex(actualIdx)}
                             style={{ 
-                              width: '100%', padding: '0.6rem 0.75rem', textAlign: 'left', 
+                              width: '100%', padding: '0.75rem 1rem', textAlign: 'left', 
                               background: isSelected ? 'var(--accent)' : 'transparent', 
                               border: 'none', display: 'flex', flexDirection: 'column', 
                               borderRadius: '4px', cursor: 'pointer' 
                             }}
                             className="search-result-item"
                           >
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{cap.name}</span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.description}</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{cap.name}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cap.description}</span>
                           </button>
                         );
                       })}
@@ -209,9 +209,9 @@ export const UnifiedSearch = ({}: Props) => {
 
                   {/* Organizations Section */}
                   {results?.organizations?.length > 0 && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Layers size={11} /> Organizations
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Layers size={13} /> Organizations
                       </div>
                       {results.organizations.map((org: any, idx: number) => {
                         const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + idx;
@@ -222,15 +222,15 @@ export const UnifiedSearch = ({}: Props) => {
                             onClick={() => closeAndSelect('org', org)}
                             onMouseEnter={() => setSelectedIndex(actualIdx)}
                             style={{ 
-                              width: '100%', padding: '0.6rem 0.75rem', textAlign: 'left', 
+                              width: '100%', padding: '0.75rem 1rem', textAlign: 'left', 
                               background: isSelected ? 'var(--accent)' : 'transparent', 
                               border: 'none', display: 'flex', flexDirection: 'column', 
                               borderRadius: '4px', cursor: 'pointer' 
                             }}
                             className="search-result-item"
                           >
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{org.name}</span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{org.description}</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{org.name}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{org.description}</span>
                           </button>
                         );
                       })}
@@ -239,9 +239,9 @@ export const UnifiedSearch = ({}: Props) => {
 
                   {/* Information Section */}
                   {results?.informationObjects?.length > 0 && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <FileText size={11} /> Information Objects
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FileText size={13} /> Information Objects
                       </div>
                       {results.informationObjects.map((io: any, idx: number) => {
                         const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + idx;
@@ -252,15 +252,15 @@ export const UnifiedSearch = ({}: Props) => {
                             onClick={() => closeAndSelect('info', io)}
                             onMouseEnter={() => setSelectedIndex(actualIdx)}
                             style={{ 
-                              width: '100%', padding: '0.6rem 0.75rem', textAlign: 'left', 
+                              width: '100%', padding: '0.75rem 1rem', textAlign: 'left', 
                               background: isSelected ? 'var(--accent)' : 'transparent', 
                               border: 'none', display: 'flex', flexDirection: 'column', 
                               borderRadius: '4px', cursor: 'pointer' 
                             }}
                             className="search-result-item"
                           >
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{io.name}</span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{io.description}</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{io.name}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{io.description}</span>
                           </button>
                         );
                       })}
@@ -269,9 +269,9 @@ export const UnifiedSearch = ({}: Props) => {
 
                   {/* Integrations Section */}
                   {results?.integrations?.length > 0 && (
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ padding: '0.4rem 0.65rem', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <Network size={11} /> Integrations
+                    <div style={{ marginBottom: '1rem' }}>
+                      <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Network size={13} /> Integrations
                       </div>
                       {results.integrations.map((i: any, idx: number) => {
                         const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + (results.informationObjects?.length || 0) + idx;
@@ -282,19 +282,19 @@ export const UnifiedSearch = ({}: Props) => {
                             onClick={() => closeAndSelect('integration', i)}
                             onMouseEnter={() => setSelectedIndex(actualIdx)}
                             style={{ 
-                              width: '100%', padding: '0.6rem 0.75rem', textAlign: 'left', 
+                              width: '100%', padding: '0.75rem 1rem', textAlign: 'left', 
                               background: isSelected ? 'var(--accent)' : 'transparent', 
                               border: 'none', display: 'flex', flexDirection: 'column', 
                               borderRadius: '4px', cursor: 'pointer' 
                             }}
                             className="search-result-item"
                           >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{i.sourceApp?.name}</span>
-                                <ArrowRight size={11} style={{ opacity: 0.5 }} />
-                                <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>{i.targetApp?.name}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{i.sourceApp?.name}</span>
+                                <ArrowRight size={13} style={{ opacity: 0.5 }} />
+                                <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{i.targetApp?.name}</span>
                             </div>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>Payload: {i.payload?.name || '—'}</span>
+                            <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>Payload: {i.payload?.name || '—'}</span>
                           </button>
                         );
                       })}
@@ -302,7 +302,7 @@ export const UnifiedSearch = ({}: Props) => {
                   )}
 
                   {(!results?.applications?.length && !results?.capabilities?.length && !results?.organizations?.length && !results?.informationObjects?.length && !results?.integrations?.length) && (
-                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>
+                    <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
                       No results found for "{query}"
                     </div>
                   )}
@@ -310,7 +310,7 @@ export const UnifiedSearch = ({}: Props) => {
               )}
 
               {isLoading && (
-                <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
                   Searching...
                 </div>
               )}

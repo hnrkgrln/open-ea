@@ -188,21 +188,21 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <header className="header">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
-          <Link to="/apps" className="logo" style={{ textDecoration: 'none', fontSize: '1.1rem' }}>{brandName}</Link>
-          <nav className="nav" style={{ gap: '1rem' }}>
-            <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Database size={14} /> Applications</NavLink>
-            <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Boxes size={14} /> Capabilities</NavLink>
-            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Layers size={14} /> Organizations</NavLink>
-            <NavLink to="/information" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><FileText size={14} /> Information</NavLink>
-            <NavLink to="/integrations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.85rem' }}><Network size={14} /> Integrations</NavLink>
+          <Link to="/apps" className="logo" style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
+          <nav className="nav" style={{ gap: '1.25rem' }}>
+            <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Database size={16} /> Applications</NavLink>
+            <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Boxes size={16} /> Capabilities</NavLink>
+            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Layers size={16} /> Organizations</NavLink>
+            <NavLink to="/information" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><FileText size={16} /> Information</NavLink>
+            <NavLink to="/integrations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Network size={16} /> Integrations</NavLink>
           </nav>
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
           <UnifiedSearch />
         </div>
         <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem' }}>
-          <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={16} /> Diagrams</NavLink>
-          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Settings size={18} /> Settings</NavLink>
+          <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><MapIcon size={18} /> Diagrams</NavLink>
+          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /> Settings</NavLink>
           <ThemeToggle />
         </div>
       </header>
@@ -577,28 +577,28 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
       <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Database size={24} /> Application Inventory</h1>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
+          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '1.8rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.8rem' }}><Filter size={14} style={{ marginRight: '0.4rem' }} /> Filters</button>
+          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.2rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}><Filter size={16} style={{ marginRight: '0.4rem' }} /> Filters</button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
-            <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={14} /></button>
-            <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={14} /></button>
+            <button onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
+            <button onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
           </div>
-          {React.cloneElement(onNewApp as React.ReactElement, { style: { ...(onNewApp as React.ReactElement).props.style, height: '1.8rem', fontSize: '0.8rem' } })}
+          {React.cloneElement(onNewApp as React.ReactElement, { style: { ...(onNewApp as React.ReactElement).props.style, height: '2.2rem', fontSize: '0.9rem' } })}
         </div>
       </div>
       {showFilters && (
         <div className="card" style={{ marginBottom: '1.25rem', background: 'var(--background)', padding: '1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
-            <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." style={{ height: '1.8rem', fontSize: '0.8rem' }} />
-            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
-            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
-            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             
-            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
-            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
-            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" style={{ height: '1.8rem', fontSize: '0.8rem' }} />
+            <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
 
             {/* Custom Field Filters */}
             {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
@@ -609,19 +609,19 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
                 selectedValues={(filters.custom || {})[def.fieldName] || []} 
                 onChange={(val) => setFilters({...filters, custom: { ...(filters.custom || {}), [def.fieldName]: val }})} 
                 placeholder="All" 
-                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+                style={{ height: '2.2rem', fontSize: '0.9rem' }}
               />
             ))}
 
-            <button onClick={clearFilters} style={{ height: '1.8rem', borderColor: 'transparent', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}><X size={14} style={{ marginRight: '0.4rem' }} /> Clear</button>
+            <button onClick={clearFilters} style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}><X size={16} style={{ marginRight: '0.4rem' }} /> Clear</button>
           </div>
         </div>
       )}
 
       {viewMode === 'list' && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-          <button onClick={exportToCSV} className="secondary" style={{ height: '1.8rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
-            <Download size={14} /> Export CSV
+          <button onClick={exportToCSV} className="secondary" style={{ height: '2.2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
+            <Download size={16} /> Export CSV
           </button>
         </div>
       )}
@@ -820,9 +820,9 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
             </span>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={14} /></button>
-            <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={14} /></button>
-            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={14} /></button>
+            <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={16} /></button>
+            <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={16} /></button>
+            <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={16} /></button>
           </div>
         </div>
         
@@ -983,7 +983,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Boxes size={24} /> Business Capabilities</h1>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
+          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>Strategic functions of your enterprise. Showing <strong>{capabilities?.length || 0}</strong> areas.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {viewMode === 'grid' && (
@@ -999,18 +999,18 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <button 
             onClick={() => startTransition(() => setShowApps(!showApps))} 
             className="secondary" 
-            style={{ height: '1.8rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 600, opacity: isPending ? 0.6 : 1 }}
+            style={{ height: '2.2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', fontWeight: 600, opacity: isPending ? 0.6 : 1 }}
             disabled={isPending}
           >
-            {showApps ? <EyeOff size={14} /> : <Eye size={14} />}
+            {showApps ? <EyeOff size={16} /> : <Eye size={16} />}
             {isPending ? 'Processing...' : (showApps ? 'Hide Apps' : 'Show Apps')}
           </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
-            <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={14} /></button>
-            <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={14} /></button>
+            <button onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
+            <button onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
           </div>
-          <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
-            <PlusCircle size={14} />
+          <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
+            <PlusCircle size={16} />
             New Capability
           </button>
         </div>
@@ -1053,8 +1053,8 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
 
       {viewMode === 'list' && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-          <button onClick={exportToCSV} className="secondary" style={{ height: '1.8rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
-            <Download size={14} /> Export CSV
+          <button onClick={exportToCSV} className="secondary" style={{ height: '2.2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}>
+            <Download size={16} /> Export CSV
           </button>
         </div>
       )}
@@ -1352,7 +1352,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
               <button 
                 onClick={() => setShowCriticality(!showCriticality)} 
                 style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: showCriticality ? 'var(--background)' : 'transparent', boxShadow: showCriticality ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCriticality ? 'var(--primary)' : 'var(--muted-foreground)' }}>
-                <ShieldAlert size={14} style={{ marginRight: '0.35rem' }} />
+                <ShieldAlert size={16} style={{ marginRight: '0.35rem' }} />
                 Criticality
               </button>
             )}
@@ -1361,7 +1361,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 onClick={() => setShowApplications(!showApplications)} 
                 style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: showApplications ? 'var(--background)' : 'transparent', boxShadow: showApplications ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showApplications ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
               >
-                {showApplications ? <Eye size={14} style={{ marginRight: '0.35rem' }} /> : <EyeOff size={14} style={{ marginRight: '0.35rem' }} />}
+                {showApplications ? <Eye size={16} style={{ marginRight: '0.35rem' }} /> : <EyeOff size={16} style={{ marginRight: '0.35rem' }} />}
                 Apps
               </button>
             )}
@@ -1370,7 +1370,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 onClick={() => setShowCapabilities(!showCapabilities)} 
                 style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: showCapabilities ? 'var(--background)' : 'transparent', boxShadow: showCapabilities ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showCapabilities ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
               >
-                {showCapabilities ? <Eye size={14} style={{ marginRight: '0.35rem' }} /> : <EyeOff size={14} style={{ marginRight: '0.35rem' }} />}
+                {showCapabilities ? <Eye size={16} style={{ marginRight: '0.35rem' }} /> : <EyeOff size={16} style={{ marginRight: '0.35rem' }} />}
                 Capabilities
               </button>
             )}
@@ -1381,13 +1381,13 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 title={hideOrphanApps ? `Currently hiding ${orphanCount} apps without integrations` : "Show apps without integrations"}
                 style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: hideOrphanApps ? 'var(--background)' : 'transparent', boxShadow: hideOrphanApps ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: hideOrphanApps ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
               >
-                {hideOrphanApps ? <EyeOff size={14} style={{ marginRight: '0.35rem' }} /> : <Eye size={14} style={{ marginRight: '0.35rem' }} />}
+                {hideOrphanApps ? <EyeOff size={16} style={{ marginRight: '0.35rem' }} /> : <Eye size={16} style={{ marginRight: '0.35rem' }} />}
                 Hide Orphans {hideOrphanApps && orphanCount > 0 ? `(${orphanCount})` : ''}
               </button>
             )}
           </div>
           
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '1.8rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.8rem' }}><Filter size={14} style={{ marginRight: '0.4rem' }} /> Filters</button>
+          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.2rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}><Filter size={16} style={{ marginRight: '0.4rem' }} /> Filters</button>
         </div>
       </div>
       {showFilters && (
@@ -1399,7 +1399,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 value={filters.search} 
                 onChange={(val) => updateFilters({ search: val })} 
                 placeholder="Search nodes and flows..." 
-                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+                style={{ height: '2.2rem', fontSize: '0.9rem' }}
               />
             </div>
 
@@ -1420,7 +1420,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 selectedValues={(filters as any)[item.key] || []} 
                 onChange={(val) => updateFilters({ [item.key]: val })} 
                 placeholder="All" 
-                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+                style={{ height: '2.2rem', fontSize: '0.9rem' }}
               />
             ))}
 
@@ -1431,7 +1431,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 selectedValues={activeCustomOverlays}
                 onChange={setActiveCustomOverlays}
                 placeholder="None"
-                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+                style={{ height: '2.2rem', fontSize: '0.9rem' }}
               />
             )}
 
@@ -1454,15 +1454,15 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                 selectedValues={(filters.custom || {})[def.fieldName] || []} 
                 onChange={(val) => updateFilters({ custom: { ...(filters.custom || {}), [def.fieldName]: val } })} 
                 placeholder="All"
-                style={{ height: '1.8rem', fontSize: '0.8rem' }}
+                style={{ height: '2.2rem', fontSize: '0.9rem' }}
               />
             ))}
 
             <button 
               onClick={() => { updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], infoType: [], custom: {} }); setActiveCustomOverlays([]); }} 
-              style={{ height: '1.8rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.8rem' }}
+              style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
             >
-              <X size={14} style={{ marginRight: '0.5rem' }} /> Clear All
+              <X size={16} style={{ marginRight: '0.5rem' }} /> Clear All
             </button>
           </div>
         </div>
