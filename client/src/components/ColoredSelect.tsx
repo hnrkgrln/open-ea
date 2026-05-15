@@ -5,6 +5,7 @@ import { Check, ChevronDown, Search } from 'lucide-react';
 interface Option {
   value: string;
   label: string;
+  description?: string;
   color?: string;
 }
 
@@ -195,7 +196,7 @@ export const ColoredSelect = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
+                      gap: '0.75rem',
                       padding: '0.5rem 0.75rem',
                       borderRadius: '6px',
                       fontSize: '0.875rem',
@@ -206,9 +207,23 @@ export const ColoredSelect = ({
                     }}
                     className="row-hover"
                   >
-                    {hasAnyColors ? (o.color ? <Dot color={o.color} /> : <span style={{ width: 10, flexShrink: 0 }} />) : null}
-                    <Select.ItemText>{o.label}</Select.ItemText>
-                    <Select.ItemIndicator style={{ marginLeft: 'auto' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {hasAnyColors ? (o.color ? <Dot color={o.color} /> : <span style={{ width: 10, flexShrink: 0 }} />) : null}
+                        <Select.ItemText>{o.label}</Select.ItemText>
+                      </div>
+                      {o.description && (
+                        <div style={{ 
+                          fontSize: '0.7rem', 
+                          color: 'var(--muted-foreground)', 
+                          marginLeft: hasAnyColors ? '1.1rem' : 0,
+                          lineHeight: '1.2'
+                        }}>
+                          {o.description}
+                        </div>
+                      )}
+                    </div>
+                    <Select.ItemIndicator style={{ marginLeft: 'auto', flexShrink: 0 }}>
                       <Check size={14} />
                     </Select.ItemIndicator>
                   </Select.Item>

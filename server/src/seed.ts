@@ -19,6 +19,7 @@ async function seedPicklist(name: string, label: string, options: any[]) {
         create: options.map((opt, i) => ({
           value: opt.value,
           label: opt.label,
+          description: opt.description,
           color: opt.color,
           order: opt.order ?? (i + 1)
         }))
@@ -60,10 +61,10 @@ async function seedPicklist(name: string, label: string, options: any[]) {
   await seedPicklist('owner', 'Application Owner', []);
 
   await seedPicklist('application_type', 'Application Type', [
-    { value: 'Business Application', label: 'Business Application' },
-    { value: 'Infrastructure Service', label: 'Infrastructure Service' },
-    { value: 'Platform', label: 'Platform' },
-    { value: 'Desktop Application', label: 'Desktop Application' },
+    { value: 'Business Application', label: 'Business Application', description: 'Software used by business users to perform their tasks.' },
+    { value: 'Infrastructure Service', label: 'Infrastructure Service', description: 'Low-level services that provide fundamental capabilities like networking or storage.' },
+    { value: 'Platform', label: 'Platform', description: 'A foundation for building and running applications.' },
+    { value: 'Desktop Application', label: 'Desktop Application', description: 'Software that runs locally on a user\'s workstation.' },
   ]);
 
   await seedPicklist('integration_type', 'Integration Type', [

@@ -7,6 +7,7 @@ interface PicklistOption {
   id?: string;
   value: string;
   label: string;
+  description?: string;
   color: string;
   order: number;
 }
@@ -130,7 +131,7 @@ export const EditRangePicklistDialog = ({ picklist, isScale, onSuccess }: Props)
         <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />
         <Dialog.Content style={{ 
           position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-          width: '90vw', maxWidth: '600px', maxHeight: '85vh', overflowY: 'auto',
+          width: '90vw', maxWidth: '800px', maxHeight: '85vh', overflowY: 'auto',
           background: 'var(--card)', color: 'var(--card-foreground)', padding: '1.5rem',
           borderRadius: 'var(--radius)', zIndex: 150, border: '1px solid var(--border)'
         }}>
@@ -180,6 +181,7 @@ export const EditRangePicklistDialog = ({ picklist, isScale, onSuccess }: Props)
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
                   <th style={{ padding: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase' }}>Value (DB Key)</th>
                   <th style={{ padding: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase' }}>Display Label</th>
+                  <th style={{ padding: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase' }}>Description</th>
                   <th style={{ padding: '0.5rem', fontSize: '0.7rem', textTransform: 'uppercase' }}>Color</th>
                   <th style={{ width: '40px' }}></th>
                 </tr>
@@ -192,6 +194,9 @@ export const EditRangePicklistDialog = ({ picklist, isScale, onSuccess }: Props)
                     </td>
                     <td style={{ padding: '0.5rem' }}>
                       <input value={opt.label} onChange={e => updateOption(i, 'label', e.target.value)} style={{ margin: 0, fontSize: '0.875rem' }} placeholder="My Label" />
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>
+                      <input value={opt.description || ''} onChange={e => updateOption(i, 'description', e.target.value)} style={{ margin: 0, fontSize: '0.875rem' }} placeholder="Optional description..." />
                     </td>
                     <td style={{ padding: '0.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

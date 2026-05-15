@@ -885,6 +885,7 @@ server.post('/picklists/:id/options', {
     body: z.object({
       value: z.string(),
       label: z.string(),
+      description: z.string().optional(),
       color: z.string().nullish(),
       order: z.number().optional(),
     }),
@@ -904,6 +905,7 @@ server.put('/picklists/:id/options', {
     body: z.array(z.object({
       value: z.string(),
       label: z.string(),
+      description: z.string().optional(),
       color: z.string().nullish(),
       order: z.number().optional(),
     })),

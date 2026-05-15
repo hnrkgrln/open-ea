@@ -11,6 +11,7 @@ interface PicklistOption {
   id: string;
   value: string;
   label: string;
+  description?: string;
   color: string;
   order: number;
 }
@@ -329,13 +330,16 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, or
                   </div>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
                   {selectedPicklist.options.map(opt => (
-                    <div key={opt.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: opt.color || '#adb5bd', border: '1px solid var(--border)', flexShrink: 0 }} />
+                    <div key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                      <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: opt.color || '#adb5bd', border: '1px solid var(--border)', flexShrink: 0, marginTop: '0.2rem' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '0.8rem', fontWeight: 700, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt.label}</div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt.value}</div>
+                        <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', marginBottom: opt.description ? '0.4rem' : 0 }}>{opt.value}</div>
+                        {opt.description && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.2' }}>{opt.description}</div>
+                        )}
                       </div>
                     </div>
                   ))}

@@ -124,6 +124,7 @@ model PicklistOption {
   id         String   @id @default(uuid())
   value      String
   label      String
+  description String?
   color      String?
   order      Int      @default(0)
   picklistId String
