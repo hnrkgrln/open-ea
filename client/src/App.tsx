@@ -342,6 +342,7 @@ const AppContent = () => {
           <InventoryView
             apps={apps || []}
             capabilities={capabilities || []}
+            organizations={organizations || []}
             onSelectApp={(id) => navigate(`/apps/${id}`)}
             onEditApp={(app) => navigate(`/apps/${app.id}/edit`)}
             onNewApp={<button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button>}
@@ -398,7 +399,7 @@ const AppContent = () => {
     </Layout>
   );
 };
-const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEditApp, onNewApp }: { apps: Application[], capabilities: Capability[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
+const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
