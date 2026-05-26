@@ -658,8 +658,20 @@ const DiagramInner = ({
           const iMatches = i.payload?.name?.toLowerCase().includes(search) || 
                           i.pattern?.toLowerCase().includes(search) ||
                           i.crud?.toLowerCase().includes(search);
-          const sMatches = sourceApp.name.toLowerCase().includes(search);
-          const tMatches = targetApp.name.toLowerCase().includes(search);
+                          
+          const appMatchesSearch = (app: Application) => {
+            return app.name.toLowerCase().includes(search) || 
+              app.description?.toLowerCase().includes(search) ||
+              app.owner?.toLowerCase().includes(search) ||
+              app.lifecycle?.toLowerCase().includes(search) ||
+              app.type?.toLowerCase().includes(search) ||
+              app.capabilities?.some(c => c.name.toLowerCase().includes(search)) ||
+              app.metadata?.toLowerCase().includes(search);
+          };
+
+          const sMatches = appMatchesSearch(sourceApp);
+          const tMatches = appMatchesSearch(targetApp);
+          
           return iMatches || sMatches || tMatches;
         }
 

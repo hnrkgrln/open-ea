@@ -116,6 +116,8 @@ export const EditInformationPage = () => {
         const finalId = isNew ? saved.id : id;
         queryClient.invalidateQueries({ queryKey: ['information-object', finalId] });
         queryClient.invalidateQueries({ queryKey: ['information-objects'] });
+        queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        queryClient.invalidateQueries({ queryKey: ['organization'] });
         navigate(`/information/${finalId}`);
       }
     } catch (err) {

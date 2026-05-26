@@ -35,7 +35,6 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   const { data: capability, isLoading } = useQuery<any>({
     queryKey: ['capability', capabilityId],
     queryFn: () => fetch(`/api/capabilities/${capabilityId}`).then(res => res.json()),
-    initialData: () => allCapabilities?.find(c => c.id === capabilityId),
     enabled: !!capabilityId && capabilityId !== 'undefined'
   });
 
@@ -211,11 +210,18 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                           <span style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{app.name}</span>
-                          {!isDirect && viaCapName && (
-                            <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Inherited from sub-capability: ${viaCapName}`}>
-                              via {viaCapName}
-                            </span>
-                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            {app.ownerOrg && (
+                              <span style={{ fontSize: '0.65rem', color: 'var(--primary)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                                <Layers size={10} /> {app.ownerOrg.name}
+                              </span>
+                            )}
+                            {!isDirect && viaCapName && (
+                              <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`Inherited from sub-capability: ${viaCapName}`}>
+                                {app.ownerOrg && ' • '}via {viaCapName}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <ShieldCheck size={12} style={{ color: 'var(--muted-foreground)', opacity: 0.5, flexShrink: 0 }} />

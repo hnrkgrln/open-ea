@@ -14,6 +14,18 @@ interface Props {
 export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
 
+  const parentRef = React.useRef<HTMLDivElement>(null);
+  const sourceIconRef = React.useRef<HTMLDivElement>(null);
+  const payloadCardRef = React.useRef<HTMLDivElement>(null);
+  const targetIconRef = React.useRef<HTMLDivElement>(null);
+
+  const [coords, setCoords] = React.useState({
+    x1: 0, y1: 0,
+    x2: 0, y2: 0,
+    x3: 0, y3: 0,
+    x4: 0, y4: 0,
+  });
+
   const { data: allIntegrations } = useQuery<any[]>({ 
     queryKey: ['integrations'], 
     queryFn: () => fetch('/api/integrations').then(res => res.json())
@@ -25,6 +37,59 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
     initialData: () => allIntegrations?.find(int => int.id === integrationId),
     enabled: !!integrationId && integrationId !== 'undefined'
   });
+
+  React.useEffect(() => {
+    const updateCoordinates = () => {
+      if (
+        parentRef.current &&
+        sourceIconRef.current &&
+        payloadCardRef.current &&
+        targetIconRef.current
+      ) {
+        const parentRect = parentRef.current.getBoundingClientRect();
+        const sourceRect = sourceIconRef.current.getBoundingClientRect();
+        const payloadRect = payloadCardRef.current.getBoundingClientRect();
+        const targetRect = targetIconRef.current.getBoundingClientRect();
+
+        // Source icon center-right (connecting point)
+        const x1 = sourceRect.right - parentRect.left;
+        const y1 = (sourceRect.top + sourceRect.bottom) / 2 - parentRect.top;
+
+        // Payload card left edge center
+        const x2 = payloadRect.left - parentRect.left;
+        const y2 = (payloadRect.top + payloadRect.bottom) / 2 - parentRect.top;
+
+        // Payload card right edge center
+        const x3 = payloadRect.right - parentRect.left;
+        const y3 = (payloadRect.top + payloadRect.bottom) / 2 - parentRect.top;
+
+        // Target icon center-left (connecting point)
+        const x4 = targetRect.left - parentRect.left;
+        const y4 = (targetRect.top + targetRect.bottom) / 2 - parentRect.top;
+
+        setCoords({ x1, y1, x2, y2, x3, y3, x4, y4 });
+      }
+    };
+
+    updateCoordinates();
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateCoordinates();
+    });
+
+    if (parentRef.current) {
+      resizeObserver.observe(parentRef.current);
+    }
+
+    window.addEventListener('resize', updateCoordinates);
+    const timer = setTimeout(updateCoordinates, 150);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateCoordinates);
+      clearTimeout(timer);
+    };
+  }, [i]);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
 
@@ -84,9 +149,110 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
           </div>
 
           {/* Integration Visual Flow */}
-          <div style={{ background: 'var(--card)', padding: '3rem', borderRadius: '24px', border: '1px solid var(--border)', marginBottom: '3rem', display: 'flex', alignItems: 'center', justifyContent: 'space-around', position: 'relative', overflow: 'hidden' }}>
-            <div onClick={() => navigate(`/apps/${i.sourceAppId}`)} style={{ cursor: 'pointer', zIndex: 1, textAlign: 'center', flex: 1, maxWidth: '280px' }} className="row-hover">
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+          <div 
+            ref={parentRef}
+            style={{ 
+              background: 'var(--card)', 
+              padding: '3rem', 
+              borderRadius: '24px', 
+              border: '1px solid var(--border)', 
+              marginBottom: '3rem', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-around', 
+              position: 'relative', 
+              overflow: 'hidden' 
+            }}
+          >
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes lineFlow {
+                from {
+                  stroke-dashoffset: 24;
+                }
+                to {
+                  stroke-dashoffset: 0;
+                }
+              }
+              .flow-line-animated {
+                stroke-dasharray: 6, 6;
+                animation: lineFlow 1.8s linear infinite;
+              }
+              .flow-particle {
+                animation: particleFade 2.5s infinite ease-in-out;
+              }
+              @keyframes particleFade {
+                0%, 100% {
+                  opacity: 0.6;
+                }
+                50% {
+                  opacity: 1;
+                }
+              }
+            `}} />
+
+            {/* Dynamic Connecting SVG Lines */}
+            {coords.x1 > 0 && (
+              <svg 
+                shapeRendering="geometricPrecision"
+                style={{ 
+                  position: 'absolute', 
+                  inset: 0, 
+                  width: '100%', 
+                  height: '100%', 
+                  pointerEvents: 'none', 
+                  zIndex: 0 
+                }}
+              >
+                <defs>
+                  <linearGradient id="single-flow-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="var(--border)" stopOpacity="0.4" />
+                    <stop offset="35%" stopColor="var(--primary)" stopOpacity="0.6" />
+                    <stop offset="50%" stopColor="var(--primary)" stopOpacity="0.8" />
+                    <stop offset="65%" stopColor="var(--primary)" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="var(--border)" stopOpacity="0.4" />
+                  </linearGradient>
+                </defs>
+
+                {(() => {
+                  const fullPath = `M ${coords.x1} ${coords.y1} C ${(coords.x1 + coords.x2) / 2} ${coords.y1}, ${(coords.x1 + coords.x2) / 2} ${coords.y2}, ${coords.x2} ${coords.y2} L ${coords.x3} ${coords.y3} C ${(coords.x3 + coords.x4) / 2} ${coords.y3}, ${(coords.x3 + coords.x4) / 2} ${coords.y4}, ${coords.x4} ${coords.y4}`;
+                  return (
+                    <>
+                      {/* Base Connection Line */}
+                      <path 
+                        d={fullPath} 
+                        fill="none" 
+                        stroke="var(--border)" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round" 
+                        opacity="0.5"
+                      />
+
+                      {/* Dashed animated flow */}
+                      <path 
+                        d={fullPath} 
+                        fill="none" 
+                        stroke="url(#single-flow-grad)" 
+                        strokeWidth="1.5" 
+                        strokeLinecap="round"
+                        className="flow-line-animated"
+                      />
+
+                      {/* Flowing animated elegant particle */}
+                      <circle r="3.5" fill="var(--primary)" className="flow-particle">
+                        <animateMotion 
+                          dur="3.5s" 
+                          repeatCount="indefinite" 
+                          path={fullPath} 
+                        />
+                      </circle>
+                    </>
+                  );
+                })()}
+              </svg>
+            )}
+
+            <div onClick={() => navigate(`/apps/${i.sourceAppId}`)} style={{ cursor: 'pointer', zIndex: 1, textAlign: 'center', flex: 1, maxWidth: '280px' }} className="glow-hover">
+              <div ref={sourceIconRef} style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                 <Database size={32} />
               </div>
               <div style={{ fontWeight: 800, fontSize: '1.125rem' }}>{i.sourceApp?.name}</div>
@@ -94,8 +260,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
             </div>
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', position: 'relative' }}>
-              <div style={{ position: 'absolute', width: '100%', height: '2px', background: 'var(--border)', top: '32px', left: 0, zIndex: 0 }} />
-              <div onClick={() => i.infoObjectId && navigate(`/information/${i.infoObjectId}`)} style={{ cursor: i.infoObjectId ? 'pointer' : 'default', zIndex: 1, background: 'var(--card)', padding: '1.125rem 2rem', borderRadius: '16px', border: '2px solid var(--primary)', textAlign: 'center', minWidth: '200px' }} className={i.infoObjectId ? "row-hover" : ""}>
+              <div ref={payloadCardRef} onClick={() => i.infoObjectId && navigate(`/information/${i.infoObjectId}`)} style={{ cursor: i.infoObjectId ? 'pointer' : 'default', zIndex: 1, background: 'var(--card)', padding: '1.125rem 2rem', borderRadius: '16px', border: '2px solid var(--primary)', textAlign: 'center', minWidth: '200px' }} className={i.infoObjectId ? "glow-hover" : ""}>
                 <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.25rem' }}>Data Payload</div>
                 <div style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '1rem' }}>{i.payload?.name || 'Undefined Information Object'}</div>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
@@ -114,8 +279,8 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                     const bg = hasColor ? crudInfo!.color : 'var(--primary)';
                     const text = hasColor ? getContrastColor(crudInfo!.color) : 'var(--primary-foreground)';
                     return (
-                    <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
-                  )})}
+                      <span key={op} style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{crudInfo?.label || op}</span>
+                    )})}
                 </div>
               </div>
               {(() => {
@@ -128,8 +293,8 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
               })()}
             </div>
 
-            <div onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', zIndex: 1, textAlign: 'center', flex: 1, maxWidth: '280px' }} className="row-hover">
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
+            <div onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', zIndex: 1, textAlign: 'center', flex: 1, maxWidth: '280px' }} className="glow-hover">
+              <div ref={targetIconRef} style={{ width: '64px', height: '64px', borderRadius: '16px', background: 'var(--secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                 <Database size={32} />
               </div>
               <div style={{ fontWeight: 800, fontSize: '1.125rem' }}>{i.targetApp?.name}</div>

@@ -43,21 +43,21 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
         </button>
       </div>
 
-      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div className="card" style={{ padding: '0.5rem', overflow: 'hidden' }}>
+        <table style={{ width: '100%' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
-              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Source Application</th>
+            <tr style={{ background: 'var(--muted)' }}>
+              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', borderTopLeftRadius: 'var(--radius)', borderBottomLeftRadius: 'var(--radius)' }}>Source Application</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'center' }}>Payload & Pattern</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Target Application</th>
-              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th>
+              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right', borderTopRightRadius: 'var(--radius)', borderBottomRightRadius: 'var(--radius)' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {Array.isArray(integrations) && integrations.map(i => {
               const patternInfo = getPicklistInfo(picklists, 'integration_pattern', i.pattern);
               return (
-              <tr key={i.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/integrations/${i.id}`)}>
+              <tr key={i.id} className="row-hover" onClick={() => navigate(`/integrations/${i.id}`)}>
                 <td style={{ padding: '0.6rem 1rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{i.sourceApp?.name}</div>
                 </td>

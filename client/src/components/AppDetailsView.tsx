@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText } from 'lucide-react';
+import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { LifecycleBadge } from './LifecycleBadge';
@@ -122,30 +122,69 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               
-              {/* Strategic Scores */}
+              {/* Strategic Scores & Data Risk Dashboard */}
               <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Share2 size={14} /> Strategic Assessment
+                  <Share2 size={14} /> Strategic Assessment & Risk Profile
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
-                  {[
-                    { label: 'Criticality', val: effectiveCriticality, key: 'criticality', inherited: isInherited },
-                    { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit', inherited: false },
-                    { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit', inherited: false }
-                  ].map(score => {
-                    const info = getPicklistInfo(score.key, score.val);
-                    return (
-                      <div key={score.label} style={{ padding: '1rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                        <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>{score.label}</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                            {info.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.color }} />}
-                            {info.label}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* Primary Scores Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                    {[
+                      { label: 'Criticality', val: effectiveCriticality, key: 'criticality', inherited: isInherited },
+                      { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit', inherited: false },
+                      { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit', inherited: false }
+                    ].map(score => {
+                      const info = getPicklistInfo(score.key, score.val);
+                      return (
+                        <div key={score.label} style={{ padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                          <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{score.label}</div>
+                          <div style={{ fontSize: '1.125rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {info.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.color }} />}
+                              {info.label}
+                          </div>
+                          {score.inherited && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.15rem 0.45rem', borderRadius: '4px', marginTop: '0.4rem' }}>INHERITED</div>}
+                          <div style={{ marginTop: '0.75rem', width: '50px', height: '4px', borderRadius: '2px', background: info.color }} />
                         </div>
-                        {score.inherited && <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px', marginTop: '0.2rem' }}>INHERITED</div>}
-                        <div style={{ marginTop: '0.5rem', width: '40px', height: '4px', borderRadius: '2px', background: info.color }} />
+                      );
+                    })}
+                  </div>
+
+                  {/* Aggregated Data Risk Profile Row */}
+                  {app.processedInformationObjects && app.processedInformationObjects.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.08em', marginLeft: '0.25rem' }}>Aggregated Data Sensitivity (Max Rating)</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+                        {(() => {
+                          const getHigh = (field: string) => {
+                            const vals = app.processedInformationObjects.map((io: any) => parseInt(io[field] || '1')).filter((v: number) => !isNaN(v));
+                            return vals.length > 0 ? String(Math.max(...vals)) : '1';
+                          };
+                          
+                          const risks = [
+                            { label: 'Confidentiality', val: getHigh('confidentiality'), key: 'cia_scale' },
+                            { label: 'Integrity', val: getHigh('integrity'), key: 'cia_scale' },
+                            { label: 'Availability', val: getHigh('availability'), key: 'cia_scale' },
+                            { label: 'PII Risk', val: getHigh('piiCategory'), key: 'pii_category' }
+                          ];
+                          
+                          return risks.map(risk => {
+                            const info = getPicklistInfo(risk.key, risk.val);
+                            return (
+                              <div key={risk.label} style={{ padding: '1rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                                <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{risk.label}</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.4rem', textAlign: 'center' }}>
+                                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: info.color }} />
+                                    {info.label.split(' - ')[0]}
+                                </div>
+                                <div style={{ marginTop: '0.6rem', width: '30px', height: '3px', borderRadius: '2px', background: info.color }} />
+                              </div>
+                            );
+                          });
+                        })()}
                       </div>
-                    );
-                  })}
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -173,15 +212,38 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <FileText size={14} /> Processed Information
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
-                  {app.processedInformationObjects && app.processedInformationObjects.length > 0 ? app.processedInformationObjects.map((io: any) => (
-                    <div key={io.id} onClick={() => navigate(`/information/${io.id}`)} style={{ cursor: 'pointer', padding: '0.85rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.6rem' }} className="row-hover">
-                      <div style={{ background: 'var(--secondary)', padding: '0.35rem', borderRadius: '6px' }}>
-                        <FileText size={14} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                  {app.processedInformationObjects && app.processedInformationObjects.length > 0 ? app.processedInformationObjects.map((io: any) => {
+                    const piiInfo = getPicklistInfo('pii_category', io.piiCategory || '1');
+                    const confInfo = getPicklistInfo('cia_scale', io.confidentiality || '1');
+                    const integInfo = getPicklistInfo('cia_scale', io.integrity || '1');
+                    const availInfo = getPicklistInfo('cia_scale', io.availability || '1');
+                    
+                    return (
+                    <div key={io.id} onClick={() => navigate(`/information/${io.id}`)} style={{ cursor: 'pointer', padding: '1rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }} className="row-hover">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <div style={{ background: 'var(--secondary)', padding: '0.35rem', borderRadius: '6px' }}>
+                          <FileText size={14} />
+                        </div>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{io.name}</span>
                       </div>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{io.name}</span>
+                      
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                        <span title={`Confidentiality: ${confInfo.label}`} style={{ fontSize: '0.55rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.1rem 0.4rem', borderRadius: '4px', background: confInfo.color, color: 'white' }}>
+                          C: {confInfo.label.split(' - ')[0]}
+                        </span>
+                        <span title={`Integrity: ${integInfo.label}`} style={{ fontSize: '0.55rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.1rem 0.4rem', borderRadius: '4px', background: integInfo.color, color: 'white' }}>
+                          I: {integInfo.label.split(' - ')[0]}
+                        </span>
+                        <span title={`Availability: ${availInfo.label}`} style={{ fontSize: '0.55rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.1rem 0.4rem', borderRadius: '4px', background: availInfo.color, color: 'white' }}>
+                          A: {availInfo.label.split(' - ')[0]}
+                        </span>
+                        <span title={`PII Category: ${piiInfo.label}`} style={{ fontSize: '0.55rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.1rem 0.4rem', borderRadius: '4px', background: piiInfo.color, color: 'white' }}>
+                          PII: {piiInfo.label.split(' - ')[0]}
+                        </span>
+                      </div>
                     </div>
-                  )) : (
+                  )}) : (
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic' }}>No information objects linked to this application.</div>
                   )}
                 </div>
@@ -250,12 +312,24 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               <section>
                 <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Ownership</h3>
-                <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.25rem' }}>
-                  <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><User size={16} /></div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Business Owner</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{app.owner || 'Unassigned'}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.25rem' }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><User size={16} /></div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Business Owner</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{app.owner || 'Unassigned'}</span>
+                    </div>
                   </div>
+
+                  {app.ownerOrg && (
+                    <div className="card row-hover" onClick={() => navigate(`/organizations/${app.ownerOrgId}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.25rem', cursor: 'pointer' }}>
+                      <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><Layers size={16} /></div>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Owning Organization</span>
+                        <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--primary)' }}>{app.ownerOrg.name}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </section>
 

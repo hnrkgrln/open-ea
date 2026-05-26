@@ -113,6 +113,8 @@ interface Application {
   name: string;
   description: string;
   owner: string;
+  ownerOrgId?: string;
+  ownerOrg?: Organization;
   lifecycle: string;
   lifecycleStartDate?: string;
   lifecycleEndDate?: string;
@@ -144,6 +146,7 @@ interface Organization {
   parentId?: string | null;
   children?: Organization[];
   informationObjects?: InformationObject[];
+  ownedApplications?: Application[];
 }
 
 interface InformationObject {
@@ -401,6 +404,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
     owner: [] as string[], 
+    ownerOrgId: [] as string[],
     lifecycle: [] as string[], 
     type: [] as string[],
     criticality: [] as string[],
@@ -463,6 +467,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
         app.capabilities?.some(c => c.name.toLowerCase().includes(filters.search.toLowerCase())) ||
         app.metadata?.toLowerCase().includes(filters.search.toLowerCase());
       const matchOwner = filters.owner.length === 0 || filters.owner.includes(app.owner) || filters.owner.includes(app.owner?.toLowerCase());
+      const matchOwnerOrg = (filters.ownerOrgId?.length || 0) === 0 || filters.ownerOrgId.includes(app.ownerOrgId || '');
       const matchLifecycle = filters.lifecycle.length === 0 || filters.lifecycle.includes(app.lifecycle) || filters.lifecycle.includes(app.lifecycle?.toLowerCase());
       const matchType = filters.type.length === 0 || filters.type.includes(app.type) || filters.type.includes(app.type?.toLowerCase());
       
@@ -503,12 +508,12 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
         }
       }
 
-      return matchSearch && matchOwner && matchLifecycle && matchType && matchCrit && matchFunc && matchTech && matchCustom;
+      return matchSearch && matchOwner && matchOwnerOrg && matchLifecycle && matchType && matchCrit && matchFunc && matchTech && matchCustom;
     });
   }, [apps, filters]);
 
   const clearFilters = () => setFilters({ 
-    search: '', owner: [], lifecycle: [], type: [], 
+    search: '', owner: [], ownerOrgId: [], lifecycle: [], type: [], 
     criticality: [], functionalFit: [], technicalFit: [],
     custom: {}
   });
@@ -592,6 +597,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
         <div className="card" style={{ marginBottom: '1.25rem', background: 'var(--background)', padding: '1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
             <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Owning Org" options={organizations?.map(o => ({ value: o.id, label: o.name })) || []} selectedValues={filters.ownerOrgId || []} onChange={(val) => setFilters({...filters, ownerOrgId: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
@@ -686,6 +692,13 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
                 <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description || 'No description provided.'}</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.7rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: 'auto' }}>
                   <div><strong>Owner:</strong> {ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || 'Unassigned'}</div>
+                  <div>
+                    <strong>Owning Org:</strong> {app.ownerOrg ? (
+                      <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: 'var(--primary)' }}>
+                        <Layers size={10} /> {app.ownerOrg.name}
+                      </span>
+                    ) : '—'}
+                  </div>
                   <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: appTypeOptions.find((o: any) => o.value === app.type)?.color }} />} {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
                 </div>
               </div>
@@ -695,7 +708,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owning Org</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
             {filteredApps.map(app => {
               const meta = safeJsonParse(app.metadata);
@@ -722,6 +735,14 @@ const InventoryView = ({ apps, capabilities: allCapabilities, onSelectApp, onEdi
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={12} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
+                    {app.ownerOrg ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Layers size={12} style={{ color: 'var(--primary)' }} />
+                        {app.ownerOrg.name}
+                      </div>
+                    ) : '—'}
+                  </td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 600 }}>{(() => { const opt = appTypeOptions.find((o: any) => o.value === app.type); return opt ? <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color }} />{opt.label}</div> : (app.type || '—'); })()}</td>
                   <td style={{ padding: '0.6rem 1rem' }}>
                     <div style={{ display: 'flex', gap: '3px' }}>
@@ -1288,7 +1309,11 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
       const integrationMatches = integrations?.some(i => 
         (i.sourceAppId === app.id || i.targetAppId === app.id) && 
         catAppIds.has(i.sourceAppId) && catAppIds.has(i.targetAppId) &&
-        (i.name?.toLowerCase().includes(query) || i.type?.toLowerCase().includes(query))
+        (
+          i.payload?.name?.toLowerCase().includes(query) || 
+          i.pattern?.toLowerCase().includes(query) ||
+          i.crud?.toLowerCase().includes(query)
+        )
       ) || false;
 
       return appMatches || integrationMatches;
@@ -1307,6 +1332,14 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
       <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
         <div><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
         <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+          <div style={{ width: '280px' }}>
+            <SearchInput 
+              value={filters.search} 
+              onChange={(val) => updateFilters({ search: val })} 
+              placeholder="Search nodes and flows..." 
+              style={{ height: '2.2rem', fontSize: '0.9rem' }}
+            />
+          </div>
 
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setMode('landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={13} style={{ marginRight: '0.35rem' }} /> Capability Landscape</button>
@@ -1393,16 +1426,6 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
       {showFilters && (
         <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
-            <div style={{ gridColumn: 'span 2' }}>
-              <SearchInput 
-                label="Diagram Search" 
-                value={filters.search} 
-                onChange={(val) => updateFilters({ search: val })} 
-                placeholder="Search nodes and flows..." 
-                style={{ height: '2.2rem', fontSize: '0.9rem' }}
-              />
-            </div>
-
             {[
               { label: 'Owner', options: ownerOptions, key: 'owner' },
               { label: 'Application Type', options: appTypeOptions, key: 'type' },

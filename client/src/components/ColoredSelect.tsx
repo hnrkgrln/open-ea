@@ -197,13 +197,14 @@ export const ColoredSelect = ({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.75rem',
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '6px',
+                      padding: '0.6rem 0.85rem',
+                      borderRadius: 'var(--radius)',
                       fontSize: '0.875rem',
                       color: 'var(--foreground)',
                       cursor: 'pointer',
                       outline: 'none',
                       userSelect: 'none',
+                      margin: '2px 4px',
                     }}
                     className="row-hover"
                   >

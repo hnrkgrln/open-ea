@@ -23,6 +23,7 @@
   --ring: #adb5bd;
   --radius: 0.6rem;
   --brand-focus: #228be6; /* Royal Blue for light mode focus */
+  --brand-glow-rgb: 52, 58, 64; /* Charcoal gray matching --primary */
 
   /* Lifecycle Colors */
   --lc-discovery: #e7f5ff;
@@ -58,6 +59,7 @@
   --input: #373a40;
   --ring: #5c5f66;
   --brand-focus: #3bc9db; /* Cyan for high visibility in dark mode */
+  --brand-glow-rgb: 222, 226, 230; /* Silver gray matching --primary */
 
   /* Dark Lifecycle Colors */
   --lc-discovery: #1864ab;
@@ -273,15 +275,76 @@ input:focus, textarea:focus, select:focus {
 
 /* Row Highlight */
 .row-hover {
-  transition: background-color 0.1s ease;
+  transition: background-color 0.1s ease, transform 0.05s ease, box-shadow 0.1s ease;
+  border-radius: var(--radius);
+  cursor: pointer;
 }
 
 .row-hover:hover {
-  background-color: rgba(0, 0, 0, 0.02) !important;
+  background-color: var(--accent) !important;
+  color: var(--accent-foreground);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme='dark'] .row-hover:hover {
-  background-color: rgba(255, 255, 255, 0.02) !important;
+  background-color: var(--secondary) !important;
+  color: var(--secondary-foreground);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.glow-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1;
+}
+
+.glow-hover::after {
+  content: '';
+  position: absolute;
+  inset: -60px; /* Much larger area for diffusion */
+  background: radial-gradient(circle at center, rgba(var(--brand-glow-rgb, 34, 139, 230), 0.12) 0%, rgba(var(--brand-glow-rgb, 34, 139, 230), 0.05) 30%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  z-index: -1;
+  pointer-events: none;
+  filter: blur(20px); /* Add blur for extra soft diffusion */
+}
+
+.glow-hover:hover {
+  transform: translateY(-2px);
+}
+
+.glow-hover:hover::after {
+  opacity: 1;
+}
+
+[data-theme='dark'] .glow-hover::after {
+  background: radial-gradient(circle at center, rgba(var(--brand-glow-rgb, 59, 201, 219), 0.18) 0%, rgba(var(--brand-glow-rgb, 59, 201, 219), 0.08) 30%, transparent 70%);
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  text-align: left;
+}
+
+table tr.row-hover {
+  border-bottom: none !important;
+}
+
+table tr.row-hover td {
+  padding: 0.75rem 1rem;
+}
+
+table tr.row-hover td:first-child {
+  border-top-left-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+
+table tr.row-hover td:last-child {
+  border-top-right-radius: var(--radius);
+  border-bottom-right-radius: var(--radius);
 }
 
 /* Search specific styles */

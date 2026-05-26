@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Edit2, Layers, ChevronLeft, FileText, Calendar, Info } from 'lucide-react';
+import { Edit2, Layers, ChevronLeft, FileText, Calendar, Info, Database } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
@@ -21,7 +21,6 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
   const { data: org, isLoading } = useQuery<any>({
     queryKey: ['organization', orgId],
     queryFn: () => fetch(`/api/organizations/${orgId}`).then(res => res.json()),
-    initialData: () => allOrgs?.find(o => o.id === orgId),
     enabled: !!orgId && orgId !== 'undefined'
   });
 
@@ -29,6 +28,98 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
 
   const parent = useMemo(() => allOrgs?.find(o => o.id === org?.parentId), [allOrgs, org]);
   const children = useMemo(() => allOrgs?.filter(o => o.parentId === orgId) || [], [allOrgs, orgId]);
+
+  // Recursively collect all descendant organization IDs
+  const getDescendantIds = (parentId: string): string[] => {
+    if (!allOrgs) return [];
+    const childIds = allOrgs.filter(o => o.parentId === parentId).map(o => o.id);
+    let allIds = [...childIds];
+    for (const id of childIds) {
+      allIds = [...allIds, ...getDescendantIds(id)];
+    }
+    return allIds;
+  };
+
+  // Roll up applications and information objects from sub-organizations (recursive).
+  const rolledUpApps = useMemo(() => {
+    if (!org || !allOrgs) return [];
+    type Entry = { app: any; isDirect: boolean; viaOrgName?: string };
+    const byId = new Map<string, Entry>();
+
+    // 1. Direct apps first
+    if (org.ownedApplications) {
+      org.ownedApplications.forEach((a: any) => byId.set(a.id, { app: a, isDirect: true }));
+    }
+
+    // 2. Walk descendants
+    const walk = (parentId: string, topChildName: string) => {
+      const children = allOrgs.filter(o => o.parentId === parentId);
+      for (const child of children) {
+        if (child.ownedApplications) {
+          child.ownedApplications.forEach((a: any) => {
+            if (!byId.has(a.id)) {
+              byId.set(a.id, { app: a, isDirect: false, viaOrgName: topChildName });
+            }
+          });
+        }
+        walk(child.id, topChildName);
+      }
+    };
+    
+    const immediateChildren = allOrgs.filter(o => o.parentId === org.id);
+    for (const child of immediateChildren) {
+      if (child.ownedApplications) {
+        child.ownedApplications.forEach((a: any) => {
+          if (!byId.has(a.id)) byId.set(a.id, { app: a, isDirect: false, viaOrgName: child.name });
+        });
+      }
+      walk(child.id, child.name);
+    }
+    
+    return Array.from(byId.values()).sort((a, b) =>
+      a.app.name.localeCompare(b.app.name, undefined, { numeric: true })
+    );
+  }, [allOrgs, org]);
+
+  const rolledUpInfo = useMemo(() => {
+    if (!org || !allOrgs) return [];
+    type Entry = { io: any; isDirect: boolean; viaOrgName?: string };
+    const byId = new Map<string, Entry>();
+
+    // 1. Direct info first
+    if (org.informationObjects) {
+      org.informationObjects.forEach((io: any) => byId.set(io.id, { io, isDirect: true }));
+    }
+
+    // 2. Walk descendants
+    const walk = (parentId: string, topChildName: string) => {
+      const children = allOrgs.filter(o => o.parentId === parentId);
+      for (const child of children) {
+        if (child.informationObjects) {
+          child.informationObjects.forEach((io: any) => {
+            if (!byId.has(io.id)) {
+              byId.set(io.id, { io, isDirect: false, viaOrgName: topChildName });
+            }
+          });
+        }
+        walk(child.id, topChildName);
+      }
+    };
+
+    const immediateChildren = allOrgs.filter(o => o.parentId === org.id);
+    for (const child of immediateChildren) {
+      if (child.informationObjects) {
+        child.informationObjects.forEach((io: any) => {
+          if (!byId.has(io.id)) byId.set(io.id, { io, isDirect: false, viaOrgName: child.name });
+        });
+      }
+      walk(child.id, child.name);
+    }
+
+    return Array.from(byId.values()).sort((a, b) =>
+      a.io.name.localeCompare(b.io.name, undefined, { numeric: true })
+    );
+  }, [allOrgs, org]);
 
   if (isLoading || !org) {
     return (
@@ -105,17 +196,66 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
               
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Database size={16} /> Owned Applications
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                  {rolledUpApps.length > 0 ? rolledUpApps.map(({ app, isDirect, viaOrgName }) => (
+                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="row-hover">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
+                          <Database size={16} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 700 }}>{app.name}</span>
+                            {!isDirect && viaOrgName && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>via {viaOrgName}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )) : (
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No applications currently owned by this organization.</div>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <FileText size={16} /> Owned Information Objects
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                  {org.informationObjects && org.informationObjects.length > 0 ? org.informationObjects.map((io: any) => (
-                    <div key={io.id} onClick={() => navigate(`/information/${io.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
-                      <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
-                        <FileText size={16} />
+                  {rolledUpInfo.length > 0 ? rolledUpInfo.map(({ io, isDirect, viaOrgName }) => {
+                    const piiInfo = getPicklistInfo('pii_category', io.piiCategory || '1');
+                    const confInfo = getPicklistInfo('cia_scale', io.confidentiality || '1');
+                    const integInfo = getPicklistInfo('cia_scale', io.integrity || '1');
+                    const availInfo = getPicklistInfo('cia_scale', io.availability || '1');
+
+                    return (
+                    <div key={io.id} onClick={() => navigate(`/information/${io.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '1rem' }} className="row-hover">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
+                          <FileText size={16} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontWeight: 700 }}>{io.name}</span>
+                            {!isDirect && viaOrgName && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>via {viaOrgName}</span>}
+                        </div>
                       </div>
-                      <span style={{ fontWeight: 700 }}>{io.name}</span>
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        <span title={`Confidentiality: ${confInfo.label}`} style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: confInfo.color, color: 'white' }}>
+                          C: {confInfo.label.split(' - ')[0]}
+                        </span>
+                        <span title={`Integrity: ${integInfo.label}`} style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: integInfo.color, color: 'white' }}>
+                          I: {integInfo.label.split(' - ')[0]}
+                        </span>
+                        <span title={`Availability: ${availInfo.label}`} style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: availInfo.color, color: 'white' }}>
+                          A: {availInfo.label.split(' - ')[0]}
+                        </span>
+                        <span title={`PII Category: ${piiInfo.label}`} style={{ fontSize: '0.6rem', fontWeight: 900, textTransform: 'uppercase', padding: '0.15rem 0.5rem', borderRadius: '4px', background: piiInfo.color, color: 'white' }}>
+                          PII: {piiInfo.label.split(' - ')[0]}
+                        </span>
+                      </div>
                     </div>
-                  )) : (
+                  )}) : (
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No information objects currently owned by this organization.</div>
                   )}
                 </div>

@@ -42,6 +42,7 @@ export const EditAppPage = () => {
     name: '',
     description: '',
     owner: '',
+    ownerOrgId: '',
     lifecycle: '',
     lifecycleStartDate: '',
     lifecycleEndDate: '',
@@ -80,6 +81,7 @@ export const EditAppPage = () => {
         name: app.name || '',
         description: app.description || '',
         owner: app.owner || '',
+        ownerOrgId: app.ownerOrgId || '',
         lifecycle: app.lifecycle || '',
         lifecycleStartDate: app.lifecycleStartDate ? app.lifecycleStartDate.split('T')[0] : '',
         lifecycleEndDate: app.lifecycleEndDate ? app.lifecycleEndDate.split('T')[0] : '',
@@ -161,21 +163,24 @@ export const EditAppPage = () => {
       return;
     }
     setLoading(true);
+    const payload = { 
+      ...formData, 
+      ownerOrgId: formData.ownerOrgId === '' ? null : formData.ownerOrgId,
+      lifecycleStartDate: formData.lifecycleStartDate ? new Date(formData.lifecycleStartDate).toISOString() : null,
+      lifecycleEndDate: formData.lifecycleEndDate ? new Date(formData.lifecycleEndDate).toISOString() : null,
+      capabilityIds: selectedCapIds,
+      processedInformationObjectIds: selectedInfoIds,
+      metadata: JSON.stringify(dynamicValues),
+      references: serializeReferences(references)
+    };
+
     try {
       const url = isNew ? '/api/applications' : `/api/applications/${id}`;
       const method = isNew ? 'POST' : 'PUT';
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...formData, 
-          lifecycleStartDate: formData.lifecycleStartDate ? new Date(formData.lifecycleStartDate).toISOString() : null,
-          lifecycleEndDate: formData.lifecycleEndDate ? new Date(formData.lifecycleEndDate).toISOString() : null,
-          capabilityIds: selectedCapIds,
-          processedInformationObjectIds: selectedInfoIds,
-          metadata: JSON.stringify(dynamicValues),
-          references: serializeReferences(references)
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -184,6 +189,8 @@ export const EditAppPage = () => {
         queryClient.invalidateQueries({ queryKey: ['application', appId] });
         queryClient.invalidateQueries({ queryKey: ['applications'] });
         queryClient.invalidateQueries({ queryKey: ['integrations'] });
+        queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        queryClient.invalidateQueries({ queryKey: ['organization'] });
         navigate(`/apps/${appId}`);
       }
     } catch (err) {
@@ -276,18 +283,25 @@ export const EditAppPage = () => {
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div className="field" style={{ marginBottom: 0 }}>
-                    <label className="label">Business Owner</label>
+                    <label className="label">Business Owner (Individual)</label>
+                    <input value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem', height: '2rem' }} placeholder="e.g. John Doe" />
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Owning Organization</label>
                     <ColoredSelect
-                      value={formData.owner}
-                      onChange={(val) => setFormData({ ...formData, owner: val })}
+                      value={formData.ownerOrgId}
+                      onChange={(val) => setFormData({ ...formData, ownerOrgId: val })}
                       placeholder="Select organization..."
                       options={[
                         { value: '', label: 'Unassigned' },
-                        ...((organizations || []).map((o: any) => ({ value: o.name, label: o.name })))
+                        ...((organizations || []).map((o: any) => ({ value: o.id, label: o.name })))
                       ]}
                       style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div className="field" style={{ marginBottom: 0 }}>
                     <label className="label">Application Type</label>
                     <ColoredSelect

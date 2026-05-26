@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layers, Plus, PlusCircle, List, Trash2, Edit2, ChevronRight, GitBranch } from 'lucide-react';
+import { Layers, Plus, PlusCircle, List, Trash2, Edit2, ChevronRight, GitBranch, Database, FileText } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App'; // Need to export useLocalStorage from App.tsx or duplicate
 import { OrganizationDiagram } from './OrganizationDiagram';
@@ -12,6 +12,12 @@ interface Organization {
   type?: string;
   parentId?: string | null;
   children?: Organization[];
+  ownedApplications?: any[];
+  informationObjects?: any[];
+  _count?: {
+    ownedApplications: number;
+    informationObjects: number;
+  };
 }
 
 const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, value: string | undefined) => {
@@ -21,10 +27,30 @@ const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, val
   return option || { label: value, color: 'var(--secondary)' };
 };
 
-const OrgListRow = ({ node, picklists, onRefresh, depth = 0 }: { node: Organization, picklists: any[], onRefresh: () => void, depth?: number }) => {
+const OrgListRow = ({ node, organizations, picklists, onRefresh, depth = 0 }: { node: Organization, organizations: Organization[], picklists: any[], onRefresh: () => void, depth?: number }) => {
   const navigate = useNavigate();
   const hasChildren = node.children && node.children.length > 0;
   const typeInfo = getPicklistInfo(picklists, 'organization_type', node.type);
+
+  const getRecursiveCounts = (orgId: string): { apps: number; info: number } => {
+    const org = organizations.find(o => o.id === orgId);
+    const directApps = org?.ownedApplications?.length || 0;
+    const directInfo = org?.informationObjects?.length || 0;
+    
+    let totalApps = directApps;
+    let totalInfo = directInfo;
+    
+    const children = organizations.filter(o => o.parentId === orgId);
+    for (const child of children) {
+      const sub = getRecursiveCounts(child.id);
+      totalApps += sub.apps;
+      totalInfo += sub.info;
+    }
+    
+    return { apps: totalApps, info: totalInfo };
+  };
+
+  const recursive = useMemo(() => getRecursiveCounts(node.id), [node.id, organizations]);
 
   return (
     <>
@@ -49,12 +75,26 @@ const OrgListRow = ({ node, picklists, onRefresh, depth = 0 }: { node: Organizat
             {typeInfo?.label || '—'}
           </span>
         </td>
+        <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
+          {recursive.apps > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--primary)', fontWeight: 700 }}>
+              <Database size={12} /> {recursive.apps}
+            </div>
+          ) : <span style={{ opacity: 0.3 }}>—</span>}
+        </td>
+        <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
+          {recursive.info > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--primary)', fontWeight: 700 }}>
+              <FileText size={12} /> {recursive.info}
+            </div>
+          ) : <span style={{ opacity: 0.3 }}>—</span>}
+        </td>
         <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
           {node.description || '—'}
         </td>
       </tr>
       {hasChildren && node.children!.map(child => (
-        <OrgListRow key={child.id} node={child} picklists={picklists} onRefresh={onRefresh} depth={depth + 1} />
+        <OrgListRow key={child.id} node={child} organizations={organizations} picklists={picklists} onRefresh={onRefresh} depth={depth + 1} />
       ))}
     </>
   );
@@ -113,12 +153,14 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Organization</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', width: '110px' }}>Actions</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Apps</th>
+                <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Info Objects</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Description</th>
               </tr>
             </thead>
             <tbody>
               {orgTree.map(org => (
-                <OrgListRow key={org.id} node={org} picklists={picklists || []} onRefresh={onRefresh} />
+                <OrgListRow key={org.id} node={org} organizations={organizations} picklists={picklists || []} onRefresh={onRefresh} />
               ))}
             </tbody>
           </table>

@@ -3,6 +3,7 @@ model Application {
   name          String
   description   String?
   owner         String?
+  ownerOrgId    String?
   lifecycle     String?       @default("Discovery")
   lifecycleStartDate DateTime?
   lifecycleEndDate   DateTime?
@@ -14,6 +15,7 @@ model Application {
   references    String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  ownerOrg      Organization? @relation("OrgOwnedApps", fields: [ownerOrgId], references: [id], onDelete: SetNull)
   capabilities  Capability[]  @relation("ApplicationToCapability")
   sourceOf      Integration[] @relation("sourceApp")
   targetOf      Integration[] @relation("targetApp")
@@ -48,6 +50,7 @@ model Organization {
   parent            Organization?       @relation("OrgToOrg", fields: [parentId], references: [id], onDelete: Cascade)
   children          Organization[]      @relation("OrgToOrg")
   informationObjects InformationObject[]
+  ownedApplications Application[]       @relation("OrgOwnedApps")
 }
 
 model InformationObject {

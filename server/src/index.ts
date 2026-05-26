@@ -204,7 +204,8 @@ server.get('/applications', async () => {
       capabilities: true,
       processedInformationObjects: true,
       sourceOf: { include: { targetApp: true, payload: true } },
-      targetOf: { include: { sourceApp: true, payload: true } }
+      targetOf: { include: { sourceApp: true, payload: true } },
+      ownerOrg: true
     },
     orderBy: { name: 'asc' }
   });
@@ -222,7 +223,8 @@ server.get('/applications/:id', {
         capabilities: true,
         processedInformationObjects: true,
         sourceOf: { include: { targetApp: true, payload: true } },
-        targetOf: { include: { sourceApp: true, payload: true } }
+        targetOf: { include: { sourceApp: true, payload: true } },
+        ownerOrg: true
       }
     });
     if (!app) return reply.status(404).send({ error: 'Application not found' });
@@ -239,6 +241,7 @@ server.post('/applications', {
       name: z.string(),
       description: z.string().optional(),
       owner: z.string().optional(),
+      ownerOrgId: z.string().optional().nullable(),
       lifecycle: z.string().optional(),
       lifecycleStartDate: z.string().datetime().optional().nullable(),
       lifecycleEndDate: z.string().datetime().optional().nullable(),
@@ -253,6 +256,7 @@ server.post('/applications', {
     }),
   },
 }, async (request) => {
+  console.log('POST /applications - Body:', JSON.stringify(request.body));
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
 
   // Filter for only existing capability IDs to prevent Prisma crash (P2025)
@@ -298,6 +302,7 @@ server.put('/applications/:id', {
       name: z.string().optional(),
       description: z.string().optional(),
       owner: z.string().optional(),
+      ownerOrgId: z.string().optional().nullable(),
       lifecycle: z.string().optional(),
       lifecycleStartDate: z.string().datetime().optional().nullable(),
       lifecycleEndDate: z.string().datetime().optional().nullable(),
@@ -313,6 +318,7 @@ server.put('/applications/:id', {
   },
 }, async (request, reply) => {
   const { id } = request.params;
+  console.log('PUT /applications/:id - Body:', JSON.stringify(request.body));
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
 
   let validIds: string[] = [];
@@ -376,7 +382,9 @@ server.delete('/applications/:id', {
 server.get('/capabilities', async (request) => {
   const caps = await prisma.capability.findMany({
     include: {
-      applications: true,
+      applications: {
+        include: { ownerOrg: true }
+      },
     },
   });
   // Natural sort so "10. Foo" comes after "9. Foo" — matches the numeric
@@ -393,7 +401,11 @@ server.get('/capabilities/:id', {
   try {
     const cap = await prisma.capability.findUnique({
       where: { id: request.params.id },
-      include: { applications: true }
+      include: { 
+        applications: {
+          include: { ownerOrg: true }
+        } 
+      }
     });
     if (!cap) return reply.status(404).send({ error: 'Capability not found' });
     return cap;
@@ -555,7 +567,18 @@ server.get('/organizations', async (request, reply) => {
   console.log('GET /organizations');
   try {
     const orgs = await prisma.organization.findMany({
-      include: { parent: true, children: true },
+      include: { 
+        parent: true, 
+        children: true,
+        ownedApplications: true,
+        informationObjects: true,
+        _count: {
+          select: {
+            ownedApplications: true,
+            informationObjects: true
+          }
+        }
+      },
       orderBy: { name: 'asc' }
     });
     console.log('GET /organizations SUCCESS - Found:', orgs.length);
@@ -575,6 +598,7 @@ server.get('/organizations/:id', {
       include: { 
         parent: true, 
         children: true, 
+        ownedApplications: true,
         informationObjects: { 
           include: { 
             integrations: { include: { sourceApp: true, targetApp: true } } 
@@ -1051,12 +1075,13 @@ server.get('/search', {
           { name: { contains: q, mode: 'insensitive' } },
           { description: { contains: q, mode: 'insensitive' } },
           { owner: { contains: q, mode: 'insensitive' } },
+          { ownerOrg: { name: { contains: q, mode: 'insensitive' } } },
           { lifecycle: { contains: q, mode: 'insensitive' } },
           { type: { contains: q, mode: 'insensitive' } },
           { metadata: { contains: q, mode: 'insensitive' } },
         ],
       },
-      include: { capabilities: true },
+      include: { capabilities: true, ownerOrg: true },
       take: 10,
     }),
     prisma.capability.findMany({
