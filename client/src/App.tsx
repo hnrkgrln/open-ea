@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock, LayoutDashboard } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -22,6 +22,7 @@ import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
 import { SearchInput, MultiSelect } from './components/FilterControls';
 import { ColoredSelect } from './components/ColoredSelect';
+import { TimeDashboardView } from './components/TimeDashboardView';
 
 export const TIME_OPTIONS = [
   { value: 'TOLERATE', label: 'Tolerate', color: '#228be6', bg: 'rgba(34, 139, 230, 0.12)', border: 'rgba(34, 139, 230, 0.3)' },
@@ -435,7 +436,7 @@ const AppContent = () => {
 };
 const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_inventory_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
     owner: [] as string[], 
@@ -653,8 +654,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.2rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}><Filter size={16} style={{ marginRight: '0.4rem' }} /> Filters</button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
-            <button onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
-            <button onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
+            <button title="TIME Dashboard" onClick={() => setViewMode('dashboard')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'dashboard' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'dashboard' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutDashboard size={16} /></button>
+            <button title="Grid View" onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
+            <button title="Table View" onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
           </div>
           {React.cloneElement(onNewApp as React.ReactElement<any>, { style: { ...(onNewApp as React.ReactElement<any>).props?.style, height: '2.2rem', fontSize: '0.9rem' } })}
         </div>
@@ -698,7 +700,20 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           </button>
         </div>
       )}
-      {viewMode === 'grid' ? (
+      {viewMode === 'dashboard' ? (
+        <TimeDashboardView 
+          apps={filteredApps} 
+          allCapabilities={allCapabilities} 
+          onSelectApp={onSelectApp} 
+          onEditApp={onEditApp}
+          activeTimeFilters={filters.time || []}
+          onToggleTimeFilter={(val) => {
+            const current = filters.time || [];
+            const next = current.includes(val) ? current.filter(x => x !== val) : [...current, val];
+            setFilters({ ...filters, time: next });
+          }}
+        />
+      ) : viewMode === 'grid' ? (
         <div className="grid">
           {filteredApps.map(app => {
             const meta = safeJsonParse(app.metadata);
@@ -828,7 +843,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
                       <span style={{ 
                         fontSize: '0.65rem', 
                         fontWeight: 800, 
-                        letterSpacing: '0.04em',
+                        letterSpacing: '0.04em', 
                         textTransform: 'uppercase', 
                         padding: '0.12rem 0.45rem', 
                         borderRadius: '4px', 
