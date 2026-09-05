@@ -77,9 +77,11 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
       walk(child.id, child.name);
     }
 
-    return Array.from(byId.values()).sort((a, b) =>
-      a.app.name.localeCompare(b.app.name, undefined, { numeric: true })
-    );
+    return Array.from(byId.values())
+      .filter(entry => (entry.app.lifecycle || '').toLowerCase() !== 'decommissioned')
+      .sort((a, b) =>
+        a.app.name.localeCompare(b.app.name, undefined, { numeric: true })
+      );
   }, [allCapabilities, capability]);
 
   if (isLoading || !capability) {

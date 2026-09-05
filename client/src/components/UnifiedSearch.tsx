@@ -28,14 +28,51 @@ export const UnifiedSearch = ({}: Props) => {
     enabled: query.length > 1,
   });
 
-  const flatResults = useMemo(() => {
-    const apps = (results?.applications || []).map((item: any) => ({ ...item, _type: 'app' }));
-    const caps = (results?.capabilities || []).map((item: any) => ({ ...item, _type: 'cap' }));
-    const orgs = (results?.organizations || []).map((item: any) => ({ ...item, _type: 'org' }));
-    const info = (results?.informationObjects || []).map((item: any) => ({ ...item, _type: 'info' }));
-    const integrations = (results?.integrations || []).map((item: any) => ({ ...item, _type: 'integration' }));
-    return [...apps, ...caps, ...orgs, ...info, ...integrations];
-  }, [results]);
+  // Helper to score match relevance
+  const getScore = (item: any, queryStr: string) => {
+    const q = queryStr.trim().toLowerCase();
+    const n = (item?.name || '').toLowerCase();
+    let score = 10;
+    if (n === q) score = 100;
+    else if (n.startsWith(q)) score = 60;
+    else if (n.includes(q)) score = 40;
+
+    // Rank decommissioned apps lower
+    if ((item?.lifecycle || '').toLowerCase() === 'decommissioned') {
+      score -= 50;
+    }
+    return score;
+  };
+
+  const { sortedApps, sortedCaps, sortedOrgs, sortedInfo, sortedIntegrations, flatResults } = useMemo(() => {
+    const apps = [...(results?.applications || [])]
+      .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
+    const caps = [...(results?.capabilities || [])]
+      .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
+    const orgs = [...(results?.organizations || [])]
+      .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
+    const info = [...(results?.informationObjects || [])]
+      .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
+    const integrations = [...(results?.integrations || [])]
+      .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
+
+    const flat = [
+      ...apps.map((item: any) => ({ ...item, _type: 'app' })),
+      ...caps.map((item: any) => ({ ...item, _type: 'cap' })),
+      ...orgs.map((item: any) => ({ ...item, _type: 'org' })),
+      ...info.map((item: any) => ({ ...item, _type: 'info' })),
+      ...integrations.map((item: any) => ({ ...item, _type: 'integration' }))
+    ];
+
+    return {
+      sortedApps: apps,
+      sortedCaps: caps,
+      sortedOrgs: orgs,
+      sortedInfo: info,
+      sortedIntegrations: integrations,
+      flatResults: flat
+    };
+  }, [results, query]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -164,12 +201,12 @@ export const UnifiedSearch = ({}: Props) => {
               {query && query.length > 1 && !isLoading && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                   {/* Applications Section */}
-                  {results?.applications?.length > 0 && (
+                  {sortedApps?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ padding: '0 1.5rem 0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.1em' }}>
                         <Database size={16} /> Applications
                       </div>
-                      {results.applications.map((app: any, idx: number) => {
+                      {sortedApps.map((app: any, idx: number) => {
                         const isSelected = selectedIndex === idx;
                         return (
                           <button
@@ -210,13 +247,13 @@ export const UnifiedSearch = ({}: Props) => {
                   )}
 
                   {/* Capabilities Section */}
-                  {results?.capabilities?.length > 0 && (
+                  {sortedCaps?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ padding: '0 1.5rem 0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.1em' }}>
                         <Boxes size={16} /> Capabilities
                       </div>
-                      {results.capabilities.map((cap: any, idx: number) => {
-                        const actualIdx = (results.applications?.length || 0) + idx;
+                      {sortedCaps.map((cap: any, idx: number) => {
+                        const actualIdx = (sortedApps?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button
@@ -242,13 +279,13 @@ export const UnifiedSearch = ({}: Props) => {
                   )}
 
                   {/* Organizations Section */}
-                  {results?.organizations?.length > 0 && (
+                  {sortedOrgs?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ padding: '0 1.5rem 0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.1em' }}>
                         <Layers size={16} /> Organizations
                       </div>
-                      {results.organizations.map((org: any, idx: number) => {
-                        const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + idx;
+                      {sortedOrgs.map((org: any, idx: number) => {
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button
@@ -274,13 +311,13 @@ export const UnifiedSearch = ({}: Props) => {
                   )}
 
                   {/* Information Section */}
-                  {results?.informationObjects?.length > 0 && (
+                  {sortedInfo?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ padding: '0 1.5rem 0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.1em' }}>
                         <FileText size={16} /> Information Objects
                       </div>
-                      {results.informationObjects.map((io: any, idx: number) => {
-                        const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + idx;
+                      {sortedInfo.map((io: any, idx: number) => {
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedOrgs?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button
@@ -310,13 +347,13 @@ export const UnifiedSearch = ({}: Props) => {
                   )}
 
                   {/* Integrations Section */}
-                  {results?.integrations?.length > 0 && (
+                  {sortedIntegrations?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                       <div style={{ padding: '0 1.5rem 0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.1em' }}>
                         <Network size={16} /> Integrations
                       </div>
-                      {results.integrations.map((i: any, idx: number) => {
-                        const actualIdx = (results.applications?.length || 0) + (results.capabilities?.length || 0) + (results.organizations?.length || 0) + (results.informationObjects?.length || 0) + idx;
+                      {sortedIntegrations.map((i: any, idx: number) => {
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedOrgs?.length || 0) + (sortedInfo?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button

@@ -516,9 +516,22 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     }
   };
 
+  // Active applications (excluding decommissioned)
+  const activeApps = useMemo(() => {
+    if (!apps) return [];
+    return apps.filter(app => (app.lifecycle || '').toLowerCase() !== 'decommissioned');
+  }, [apps]);
+
   const filteredApps = useMemo(() => {
     if (!apps) return [];
     return apps.filter(app => {
+      const isDecommissioned = (app.lifecycle || '').toLowerCase() === 'decommissioned';
+      
+      // If user hasn't explicitly selected lifecycle filters, hide decommissioned apps by default
+      if (filters.lifecycle.length === 0 && isDecommissioned) {
+        return false;
+      }
+
       const matchSearch = !filters.search || 
         app.name.toLowerCase().includes(filters.search.toLowerCase()) || 
         app.description?.toLowerCase().includes(filters.search.toLowerCase()) ||
@@ -649,7 +662,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
       <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Database size={24} /> Application Inventory</h1>
-          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>Total of <strong>{apps?.length || 0}</strong> applications. Showing <strong>{filteredApps.length}</strong> after filters.</p>
+          <p style={{ color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
+            Total of <strong>{activeApps.length}</strong> active applications{apps && apps.length > activeApps.length && ` (${apps.length - activeApps.length} decommissioned)`}. Showing <strong>{filteredApps.length}</strong> after filters.
+          </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.2rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}><Filter size={16} style={{ marginRight: '0.4rem' }} /> Filters</button>
@@ -1373,6 +1388,11 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
 
     // 1. Categorical Filtering (Owner, Type, Lifecycle, etc.)
     const catFiltered = apps.filter(app => {
+      const isDecommissioned = (app.lifecycle || '').toLowerCase() === 'decommissioned';
+      if ((filters.lifecycle?.length || 0) === 0 && isDecommissioned) {
+        return false;
+      }
+
       const matchOwner = (filters.owner?.length || 0) === 0 || filters.owner?.includes(app.owner) || filters.owner?.includes(app.owner?.toLowerCase());
       const matchLifecycle = (filters.lifecycle?.length || 0) === 0 || filters.lifecycle?.includes(app.lifecycle) || filters.lifecycle?.includes(app.lifecycle?.toLowerCase());
       const matchType = (filters.type?.length || 0) === 0 || filters.type?.includes(app.type) || filters.type?.includes(app.type?.toLowerCase());

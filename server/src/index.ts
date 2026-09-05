@@ -1133,12 +1133,36 @@ server.get('/search', {
     }),
   ]);
 
+  // Helper to score relevance: exact name = 100, name startsWith = 50, name contains = 30, others = 10
+  const scoreMatch = (name: string | null | undefined, desc: string | null | undefined, queryStr: string) => {
+    const qLower = queryStr.trim().toLowerCase();
+    const nLower = (name || '').toLowerCase();
+    if (nLower === qLower) return 100;
+    if (nLower.startsWith(qLower)) return 60;
+    if (nLower.includes(qLower)) return 40;
+    if ((desc || '').toLowerCase().includes(qLower)) return 10;
+    return 1;
+  };
+
+  const sortedApps = [...apps].sort((a, b) => {
+    let scoreA = scoreMatch(a.name, a.description, q);
+    let scoreB = scoreMatch(b.name, b.description, q);
+    if ((a.lifecycle || '').toLowerCase() === 'decommissioned') scoreA -= 50;
+    if ((b.lifecycle || '').toLowerCase() === 'decommissioned') scoreB -= 50;
+    return scoreB - scoreA;
+  });
+
+  const sortedCaps = [...caps].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
+  const sortedOrgs = [...orgs].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
+  const sortedInfo = [...info].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
+  const sortedIntegrations = [...integrations].sort((a, b) => scoreMatch(b.name, `${b.sourceApp?.name} ${b.targetApp?.name}`, q) - scoreMatch(a.name, `${a.sourceApp?.name} ${a.targetApp?.name}`, q));
+
   return {
-    applications: apps,
-    capabilities: caps,
-    organizations: orgs,
-    informationObjects: info,
-    integrations: integrations
+    applications: sortedApps,
+    capabilities: sortedCaps,
+    organizations: sortedOrgs,
+    informationObjects: sortedInfo,
+    integrations: sortedIntegrations
   };
 });
 
