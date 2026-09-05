@@ -150,6 +150,40 @@ const LIFECYCLE_STAGES = [
   { label: 'Decommissioned', color: '#c92a2a', lightColor: '#fff5f5', description: 'Contract terminated and data archived.' }
 ];
 
+const TIME_STAGES = [
+  { value: 'TOLERATE', label: 'Tolerate', color: '#228be6', lightColor: 'rgba(34, 139, 230, 0.15)' },
+  { value: 'INVEST', label: 'Invest', color: '#2b8a3e', lightColor: 'rgba(43, 138, 62, 0.15)' },
+  { value: 'MIGRATE', label: 'Migrate', color: '#e67700', lightColor: 'rgba(230, 119, 0, 0.15)' },
+  { value: 'ELIMINATE', label: 'Eliminate', color: '#c92a2a', lightColor: 'rgba(201, 42, 42, 0.15)' },
+];
+
+const getTimeValueForApp = (app: Application) => {
+  const tech = Number(app.technicalFit);
+  const func = Number(app.functionalFit);
+  const hasTech = !isNaN(tech) && tech > 0;
+  const hasFunc = !isNaN(func) && func > 0;
+  if (!hasTech && !hasFunc) return null;
+
+  const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
+  const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
+  const isTechHigh = tVal >= 3;
+  const isFuncHigh = fVal >= 3;
+
+  if (!isTechHigh && isFuncHigh) return 'MIGRATE';
+  if (isTechHigh && isFuncHigh) return 'INVEST';
+  if (isTechHigh && !isFuncHigh) return 'TOLERATE';
+  return 'ELIMINATE';
+};
+
+const getTimeColor = (app: Application, isDark: boolean) => {
+  const timeVal = getTimeValueForApp(app);
+  if (!timeVal) return { bg: isDark ? '#2c2e33' : '#f1f3f5', text: 'var(--foreground)' };
+  const stage = TIME_STAGES.find(s => s.value === timeVal);
+  if (!stage) return { bg: isDark ? '#2c2e33' : '#f1f3f5', text: 'var(--foreground)' };
+  const bg = isDark ? stage.color : stage.lightColor;
+  return { bg, text: isDark ? getContrastColor(stage.color) : stage.color };
+};
+
 const getLifecycleColor = (lifecycle: string, isDark: boolean, picklists?: Picklist[]) => {
   if (picklists) {
     const picklist = picklists.find(p => p.name === 'lifecycle');
@@ -546,6 +580,7 @@ const DiagramInner = ({
 
   const getFieldLabel = (field: string) => {
     if (field === 'lifecycle') return 'Lifecycle';
+    if (field === 'time') return 'TIME Assessment';
     return metaDefs.find(d => d.fieldName === field)?.label || field;
   };
 
@@ -622,6 +657,9 @@ const DiagramInner = ({
       if (field === 'technicalFit') {
         const def = metaDefs.find(d => d.fieldName === 'technicalFit' && d.entityType === 'Application');
         return String(getAppScore(app, 'technicalFit', def));
+      }
+      if (field === 'time') {
+        return getTimeValueForApp(app) || 'Unassessed';
       }
       const val = (app as any)[field] || safeJsonParse(app.metadata)[field];
       return val ? String(val) : 'Unspecified';
@@ -717,6 +755,7 @@ const DiagramInner = ({
           const app = apps.find(a => a.id === id)!; if (!app) return;
           const dNode = g.node(id); let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark, picklists);
+          else if (activeOverlay === 'time') colors = getTimeColor(app, isDark);
           else {
             const overlayToUse = activeOverlay === 'criticality' ? appCritDef : appOverlayDef;
             if (overlayToUse) { colors = getOverlayColor(getAppScore(app, activeOverlay!, overlayToUse), overlayToUse, picklists); }
@@ -927,6 +966,7 @@ const DiagramInner = ({
             const c = i % appCols; const r = Math.floor(i / appCols);
             let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
             if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark, picklists);
+            else if (activeOverlay === 'time') colors = getTimeColor(app, isDark);
             else if (appOverlayDef) colors = getOverlayColor(getAppScore(app, activeOverlay!, appOverlayDef), appOverlayDef, picklists);
 
             groupNodes.push({
@@ -993,6 +1033,7 @@ const DiagramInner = ({
 
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark, picklists);
+          else if (activeOverlay === 'time') colors = getTimeColor(app, isDark);
           else if (appOverlayDef) colors = getOverlayColor(getAppScore(app, activeOverlay!, appOverlayDef), appOverlayDef, picklists);
 
           groupNodes.push({
@@ -1422,7 +1463,8 @@ const DiagramInner = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {groupingField === 'lifecycle' ? (
                   (picklists?.find(p => p.name === 'lifecycle')?.options || LIFECYCLE_STAGES).map(opt => {
-                    const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (opt.lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (opt.lightColor || opt.color || '#e9ecef'));
+                    const lightColor = 'lightColor' in opt ? (opt as { lightColor?: string }).lightColor : undefined;
+                    const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (lightColor || opt.color || '#e9ecef'));
                     return (
                       <div key={opt.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: bg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
@@ -1430,6 +1472,13 @@ const DiagramInner = ({
                       </div>
                     );
                   })
+                ) : groupingField === 'time' ? (
+                  TIME_STAGES.map(opt => (
+                    <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? opt.color : opt.lightColor, border: `1px solid ${opt.color}` }} />
+                      <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                    </div>
+                  ))
                 ) : (
                   picklists?.find(p => p.name.toLowerCase().replace(/_/g, '') === groupingField.toLowerCase().replace(/_/g, ''))?.options.map(opt => (
                     <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1449,7 +1498,8 @@ const DiagramInner = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {activeOverlay === 'lifecycle' ? ( 
                 (picklists?.find(p => p.name === 'lifecycle')?.options || LIFECYCLE_STAGES).map(opt => {
-                  const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (opt.lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (opt.lightColor || opt.color || '#e9ecef'));
+                  const lightColor = 'lightColor' in opt ? (opt as { lightColor?: string }).lightColor : undefined;
+                  const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (lightColor || opt.color || '#e9ecef'));
                   return (
                     <div key={opt.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: bg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
@@ -1457,6 +1507,13 @@ const DiagramInner = ({
                     </div>
                   );
                 })
+              ) : activeOverlay === 'time' ? (
+                TIME_STAGES.map(opt => (
+                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? opt.color : opt.lightColor, border: `1px solid ${opt.color}` }} />
+                    <span style={{ fontWeight: 600 }}>{opt.label}</span>
+                  </div>
+                ))
               ) : ( 
                 picklists?.find(p => p.name.toLowerCase().replace(/_/g, '') === activeOverlay?.toLowerCase().replace(/_/g, ''))?.options.map(opt => ( 
                   <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

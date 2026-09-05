@@ -234,7 +234,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, or
             {artifacts.map(art => (
               <div key={art.id} className="card" style={{ padding: '0.4rem', background: 'var(--card)' }}>
                 <div style={{ padding: '0.4rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 800, fontSize: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.2rem', paddingBottom: '0.6rem' }}>
-                  {React.cloneElement(art.icon as React.ReactElement, { size: 14 })} {art.label}
+                  {React.cloneElement(art.icon as React.ReactElement<any>, { size: 14 })} {art.label}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
                   {art.picklists.map(pName => {
