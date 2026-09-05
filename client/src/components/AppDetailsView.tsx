@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers } from 'lucide-react';
+import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers, FileSignature } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { LifecycleBadge } from './LifecycleBadge';
@@ -729,6 +729,26 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                           {app.lifecycleStartDate && <span>Starts: {app.lifecycleStartDate.split('T')[0]}</span>}
                           {app.lifecycleStartDate && app.lifecycleEndDate && <span> • </span>}
                           {app.lifecycleEndDate && <span>Ends: {app.lifecycleEndDate.split('T')[0]}</span>}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><FileSignature size={16} /></div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Contract</span>
+                      {app.contractStartDate || app.contractEndDate ? (
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                          {app.contractStartDate && <span>{app.contractStartDate.split('T')[0]}</span>}
+                          {app.contractStartDate && app.contractEndDate && <span> to </span>}
+                          {app.contractEndDate && <span>{app.contractEndDate.split('T')[0]}</span>}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No active contract dates</span>
+                      )}
+                      {app.contractDetails && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                          {app.contractDetails}
                         </div>
                       )}
                     </div>

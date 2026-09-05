@@ -72,7 +72,7 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
     let headers: string[] = [];
     if (type === 'applications') {
-      headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'type', 'criticality', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
+      headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'type', 'criticality', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
     } else if (type === 'capabilities') {
       headers = ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'];
     } else if (type === 'organizations') {
@@ -92,7 +92,7 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
           val = ((item as Application).capabilities || []).map(c => c.id).join(';');
         } else if (header === 'applicationIds' && type === 'capabilities') {
           val = ((item as Capability).applications || []).map(a => a.id).join(';');
-        } else if ((header === 'lifecycleStartDate' || header === 'lifecycleEndDate') && val) {
+        } else if ((header === 'lifecycleStartDate' || header === 'lifecycleEndDate' || header === 'contractStartDate' || header === 'contractEndDate') && val) {
           val = val.split('T')[0];
         }
         
@@ -205,6 +205,11 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
           // Handle specific transformations
           if (type === 'applications') {
             payload.capabilityIds = payload.capabilityIds ? payload.capabilityIds.split(';').filter((id: string) => id !== '') : [];
+            if (payload.lifecycleStartDate) payload.lifecycleStartDate = new Date(payload.lifecycleStartDate).toISOString();
+            if (payload.lifecycleEndDate) payload.lifecycleEndDate = new Date(payload.lifecycleEndDate).toISOString();
+            if (payload.contractStartDate) payload.contractStartDate = new Date(payload.contractStartDate).toISOString();
+            if (payload.contractEndDate) payload.contractEndDate = new Date(payload.contractEndDate).toISOString();
+            if (!payload.contractDetails) payload.contractDetails = payload.contractDetails || null;
           } else if (type === 'capabilities') {
             payload.applicationIds = payload.applicationIds ? payload.applicationIds.split(';').filter((id: string) => id !== '') : [];
             if (payload.parentId === '') payload.parentId = null;

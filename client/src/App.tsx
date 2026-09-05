@@ -149,6 +149,9 @@ interface Application {
   lifecycle: string;
   lifecycleStartDate?: string;
   lifecycleEndDate?: string;
+  contractStartDate?: string;
+  contractEndDate?: string;
+  contractDetails?: string;
   type: string;
   criticality: string;
   functionalFit: string;
@@ -596,7 +599,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     if (filteredApps.length === 0) return;
     
     // Define headers
-    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Criticality', 'Functional Fit', 'Technical Fit', 'Capabilities'];
+    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Contract Start', 'Contract End', 'Contract Details', 'Criticality', 'Functional Fit', 'Technical Fit', 'Capabilities'];
     const customHeaders = appMetaDefs.map(d => d.label);
     const allHeaders = [...headers, ...customHeaders];
 
@@ -611,6 +614,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           `"${ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || ''}"`,
           `"${appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || ''}"`,
           `"${app.lifecycle || ''}"`,
+          `"${app.contractStartDate ? app.contractStartDate.split('T')[0] : ''}"`,
+          `"${app.contractEndDate ? app.contractEndDate.split('T')[0] : ''}"`,
+          `"${(app.contractDetails || '').replace(/"/g, '""')}"`,
           `"${app.criticality || ''}"`,
           `"${app.functionalFit || ''}"`,
           `"${app.technicalFit || ''}"`,

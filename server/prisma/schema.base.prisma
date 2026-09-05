@@ -7,6 +7,9 @@ model Application {
   lifecycle     String?       @default("Discovery")
   lifecycleStartDate DateTime?
   lifecycleEndDate   DateTime?
+  contractStartDate  DateTime?
+  contractEndDate    DateTime?
+  contractDetails    String?
   type          String?
   criticality   String?       @default("3")
   functionalFit String?       @default("3")

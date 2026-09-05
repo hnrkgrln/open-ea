@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText } from 'lucide-react';
+import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText, FileSignature } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatePicker } from './DatePicker';
 import { ColoredSelect } from './ColoredSelect';
@@ -46,6 +46,9 @@ export const EditAppPage = () => {
     lifecycle: '',
     lifecycleStartDate: '',
     lifecycleEndDate: '',
+    contractStartDate: '',
+    contractEndDate: '',
+    contractDetails: '',
     type: '',
     criticality: '3',
     functionalFit: '3',
@@ -85,6 +88,9 @@ export const EditAppPage = () => {
         lifecycle: app.lifecycle || '',
         lifecycleStartDate: app.lifecycleStartDate ? app.lifecycleStartDate.split('T')[0] : '',
         lifecycleEndDate: app.lifecycleEndDate ? app.lifecycleEndDate.split('T')[0] : '',
+        contractStartDate: app.contractStartDate ? app.contractStartDate.split('T')[0] : '',
+        contractEndDate: app.contractEndDate ? app.contractEndDate.split('T')[0] : '',
+        contractDetails: app.contractDetails || '',
         type: app.type || '',
         criticality: String(app.criticality || '3'),
         functionalFit: String(app.functionalFit || '3'),
@@ -168,6 +174,9 @@ export const EditAppPage = () => {
       ownerOrgId: formData.ownerOrgId === '' ? null : formData.ownerOrgId,
       lifecycleStartDate: formData.lifecycleStartDate ? new Date(formData.lifecycleStartDate).toISOString() : null,
       lifecycleEndDate: formData.lifecycleEndDate ? new Date(formData.lifecycleEndDate).toISOString() : null,
+      contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
+      contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null,
+      contractDetails: formData.contractDetails ? formData.contractDetails : null,
       capabilityIds: selectedCapIds,
       processedInformationObjectIds: selectedInfoIds,
       metadata: JSON.stringify(dynamicValues),
@@ -336,6 +345,39 @@ export const EditAppPage = () => {
                       label="Lifecycle End Date" 
                       value={formData.lifecycleEndDate} 
                       onChange={val => setFormData({...formData, lifecycleEndDate: val})} 
+                    />
+                  </div>
+                </div>
+
+                {/* CONTRACT INFORMATION */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--foreground)' }}>
+                    <FileSignature size={15} style={{ color: 'var(--primary)' }} /> Contract
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ marginBottom: 0 }}>
+                      <DatePicker 
+                        label="Contract Start Date" 
+                        value={formData.contractStartDate} 
+                        onChange={val => setFormData({...formData, contractStartDate: val})} 
+                      />
+                    </div>
+                    <div style={{ marginBottom: 0 }}>
+                      <DatePicker 
+                        label="Contract End Date" 
+                        value={formData.contractEndDate} 
+                        onChange={val => setFormData({...formData, contractEndDate: val})} 
+                      />
+                    </div>
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label className="label">Contract Details / Notes (Optional)</label>
+                    <textarea 
+                      rows={2} 
+                      value={formData.contractDetails} 
+                      onChange={e => setFormData({...formData, contractDetails: e.target.value})} 
+                      placeholder="e.g. Agreement ID, renewal terms, vendor SLA tier, pricing model..." 
+                      style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
                     />
                   </div>
                 </div>
