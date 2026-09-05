@@ -290,7 +290,7 @@ export const TimeDashboardView: React.FC<Props> = ({
           borderRadius: '16px', 
           boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
           display: 'grid',
-          gridTemplateColumns: 'minmax(320px, 520px) 1fr',
+          gridTemplateColumns: '1.55fr minmax(320px, 390px)',
           gap: '2.5rem',
           alignItems: 'start'
         }}
@@ -306,7 +306,7 @@ export const TimeDashboardView: React.FC<Props> = ({
             </div>
           </div>
 
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', maxWidth: '500px', margin: '1rem auto 1.75rem auto' }}>
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', maxWidth: '640px', margin: '1rem auto 1.75rem auto' }}>
             {/* Quadrant grid box */}
             <div style={{ 
               width: '100%', 
@@ -434,12 +434,60 @@ export const TimeDashboardView: React.FC<Props> = ({
                         : isInspected
                         ? `0 0 0 2px ${plot.color}77, 0 2px 6px rgba(0,0,0,0.18)`
                         : `0 0 0 1.5px ${plot.color}44, 0 2px 5px rgba(0,0,0,0.15)`,
-                      zIndex: isHovered ? 35 : isSelected ? 30 : isInspected ? 20 : 10,
+                      zIndex: isHovered ? 45 : isSelected ? 30 : isInspected ? 20 : 10,
                       cursor: 'pointer',
                       transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease'
                     }}
-                    title={`${plot.app.name} (${plot.quadrant}): Click to select. Tech Fit ${plot.techScore}/5, Functional Fit ${plot.funcScore}/5, Criticality ${plot.crit}/5`}
-                  />
+                  >
+                    {/* Rich custom hover tooltip */}
+                    {isHovered && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: plot.yPct < 22 ? 'auto' : 'calc(100% + 10px)',
+                          top: plot.yPct < 22 ? 'calc(100% + 10px)' : 'auto',
+                          left: plot.xPct > 70 ? 'auto' : plot.xPct < 30 ? '0' : '50%',
+                          right: plot.xPct > 70 ? '0' : 'auto',
+                          transform: (plot.xPct <= 70 && plot.xPct >= 30) ? 'translateX(-50%)' : 'none',
+                          background: 'rgba(24, 24, 27, 0.92)',
+                          backdropFilter: 'blur(8px)',
+                          color: '#ffffff',
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: '8px',
+                          boxShadow: '0 8px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.12)',
+                          zIndex: 100,
+                          pointerEvents: 'none',
+                          minWidth: '170px',
+                          maxWidth: '240px',
+                          animation: 'fadeIn 0.12s ease-out'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.78rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {plot.app.name}
+                          </span>
+                          <span style={{ 
+                            fontSize: '0.58rem', 
+                            fontWeight: 800, 
+                            letterSpacing: '0.04em',
+                            padding: '0.08rem 0.35rem', 
+                            borderRadius: '4px', 
+                            background: plot.color, 
+                            color: '#fff',
+                            flexShrink: 0
+                          }}>
+                            {plot.quadrant}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.65rem', color: '#a1a1aa' }}>
+                          <span>Tech: <strong style={{ color: '#fff' }}>{plot.techScore}/5</strong></span>
+                          <span>Func: <strong style={{ color: '#fff' }}>{plot.funcScore}/5</strong></span>
+                          <span>Crit: <strong style={{ color: '#fff' }}>{plot.crit}/5</strong></span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -463,27 +511,51 @@ export const TimeDashboardView: React.FC<Props> = ({
               <span>High Tech Fit (5)</span>
             </div>
 
-            {/* Y-Axis Labels */}
-            <div style={{ 
-              position: 'absolute', 
-              top: 0, 
-              bottom: 0, 
-              left: '-1.5rem', 
-              display: 'flex', 
-              flexDirection: 'column', 
-              justifyContent: 'space-between', 
-              fontSize: '0.62rem', 
-              fontWeight: 700, 
+            {/* Y-Axis Labels: Top (High), Center (Title), Bottom (Low) */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              left: '-1.8rem',
+              fontSize: '0.62rem',
+              fontWeight: 700,
               color: 'var(--muted-foreground)',
               textTransform: 'uppercase',
+              letterSpacing: '0.04em',
               writingMode: 'vertical-rl',
               transform: 'rotate(180deg)',
-              letterSpacing: '0.04em',
-              alignItems: 'center'
+              whiteSpace: 'nowrap'
             }}>
-              <span>Low Functional (1)</span>
-              <span style={{ fontWeight: 800, color: 'var(--foreground)' }}>Functional Fit →</span>
-              <span>High Functional (5)</span>
+              High Functional (5)
+            </div>
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '-1.8rem',
+              transform: 'translateY(-50%) rotate(180deg)',
+              writingMode: 'vertical-rl',
+              fontSize: '0.62rem',
+              fontWeight: 800,
+              color: 'var(--foreground)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              whiteSpace: 'nowrap'
+            }}>
+              Functional Fit →
+            </div>
+            <div style={{
+              position: 'absolute',
+              bottom: 0,
+              left: '-1.8rem',
+              fontSize: '0.62rem',
+              fontWeight: 700,
+              color: 'var(--muted-foreground)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              writingMode: 'vertical-rl',
+              transform: 'rotate(180deg)',
+              whiteSpace: 'nowrap'
+            }}>
+              Low Functional (1)
             </div>
           </div>
 
@@ -613,7 +685,7 @@ export const TimeDashboardView: React.FC<Props> = ({
           </div>
 
           {/* List of Applications in Quadrant or Overall */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', height: '360px', overflowY: 'auto', paddingRight: '0.35rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', height: '440px', overflowY: 'auto', paddingRight: '0.35rem' }}>
             {displayedPlots.map(plot => {
               const isSelected = selectedAppId === plot.app.id;
               const isHovered = hoveredAppId === plot.app.id;
