@@ -285,28 +285,34 @@ export const TimeDashboardView: React.FC<Props> = ({
       <div 
         className="card" 
         style={{ 
-          padding: '1.5rem', 
+          padding: '1.75rem', 
           background: 'var(--card)', 
           borderRadius: '16px', 
           boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
           display: 'grid',
-          gridTemplateColumns: '1.55fr minmax(320px, 390px)',
+          gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 400px)',
           gap: '2.5rem',
-          alignItems: 'start'
+          alignItems: 'stretch'
         }}
       >
         {/* 2x2 Interactive Chart Container */}
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted-foreground)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted-foreground)' }}>
               TIME Assessment Matrix
             </div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
               Showing <strong>{displayedPlots.length}</strong> of {apps.length} apps
             </div>
           </div>
 
-          <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', maxWidth: '640px', margin: '1rem auto 1.75rem auto' }}>
+          <div style={{ 
+            position: 'relative', 
+            width: '100%', 
+            aspectRatio: '4 / 3', 
+            maxHeight: 'calc(100vh - 350px)',
+            margin: '0.5rem 0 2rem 0' 
+          }}>
             {/* Quadrant grid box */}
             <div style={{ 
               width: '100%', 
@@ -685,7 +691,7 @@ export const TimeDashboardView: React.FC<Props> = ({
           </div>
 
           {/* List of Applications in Quadrant or Overall */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', height: '440px', overflowY: 'auto', paddingRight: '0.35rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1, maxHeight: 'calc(100vh - 560px)', minHeight: '300px', overflowY: 'auto', paddingRight: '0.35rem' }}>
             {displayedPlots.map(plot => {
               const isSelected = selectedAppId === plot.app.id;
               const isHovered = hoveredAppId === plot.app.id;
