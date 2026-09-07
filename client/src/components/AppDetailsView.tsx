@@ -117,44 +117,40 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
     if (!isTechHigh && isFuncHigh) {
       quadrant = 'MIGRATE';
       title = 'Migrate';
-      action = 'Modernize / Replatform / Upgrade';
+      action = 'Modernize / Replatform';
       description = cVal >= critCutoff
-        ? `High business alignment and capability support, but compromised by technical debt or obsolete architecture. Urgent re-platforming, cloud migration, or refactoring required${isCostHigh ? ', with high expenditure offering significant potential TCO savings' : ''}.`
-        : `Good functional fit with aging or restrictive technical foundations. Target for modernization or SaaS migration${isCostHigh ? ' to eliminate elevated run costs' : ''}.`;
+        ? 'High business alignment on obsolete technical foundations. Urgent priority for modernization or cloud migration.'
+        : 'Good functional fit with aging technical architecture. Candidate for modernization or SaaS migration.';
       color = '#e67700';
       bg = 'rgba(230, 119, 0, 0.12)';
       border = 'rgba(230, 119, 0, 0.35)';
     } else if (isTechHigh && isFuncHigh) {
       quadrant = 'INVEST';
       title = 'Invest';
-      action = 'Grow / Expand / Innovate';
+      action = 'Grow / Expand';
       description = cVal >= critCutoff
-        ? `Mission-critical asset with superior technical health and high strategic alignment. Priority recipient for ongoing discretionary investment and ecosystem integration${isCostHigh ? ' (ensure high enterprise adoption justifies premium cost)' : ''}.`
-        : `High technical stability and good user satisfaction. Continue expanding features and standardizing adoption${isCostHigh ? ', monitoring cost efficiency' : ''}.`;
+        ? 'Mission-critical asset with superior technical health. Priority recipient for strategic investment and integration.'
+        : 'High technical stability and good user satisfaction. Continue expanding features and standardizing adoption.';
       color = '#2b8a3e';
       bg = 'rgba(43, 138, 62, 0.12)';
       border = 'rgba(43, 138, 62, 0.35)';
     } else if (isTechHigh && !isFuncHigh) {
       quadrant = 'TOLERATE';
       title = 'Tolerate';
-      action = 'Retain / Maintain / Low Discretionary Spend';
+      action = 'Retain / Maintain';
       description = isCostHigh
-        ? 'Robust technical architecture but limited functional alignment, coupled with high run costs. Strongly evaluate renegotiating contract terms or consolidating onto alternatives to eliminate excessive maintenance spend.'
-        : (cVal >= critCutoff
-            ? 'Robust and stable technical architecture that satisfies baseline operational requirements, but does not provide deep functional coverage. Maintain with minimal run costs.'
-            : 'Technically sound with low maintenance overhead and modest business impact. Retain as-is without significant new investment.');
+        ? 'Technically sound but delivers limited functional return with elevated run costs. Evaluate renegotiation or consolidation.'
+        : 'Technically stable with limited functional scope. Maintain as-is with minimal discretionary spend.';
       color = '#228be6';
       bg = 'rgba(34, 139, 230, 0.12)';
       border = 'rgba(34, 139, 230, 0.35)';
     } else {
       quadrant = 'ELIMINATE';
       title = 'Eliminate';
-      action = 'Retire / Decommission / Consolidate';
+      action = 'Retire / Decommission';
       description = isCostHigh
-        ? 'Poor technical sustainability, low functional utility, and high ongoing cost. Prime candidate for contract termination or decommissioning, yielding immediate budget savings.'
-        : (cVal >= critCutoff
-            ? 'Poor technical sustainability and low functional satisfaction despite high organizational reliance. Urgent replacement or capability transfer needed to avoid critical outage.'
-            : 'Low business utility and poor technical health. Immediate candidate for rationalization, decommission, or replacement.');
+        ? 'Low business utility, poor technical fit, and high ongoing costs. Prime candidate for contract termination or decommissioning.'
+        : 'Low business utility and poor technical health. Target for rationalization, decommission, or replacement.';
       color = '#c92a2a';
       bg = 'rgba(201, 42, 42, 0.12)';
       border = 'rgba(201, 42, 42, 0.35)';
@@ -263,15 +259,15 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     background: 'var(--card)', 
                     borderRadius: '16px', 
                     border: '1px solid var(--border)', 
-                    padding: '1.25rem 1.5rem', 
+                    padding: '1.75rem 2rem', 
                     boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
                     display: 'grid',
-                    gridTemplateColumns: 'minmax(280px, 340px) 1fr',
-                    gap: '1.75rem',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                    gap: '2.5rem',
                     alignItems: 'center'
                   }}>
-                    {/* Interactive 2x2 TIME Diagram */}
-                    <div style={{ maxWidth: '340px', width: '100%', margin: '0 auto' }}>
+                    {/* Interactive 2x2 TIME Diagram (Left half - 1:1 ratio) */}
+                    <div style={{ width: '100%', minWidth: 0 }}>
                       <TimeMatrix
                         singleApp={{
                           id: app.id,
@@ -287,114 +283,146 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                       />
                     </div>
 
-                    {/* TIME Assessment Narrative & Decision Breakdown */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
-                        <span style={{ 
-                          fontSize: '1.6rem', 
-                          fontWeight: 900, 
-                          letterSpacing: '-0.02em', 
-                          color: timeAssessment.color 
-                        }}>
-                          {timeAssessment.title}
-                        </span>
-                        <span style={{ 
-                          fontSize: '0.85rem', 
-                          fontWeight: 700, 
-                          color: 'var(--foreground)' 
-                        }}>
-                          — {timeAssessment.action}
-                        </span>
+                    {/* TIME Assessment Narrative & Integrated Drivers (Right half - 1:1 ratio) */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', width: '100%', minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{ 
+                            fontSize: '1.85rem', 
+                            fontWeight: 900, 
+                            letterSpacing: '-0.02em', 
+                            color: timeAssessment.color 
+                          }}>
+                            {timeAssessment.title}
+                          </span>
+                          <span style={{ 
+                            fontSize: '0.85rem', 
+                            fontWeight: 800, 
+                            padding: '0.3rem 0.75rem', 
+                            borderRadius: '8px', 
+                            background: `${timeAssessment.color}15`, 
+                            color: timeAssessment.color, 
+                            border: `1.5px solid ${timeAssessment.color}35` 
+                          }}>
+                            {timeAssessment.action}
+                          </span>
+                        </div>
                       </div>
 
                       <p style={{ 
                         margin: 0, 
-                        fontSize: '0.85rem', 
+                        fontSize: '0.95rem', 
                         lineHeight: 1.55, 
-                        color: 'var(--foreground)', 
-                        opacity: 0.85 
+                        color: 'var(--foreground)',
+                        opacity: 0.9
                       }}>
                         {timeAssessment.description}
                       </p>
 
-                      {/* Strategic Driver Breakdown badges */}
+                      {/* Integrated Visual Drivers (Criticality, Cost, Functional Fit, Technical Fit) */}
                       <div style={{ 
-                        marginTop: '0.25rem', 
-                        padding: '0.65rem 0.85rem', 
-                        background: 'var(--secondary)', 
-                        borderRadius: '8px', 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: '0.75rem 1.25rem',
-                        alignItems: 'center',
-                        fontSize: '0.72rem'
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(2, 1fr)', 
+                        gap: '0.85rem', 
+                        marginTop: '0.4rem' 
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Tech Fit:</span>
-                          <span style={{ fontWeight: 800, color: timeAssessment.techScore >= (thresholds?.technicalFit ?? 3) ? '#2b8a3e' : '#c92a2a' }}>
-                            {timeAssessment.techScore}/5 ({timeAssessment.techScore >= (thresholds?.technicalFit ?? 3) ? 'High' : 'Low'})
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Functional Fit:</span>
-                          <span style={{ fontWeight: 800, color: timeAssessment.funcScore >= (thresholds?.functionalFit ?? 3) ? '#2b8a3e' : '#c92a2a' }}>
-                            {timeAssessment.funcScore}/5 ({timeAssessment.funcScore >= (thresholds?.functionalFit ?? 3) ? 'High' : 'Low'})
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Criticality:</span>
-                          <span style={{ fontWeight: 800, color: timeAssessment.critScore >= (thresholds?.businessCriticality ?? 4) ? '#c92a2a' : 'var(--foreground)' }}>
-                            {timeAssessment.critScore}/5 {isInherited ? '(Inherited)' : ''} ({timeAssessment.critScore >= (thresholds?.businessCriticality ?? 4) ? 'High / Urgent' : 'Normal'})
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Cost:</span>
-                          <span style={{ fontWeight: 800, color: timeAssessment.isCostHigh ? '#fd7e14' : '#2b8a3e' }}>
-                            {timeAssessment.costScore}/5 ({timeAssessment.isCostHigh ? 'High Cost' : 'Normal / Low'})
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                          <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Marker Size:</span>
-                          <span style={{ fontStyle: 'italic', color: 'var(--muted-foreground)' }}>Scales with Criticality</span>
-                        </div>
+                        {[
+                          { 
+                            label: 'Technical Fit', 
+                            val: app.technicalFit, 
+                            key: 'technical_fit', 
+                            score: timeAssessment.techScore,
+                            cutoff: thresholds?.technicalFit ?? 3,
+                            isHigh: timeAssessment.techScore >= (thresholds?.technicalFit ?? 3),
+                            inherited: false 
+                          },
+                          { 
+                            label: 'Functional Fit', 
+                            val: app.functionalFit, 
+                            key: 'functional_fit', 
+                            score: timeAssessment.funcScore,
+                            cutoff: thresholds?.functionalFit ?? 3,
+                            isHigh: timeAssessment.funcScore >= (thresholds?.functionalFit ?? 3),
+                            inherited: false 
+                          },
+                          { 
+                            label: 'Criticality', 
+                            val: effectiveCriticality, 
+                            key: 'criticality', 
+                            score: timeAssessment.critScore,
+                            cutoff: thresholds?.businessCriticality ?? 4,
+                            isHigh: timeAssessment.critScore >= (thresholds?.businessCriticality ?? 4),
+                            inherited: isInherited 
+                          },
+                          { 
+                            label: 'Cost', 
+                            val: app.cost, 
+                            key: 'application_cost', 
+                            score: timeAssessment.costScore,
+                            cutoff: thresholds?.cost ?? 4,
+                            isHigh: timeAssessment.isCostHigh,
+                            inherited: false 
+                          }
+                        ].map(item => {
+                          const info = getPicklistInfo(item.key, item.val);
+                          const statusColor = item.key === 'application_cost'
+                            ? (item.isHigh ? '#fd7e14' : '#2b8a3e')
+                            : item.key === 'criticality'
+                            ? (item.isHigh ? '#c92a2a' : 'var(--muted-foreground)')
+                            : (item.isHigh ? '#2b8a3e' : '#c92a2a');
+                          const statusLabel = item.key === 'application_cost'
+                            ? (item.isHigh ? 'High Cost' : 'Normal')
+                            : item.key === 'criticality'
+                            ? (item.isHigh ? 'Urgent' : 'Standard')
+                            : (item.isHigh ? 'High' : 'Low');
+
+                          return (
+                            <div key={item.label} style={{ 
+                              padding: '0.85rem 1rem', 
+                              background: 'var(--secondary)', 
+                              borderRadius: '10px', 
+                              border: item.key === 'application_cost' && item.isHigh ? '1.5px solid #fd7e14' : '1px solid var(--border)', 
+                              display: 'flex', 
+                              flexDirection: 'column', 
+                              justifyContent: 'space-between',
+                              gap: '0.55rem' 
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                  {item.label}
+                                </span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                  {item.inherited && (
+                                    <span style={{ fontSize: '0.58rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--card)', padding: '0.08rem 0.35rem', borderRadius: '3px', border: '1px solid var(--border)' }}>
+                                      INHERITED
+                                    </span>
+                                  )}
+                                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: statusColor }}>
+                                    {statusLabel}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontSize: '0.92rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden' }}>
+                                  {info.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.color, flexShrink: 0 }} />}
+                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {info.label || `${item.score ?? 1}/5`}
+                                  </span>
+                                </div>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--foreground)', opacity: 0.8, flexShrink: 0, marginLeft: '0.35rem' }}>
+                                  {item.score ?? 1}/5
+                                </span>
+                              </div>
+
+                              <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'var(--border)', overflow: 'hidden', marginTop: '0.2rem' }}>
+                                <div style={{ width: `${(Math.max(1, item.score ?? 1) / 5) * 100}%`, height: '100%', background: info.color || 'var(--primary)', borderRadius: '3px' }} />
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </div>
-
-                  {/* Compact Scores Row (Criticality, Cost, Functional Fit, Technical Fit) */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
-                    {[
-                      { label: 'Criticality', val: effectiveCriticality, key: 'criticality', inherited: isInherited },
-                      { label: 'Cost', val: app.cost, key: 'application_cost', inherited: false },
-                      { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit', inherited: false },
-                      { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit', inherited: false }
-                    ].map(score => {
-                      const info = getPicklistInfo(score.key, score.val);
-                      return (
-                        <div key={score.label} style={{ 
-                          padding: '0.75rem 1rem', 
-                          background: 'var(--card)', 
-                          borderRadius: '10px', 
-                          border: '1px solid var(--border)', 
-                          display: 'flex', 
-                          justifyContent: 'space-between',
-                          alignItems: 'center', 
-                          boxShadow: '0 1px 2px rgba(0,0,0,0.03)' 
-                        }}>
-                          <div>
-                            <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{score.label}</div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.35rem', marginTop: '0.15rem' }}>
-                              {info.color && <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: info.color, flexShrink: 0 }} />}
-                              {info.label}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                            {score.inherited && <span style={{ fontSize: '0.5rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>INHERITED</span>}
-                            <div style={{ width: '28px', height: '3px', borderRadius: '2px', background: info.color }} />
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
 
                   {/* Aggregated Data Risk Profile Row */}

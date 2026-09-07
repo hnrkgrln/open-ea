@@ -226,7 +226,7 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
   return (
     <div className={className} style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0, ...style }}>
       {/* 2x2 Symmetrical Matrix Box with dedicated left gutter for Y-axis labels */}
-      <div style={{ position: 'relative', width: 'calc(100% - 2.4rem)', aspectRatio, margin: '0.25rem 0 2.2rem 2.4rem' }}>
+      <div style={{ position: 'relative', width: 'calc(100% - 2.5rem)', aspectRatio, margin: '0.25rem 0 2.4rem 2.5rem' }}>
         <div style={{ 
           width: '100%', 
           height: '100%', 
@@ -243,7 +243,7 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
           <div 
             onClick={() => handleQuadClick('MIGRATE')}
             style={{ 
-              padding: '0.75rem 0.85rem', 
+              padding: '0.85rem 0.95rem', 
               background: selectedQuadrant === 'MIGRATE' ? 'rgba(230, 119, 0, 0.18)' : 'rgba(230, 119, 0, 0.05)',
               borderRight: '1px dashed var(--border)',
               borderBottom: '1px dashed var(--border)',
@@ -254,15 +254,15 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
               transition: 'background 0.2s'
             }}
           >
-            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#e67700', letterSpacing: '0.04em' }}>MIGRATE</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>High Fit · Low Tech</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#e67700', letterSpacing: '0.04em' }}>MIGRATE</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>High Fit · Low Tech</span>
           </div>
 
           {/* Top-Right: INVEST */}
           <div 
             onClick={() => handleQuadClick('INVEST')}
             style={{ 
-              padding: '0.75rem 0.85rem', 
+              padding: '0.85rem 0.95rem', 
               background: selectedQuadrant === 'INVEST' ? 'rgba(43, 138, 62, 0.18)' : 'rgba(43, 138, 62, 0.05)',
               borderBottom: '1px dashed var(--border)',
               display: 'flex',
@@ -274,15 +274,15 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
               transition: 'background 0.2s'
             }}
           >
-            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#2b8a3e', letterSpacing: '0.04em' }}>INVEST</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>High Fit · High Tech</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#2b8a3e', letterSpacing: '0.04em' }}>INVEST</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>High Fit · High Tech</span>
           </div>
 
           {/* Bottom-Left: ELIMINATE */}
           <div 
             onClick={() => handleQuadClick('ELIMINATE')}
             style={{ 
-              padding: '0.75rem 0.85rem', 
+              padding: '0.85rem 0.95rem', 
               background: selectedQuadrant === 'ELIMINATE' ? 'rgba(201, 42, 42, 0.18)' : 'rgba(201, 42, 42, 0.05)',
               borderRight: '1px dashed var(--border)',
               display: 'flex',
@@ -292,15 +292,15 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
               transition: 'background 0.2s'
             }}
           >
-            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#c92a2a', letterSpacing: '0.04em' }}>ELIMINATE</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>Low Fit · Low Tech</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#c92a2a', letterSpacing: '0.04em' }}>ELIMINATE</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>Low Fit · Low Tech</span>
           </div>
 
           {/* Bottom-Right: TOLERATE */}
           <div 
             onClick={() => handleQuadClick('TOLERATE')}
             style={{ 
-              padding: '0.75rem 0.85rem', 
+              padding: '0.85rem 0.95rem', 
               background: selectedQuadrant === 'TOLERATE' ? 'rgba(34, 139, 230, 0.18)' : 'rgba(34, 139, 230, 0.05)',
               display: 'flex',
               flexDirection: 'column',
@@ -311,8 +311,8 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
               transition: 'background 0.2s'
             }}
           >
-            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#228be6', letterSpacing: '0.04em' }}>TOLERATE</span>
-            <span style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>Low Fit · High Tech</span>
+            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#228be6', letterSpacing: '0.04em' }}>TOLERATE</span>
+            <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>Low Fit · High Tech</span>
           </div>
 
           {/* Center symmetrical intersection node */}
@@ -424,12 +424,12 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
         {/* X-Axis Labels */}
         <div style={{ 
           position: 'absolute', 
-          bottom: '-1.4rem', 
+          bottom: '-1.6rem', 
           left: 0, 
           right: 0, 
           display: 'flex', 
           justifyContent: 'space-between', 
-          fontSize: '0.62rem', 
+          fontSize: '0.72rem', 
           fontWeight: 700, 
           color: 'var(--muted-foreground)',
           textTransform: 'uppercase',
@@ -443,8 +443,8 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
         <div style={{
           position: 'absolute',
           top: 0,
-          left: '-1.8rem',
-          fontSize: '0.62rem',
+          left: '-2rem',
+          fontSize: '0.72rem',
           fontWeight: 700,
           color: 'var(--muted-foreground)',
           textTransform: 'uppercase',
@@ -459,8 +459,8 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
         <div style={{
           position: 'absolute',
           bottom: 0,
-          left: '-1.8rem',
-          fontSize: '0.62rem',
+          left: '-2rem',
+          fontSize: '0.72rem',
           fontWeight: 700,
           color: 'var(--muted-foreground)',
           textTransform: 'uppercase',
@@ -476,13 +476,13 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
 
       {/* Legend Footer */}
       {showLegend && (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.25rem', fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.35rem', paddingLeft: '2.4rem', flexWrap: 'wrap' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ width: '13px', height: '13px', borderRadius: '50%', background: 'var(--muted-foreground)', opacity: 0.6 }} />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.25rem', fontSize: '0.76rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', paddingLeft: '2.5rem', flexWrap: 'wrap' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ width: '14px', height: '14px', borderRadius: '50%', background: 'var(--muted-foreground)', opacity: 0.6 }} />
             <span>Bubble Size: Criticality (Large ≥ {thresholds?.businessCriticality ?? 4})</span>
           </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#fd7e14', boxShadow: '0 0 0 2px rgba(253, 126, 20, 0.4)' }} />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#fd7e14', boxShadow: '0 0 0 2px rgba(253, 126, 20, 0.4)' }} />
             <span style={{ color: '#fd7e14', fontWeight: 600 }}>Orange Ring: High Cost (≥ {thresholds?.cost ?? 4})</span>
           </span>
           {appList.length > 1 && (

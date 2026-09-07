@@ -96,6 +96,7 @@ interface MetadataDefinition {
 interface Picklist {
   id: string;
   name: string;
+  label?: string;
   options: { value: string; color: string; label: string }[];
 }
 
@@ -398,14 +399,22 @@ const CenteredEdge = ({
   );
 };
 
-const getOverlayColor = (value: string | number, def: MetadataDefinition, picklists: Picklist[]) => {
-  // Normalize field names for matching: application_type, applicationType, ApplicationType -> applicationtype
+const getFieldPicklist = (fieldName: string, picklistsList?: Picklist[]) => {
+  if (!picklistsList) return undefined;
   const normalize = (s: string) => s.toLowerCase().replace(/_/g, '').replace(/\s+/g, '');
-  const fieldKey = normalize(def.fieldName);
-  const picklist = picklists.find(p => {
+  const fNorm = normalize(fieldName);
+  return picklistsList.find(p => {
     const pNorm = normalize(p.name);
-    return pNorm === fieldKey || (fieldKey === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost'));
+    return pNorm === fNorm || 
+      (fNorm === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost')) ||
+      (fNorm === 'type' && (p.name === 'application_type' || pNorm === 'applicationtype')) ||
+      (fNorm === 'functionalfit' && (p.name === 'functional_fit' || pNorm === 'functionalfit')) ||
+      (fNorm === 'technicalfit' && (p.name === 'technical_fit' || pNorm === 'technicalfit'));
   });
+};
+
+const getOverlayColor = (value: string | number, def: MetadataDefinition, picklists: Picklist[] = []) => {
+  const picklist = getFieldPicklist(def.fieldName, picklists);
   
   if (picklist) {
     const valStr = String(value);
@@ -586,7 +595,66 @@ const DiagramInner = ({
   const getFieldLabel = (field: string) => {
     if (field === 'lifecycle') return 'Lifecycle';
     if (field === 'time') return 'TIME Assessment';
-    return metaDefs.find(d => d.fieldName === field)?.label || field;
+    if (field === 'cost') return 'Cost';
+    if (field === 'functionalFit') return 'Functional Fit';
+    if (field === 'technicalFit') return 'Technical Fit';
+    if (field === 'criticality') return 'Business Criticality';
+    if (field === 'type') return 'Application Type';
+    if (field === 'owner') return 'Owner';
+    const def = metaDefs.find(d => d.fieldName === field);
+    if (def?.label) return def.label;
+    const pl = getFieldPicklist(field, picklists);
+    if (pl?.label) return pl.label;
+    return field;
+  };
+
+  const getGroupInfo = (field: string, val: string, entType: string): { color: string; label: string } => {
+    // 1. TIME Assessment
+    if (field === 'time') {
+      const stage = TIME_STAGES.find(s => s.value.toLowerCase() === val.toLowerCase() || s.label.toLowerCase() === val.toLowerCase());
+      if (stage) {
+        return { color: stage.color, label: stage.label };
+      }
+      return { color: '#adb5bd', label: val };
+    }
+
+    // 2. Lifecycle
+    if (field === 'lifecycle') {
+      const pl = getFieldPicklist('lifecycle', picklists);
+      const opt = pl?.options.find(o => o.value.toLowerCase() === val.toLowerCase() || o.label.toLowerCase() === val.toLowerCase());
+      const stage = LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === val.toLowerCase());
+      const color = opt?.color || stage?.color || 'var(--primary)';
+      const label = opt?.label || stage?.label || val;
+      return { color, label };
+    }
+
+    // 3. Picklists (criticality, cost, functionalFit, technicalFit, custom, etc.)
+    const pl = getFieldPicklist(field, picklists);
+    if (pl) {
+      const valStr = String(val);
+      let opt = pl.options.find(o => String(o.value).toLowerCase() === valStr.toLowerCase() || o.label.toLowerCase() === valStr.toLowerCase());
+      if (!opt && !isNaN(Number(val))) {
+        const rounded = Math.round(Number(val));
+        opt = pl.options.find(o => String(o.value) === String(rounded));
+      }
+      if (opt) {
+        let color = opt.color;
+        if (!color) {
+          const def = metaDefs.find(d => d.fieldName === field && d.entityType === entType) || metaDefs.find(d => d.fieldName === field);
+          if (def) color = getOverlayColor(val, def, picklists || []).bg;
+        }
+        return { color: color || 'var(--primary)', label: opt.label || val };
+      }
+    }
+
+    // 4. MetadataDefinition fallback (interpolated ranges or standard defs)
+    const def = metaDefs.find(d => d.fieldName === field && d.entityType === entType) || metaDefs.find(d => d.fieldName === field);
+    if (def) {
+      const color = getOverlayColor(val, def, picklists || []).bg;
+      return { color, label: val };
+    }
+
+    return { color: 'var(--primary)', label: val };
   };
 
   const getCustomLabels = useCallback((entity: any, entityType: string) => {
@@ -865,6 +933,10 @@ const DiagramInner = ({
           uniqueValues.sort((a, b) => {
             if (groupingField === 'lifecycle') {
               const order = LIFECYCLE_STAGES.map(s => s.label.toLowerCase());
+              return order.indexOf(a.toLowerCase()) - order.indexOf(b.toLowerCase());
+            }
+            if (groupingField === 'time') {
+              const order = TIME_STAGES.map(s => s.value.toLowerCase());
               return order.indexOf(a.toLowerCase()) - order.indexOf(b.toLowerCase());
             }
             const numA = parseFloat(a);
@@ -1212,23 +1284,34 @@ const DiagramInner = ({
           columnHeights[col] += content.height + 80;
           colMaxW[col] = Math.max(colMaxW[col], content.width);
 
-          let color = 'var(--primary)';
-          if (primaryGroup.field === 'lifecycle') {
-            color = getLifecycleColor(groupVal, isDark, picklists).bg;
-          } else {
-            const entType = primaryGroup.entityType === 'Capability' ? 'Capability' : 'Application';
-            const def = metaDefs.find(d => d.fieldName === primaryGroup.field && d.entityType === entType);
-            if (def) color = getOverlayColor(groupVal, def, picklists).bg;
-          }
-          return { containerId, groupVal, color, col, currentY, width: content.width, height: content.height, nodes: content.nodes };
+          const { color, label: valLabel } = getGroupInfo(primaryGroup.field, groupVal, primaryGroup.entityType);
+          const fieldLabel = getFieldLabel(primaryGroup.field);
+          const groupTitle = `${fieldLabel}: ${valLabel}`;
+
+          return { containerId, groupVal, color, groupTitle, col, currentY, width: content.width, height: content.height, nodes: content.nodes };
         });
 
         groups.forEach(g => {
           const currentX = colMaxW.slice(0, g.col).reduce((sum, w) => sum + w + 80, 0);
           allFinalNodes.push({
-            id: g.containerId, data: { label: `${primaryGroup.field.toUpperCase()}: ${g.groupVal}` },
+            id: g.containerId, 
+            data: { label: g.groupTitle },
             position: { x: currentX, y: g.currentY },
-            style: { background: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', border: `4px solid ${g.color}`, borderRadius: '32px', width: g.width, height: g.height, pointerEvents: 'none', zIndex: -100, fontSize: '20px', fontWeight: 900, color: g.color, textAlign: 'left', paddingLeft: '40px', paddingTop: '20px' }
+            style: { 
+              background: isDark ? `${g.color}0a` : `${g.color}08`, 
+              border: `4px solid ${g.color}`, 
+              borderRadius: '32px', 
+              width: g.width, 
+              height: g.height, 
+              pointerEvents: 'none', 
+              zIndex: -100, 
+              fontSize: '20px', 
+              fontWeight: 900, 
+              color: g.color, 
+              textAlign: 'left', 
+              paddingLeft: '40px', 
+              paddingTop: '20px' 
+            }
           });
           allFinalNodes.push(...g.nodes);
         });
@@ -1474,12 +1557,14 @@ const DiagramInner = ({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 {groupingField === 'lifecycle' ? (
-                  (picklists?.find(p => p.name === 'lifecycle')?.options || LIFECYCLE_STAGES).map(opt => {
-                    const lightColor = 'lightColor' in opt ? (opt as { lightColor?: string }).lightColor : undefined;
-                    const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (lightColor || opt.color || '#e9ecef'));
+                  (getFieldPicklist('lifecycle', picklists)?.options?.length 
+                    ? getFieldPicklist('lifecycle', picklists)!.options 
+                    : LIFECYCLE_STAGES
+                  ).map(opt => {
+                    const color = opt.color || ('color' in opt ? (opt as any).color : undefined) || LIFECYCLE_STAGES.find(s => s.label.toLowerCase() === opt.label.toLowerCase())?.color || '#adb5bd';
                     return (
                       <div key={opt.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: bg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
                         <span>{opt.label}</span>
                       </div>
                     );
@@ -1487,17 +1572,24 @@ const DiagramInner = ({
                 ) : groupingField === 'time' ? (
                   TIME_STAGES.map(opt => (
                     <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: isDark ? opt.color : opt.lightColor, border: `1px solid ${opt.color}` }} />
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${opt.color}` }} />
                       <span style={{ fontWeight: 600 }}>{opt.label}</span>
                     </div>
                   ))
                 ) : (
-                  picklists?.find(p => p.name.toLowerCase().replace(/_/g, '') === groupingField.toLowerCase().replace(/_/g, ''))?.options.map(opt => (
-                    <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
-                      <span>{opt.label}</span>
-                    </div>
-                  ))
+                  (getFieldPicklist(groupingField, picklists)?.options || []).map(opt => {
+                    let color = opt.color;
+                    if (!color) {
+                      const def = metaDefs.find(d => d.fieldName === groupingField);
+                      if (def) color = getOverlayColor(opt.value, def, picklists || []).bg;
+                    }
+                    return (
+                      <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: color || 'var(--primary)', border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                        <span>{opt.label}</span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
