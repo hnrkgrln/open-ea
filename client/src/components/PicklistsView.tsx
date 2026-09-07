@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight, Sliders, RotateCcw } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
@@ -6,6 +6,7 @@ import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
 import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
 import { ColoredSelect } from './ColoredSelect';
+import { TimeMatrix } from './TimeMatrix';
 
 interface PicklistOption {
   id: string;
@@ -67,6 +68,22 @@ export const PicklistsView = ({
   const [localTimeThresholds, setLocalTimeThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
   const timeThresholds = propTimeThresholds || localTimeThresholds;
   const setTimeThresholds = propOnUpdateTimeThresholds || setLocalTimeThresholds;
+
+  const previewApps = useMemo(() => {
+    if (apps && apps.length >= 4) {
+      return apps.slice(0, 25);
+    }
+    return [
+      { id: 'sample-invest', name: 'Core ERP Platform', technicalFit: 4, functionalFit: 4, criticality: 5, cost: 4 },
+      { id: 'sample-invest-2', name: 'Customer Portal', technicalFit: 5, functionalFit: 5, criticality: 4, cost: 2 },
+      { id: 'sample-migrate', name: 'Legacy Billing', technicalFit: 2, functionalFit: 4, criticality: 4, cost: 5 },
+      { id: 'sample-migrate-2', name: 'Warehouse Ops', technicalFit: 1, functionalFit: 4, criticality: 3, cost: 2 },
+      { id: 'sample-tolerate', name: 'Internal Wiki', technicalFit: 4, functionalFit: 2, criticality: 2, cost: 1 },
+      { id: 'sample-tolerate-2', name: 'Reporting Server', technicalFit: 5, functionalFit: 1, criticality: 3, cost: 4 },
+      { id: 'sample-eliminate', name: 'Old Survey Tool', technicalFit: 2, functionalFit: 2, criticality: 1, cost: 4 },
+      { id: 'sample-eliminate-2', name: 'Deprecated Chat', technicalFit: 1, functionalFit: 1, criticality: 1, cost: 1 },
+    ];
+  }, [apps]);
   
   // States for new picklist option
   const [newValue, setNewValue] = useState('');
@@ -687,62 +704,16 @@ export const PicklistsView = ({
                     Live Matrix Preview
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', margin: '0 0 1rem 0', lineHeight: 1.4 }}>
-                    Threshold cutoffs determine classification into symmetrical quadrants on the 1–5 scale.
+                    Threshold cutoffs dynamically reclassify applications, scale mission-critical bubbles, and highlight high-cost items.
                   </p>
 
-                  {/* 2x2 symmetrical grid preview */}
-                  <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--border)', background: 'var(--background)' }}>
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gridTemplateRows: '1fr 1fr',
-                      width: '100%',
-                      height: '100%',
-                      position: 'relative'
-                    }}>
-                      {/* Migrate */}
-                      <div style={{ background: 'rgba(230, 119, 0, 0.12)', borderRight: '1.5px dashed var(--border)', borderBottom: '1.5px dashed var(--border)', padding: '0.6rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#e67700' }}>MIGRATE</span>
-                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                          Tech &lt; {timeThresholds.technicalFit} · Fit ≥ {timeThresholds.functionalFit}
-                        </span>
-                      </div>
-                      {/* Invest */}
-                      <div style={{ background: 'rgba(43, 138, 62, 0.12)', borderBottom: '1.5px dashed var(--border)', padding: '0.6rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-start', textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#2b8a3e' }}>INVEST</span>
-                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                          Tech ≥ {timeThresholds.technicalFit} · Fit ≥ {timeThresholds.functionalFit}
-                        </span>
-                      </div>
-                      {/* Eliminate */}
-                      <div style={{ background: 'rgba(201, 42, 42, 0.12)', borderRight: '1.5px dashed var(--border)', padding: '0.6rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#c92a2a' }}>ELIMINATE</span>
-                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                          Tech &lt; {timeThresholds.technicalFit} · Fit &lt; {timeThresholds.functionalFit}
-                        </span>
-                      </div>
-                      {/* Tolerate */}
-                      <div style={{ background: 'rgba(34, 139, 230, 0.12)', padding: '0.6rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#228be6' }}>TOLERATE</span>
-                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                          Tech ≥ {timeThresholds.technicalFit} · Fit &lt; {timeThresholds.functionalFit}
-                        </span>
-                      </div>
-
-                      {/* Center junction dot */}
-                      <div style={{
-                        position: 'absolute',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        background: 'var(--foreground)',
-                        border: '2px solid var(--background)',
-                        zIndex: 2
-                      }} />
-                    </div>
+                  <div style={{ width: '100%', maxWidth: '340px', margin: '0 auto' }}>
+                    <TimeMatrix
+                      apps={previewApps}
+                      thresholds={timeThresholds}
+                      aspectRatio="1 / 1"
+                      showLegend={true}
+                    />
                   </div>
 
                   <div style={{ marginTop: '0.85rem', padding: '0.65rem', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.7rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
@@ -756,11 +727,11 @@ export const PicklistsView = ({
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--muted-foreground)' }}>Criticality Urgency:</span>
-                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.businessCriticality}</strong>
+                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.businessCriticality} (Enlarges bubble)</strong>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--muted-foreground)' }}>Cost Alert Cutoff:</span>
-                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.cost ?? 4}</strong>
+                      <strong style={{ color: '#fd7e14' }}>≥ {timeThresholds.cost ?? 4} (Amber halo ring)</strong>
                     </div>
                   </div>
                 </div>

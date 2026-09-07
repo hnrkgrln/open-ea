@@ -21,6 +21,8 @@ export interface PlottedApp {
   funcScore: number;
   xPct: number;
   yPct: number;
+  isHighCost: boolean;
+  isMissionCritical: boolean;
 }
 
 /**
@@ -102,6 +104,11 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
   const [internalHoveredId, setInternalHoveredId] = useState<string | null>(null);
   const activeHoverId = hoveredAppId !== undefined ? hoveredAppId : internalHoveredId;
 
+  const techCutoff = thresholds?.technicalFit ?? 3;
+  const funcCutoff = thresholds?.functionalFit ?? 3;
+  const critCutoff = thresholds?.businessCriticality ?? 4;
+  const costCutoff = thresholds?.cost ?? 4;
+
   const appList = useMemo(() => {
     if (apps && apps.length > 0) return apps;
     if (singleApp) return [singleApp];
@@ -119,9 +126,6 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
       if (!coordGroups[key]) coordGroups[key] = [];
       coordGroups[key].push(app);
     });
-
-    const techCutoff = thresholds?.technicalFit ?? 3;
-    const funcCutoff = thresholds?.functionalFit ?? 3;
 
     return appList.map(app => {
       const tech = Number(app.technicalFit);
@@ -141,6 +145,8 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
 
       const isTechHigh = tVal >= techCutoff;
       const isFuncHigh = fVal >= funcCutoff;
+      const isHighCost = costVal >= costCutoff;
+      const isMissionCritical = cVal >= critCutoff;
 
       let quadrant: 'INVEST' | 'MIGRATE' | 'TOLERATE' | 'ELIMINATE';
       let color = '#2b8a3e';
@@ -158,8 +164,11 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
         color = '#c92a2a';
       }
 
-      // Bubble size scales with business criticality: (1: 13px, 3: 20px, 5: 27px)
-      const dotSize = singleApp ? 14 + (cVal - 1) * 3.5 : 12 + (cVal - 1) * 3.5;
+      // Bubble size dynamically scales with business criticality and threshold:
+      // Applications meeting or exceeding critCutoff are given elevated mission-critical visual weighting
+      const dotSize = singleApp
+        ? (isMissionCritical ? 24 + (cVal - critCutoff) * 3 : 14 + (cVal - 1) * 2)
+        : (isMissionCritical ? 20 + (cVal - critCutoff) * 3 : 11 + (cVal - 1) * 2);
 
       // Symmetrical threshold-aware coordinates:
       // Guarantees that apps are positioned strictly within their classified quadrant
@@ -197,7 +206,9 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
         techScore: tVal,
         funcScore: fVal,
         xPct,
-        yPct
+        yPct,
+        isHighCost,
+        isMissionCritical
       };
     });
   }, [appList, singleApp, thresholds]);
@@ -345,11 +356,13 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
                   backgroundColor: plot.color,
                   border: '2px solid #ffffff',
                   boxShadow: isSelected 
-                    ? `0 0 0 3.5px ${plot.color}, 0 6px 14px rgba(0,0,0,0.35)` 
+                    ? `0 0 0 3.5px ${plot.color}, ${plot.isHighCost ? '0 0 0 6.5px #fd7e14,' : ''} 0 6px 14px rgba(0,0,0,0.35)` 
                     : isHovered
-                    ? `0 0 0 2.5px ${plot.color}aa, 0 4px 10px rgba(0,0,0,0.25)`
+                    ? `0 0 0 2.5px ${plot.color}aa, ${plot.isHighCost ? '0 0 0 5.5px #fd7e14,' : ''} 0 4px 10px rgba(0,0,0,0.25)`
+                    : plot.isHighCost
+                    ? `0 0 0 2.5px #fd7e14, 0 0 8px rgba(253, 126, 20, 0.5)`
                     : `0 0 0 1.5px ${plot.color}44, 0 2px 5px rgba(0,0,0,0.15)`,
-                  zIndex: isHovered ? 45 : isSelected ? 30 : 10,
+                  zIndex: isHovered ? 45 : isSelected ? 35 : plot.isMissionCritical ? 20 : 10,
                   cursor: onSelectApp ? 'pointer' : 'default',
                   transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease'
                 }}
@@ -396,10 +409,10 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.65rem', color: '#a1a1aa', flexWrap: 'wrap' }}>
-                      <span>Tech: <strong style={{ color: '#fff' }}>{plot.techScore}/5</strong></span>
-                      <span>Func: <strong style={{ color: '#fff' }}>{plot.funcScore}/5</strong></span>
-                      <span>Crit: <strong style={{ color: '#fff' }}>{plot.crit}/5</strong></span>
-                      <span>Cost: <strong style={{ color: plot.cost >= (thresholds?.cost ?? 4) ? '#fd7e14' : '#fff' }}>{plot.cost}/5{plot.cost >= (thresholds?.cost ?? 4) ? ' (High)' : ''}</strong></span>
+                      <span>Tech: <strong style={{ color: plot.techScore >= techCutoff ? '#2b8a3e' : '#c92a2a' }}>{plot.techScore}/5</strong></span>
+                      <span>Func: <strong style={{ color: plot.funcScore >= funcCutoff ? '#2b8a3e' : '#c92a2a' }}>{plot.funcScore}/5</strong></span>
+                      <span>Crit: <strong style={{ color: plot.isMissionCritical ? '#ff6b6b' : '#fff' }}>{plot.crit}/5{plot.isMissionCritical ? ' (Critical)' : ''}</strong></span>
+                      <span>Cost: <strong style={{ color: plot.isHighCost ? '#fd7e14' : '#fff' }}>{plot.cost}/5{plot.isHighCost ? ' (High Cost)' : ''}</strong></span>
                     </div>
                   </div>
                 )}
@@ -463,11 +476,20 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
 
       {/* Legend Footer */}
       {showLegend && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', paddingLeft: '2.4rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1.25rem', fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.35rem', paddingLeft: '2.4rem', flexWrap: 'wrap' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--muted-foreground)', opacity: 0.5 }} />
-            Bubble size scales with Business Criticality (1–5){appList.length > 1 ? ' · Click to lock selection' : ''}
+            <span style={{ width: '13px', height: '13px', borderRadius: '50%', background: 'var(--muted-foreground)', opacity: 0.6 }} />
+            <span>Bubble Size: Criticality (Large ≥ {thresholds?.businessCriticality ?? 4})</span>
           </span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+            <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#fd7e14', boxShadow: '0 0 0 2px rgba(253, 126, 20, 0.4)' }} />
+            <span style={{ color: '#fd7e14', fontWeight: 600 }}>Orange Ring: High Cost (≥ {thresholds?.cost ?? 4})</span>
+          </span>
+          {appList.length > 1 && (
+            <span style={{ color: 'var(--muted-foreground)', opacity: 0.7 }}>
+              Click dot to lock inspection
+            </span>
+          )}
         </div>
       )}
     </div>

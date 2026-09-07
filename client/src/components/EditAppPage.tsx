@@ -7,6 +7,8 @@ import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
 import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
+import { TimeMatrix } from './TimeMatrix';
+import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '../App';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -27,11 +29,18 @@ const getScaleGradient = (scaleType: string) => {
   }
 };
 
-export const EditAppPage = () => {
+interface Props {
+  timeThresholds?: TimeThresholds;
+}
+
+export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThresholds }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNew = !id || id === 'new' || id === 'undefined';
+
+  const [localThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
+  const activeThresholds = propTimeThresholds || localThresholds || DEFAULT_TIME_THRESHOLDS;
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -161,6 +170,69 @@ export const EditAppPage = () => {
       (io.aliases || '').toLowerCase().includes(q)
     );
   }, [informationObjects, infoSearch]);
+
+  const effectiveCriticality = useMemo(() => {
+    return inheritedValue ? Number(inheritedValue) : Number(formData.criticality || 3);
+  }, [inheritedValue, formData.criticality]);
+
+  const timeAssessment = useMemo(() => {
+    const tech = Number(formData.technicalFit);
+    const func = Number(formData.functionalFit);
+    const crit = effectiveCriticality;
+    const cost = Number(formData.cost);
+    const techCutoff = activeThresholds?.technicalFit ?? 3;
+    const funcCutoff = activeThresholds?.functionalFit ?? 3;
+    const costCutoff = activeThresholds?.cost ?? 4;
+    const critCutoff = activeThresholds?.businessCriticality ?? 4;
+
+    const isTechHigh = tech >= techCutoff;
+    const isFuncHigh = func >= funcCutoff;
+    const isCostHigh = cost >= costCutoff;
+    const isCritHigh = crit >= critCutoff;
+
+    let quadrant: 'INVEST' | 'MIGRATE' | 'TOLERATE' | 'ELIMINATE';
+    let title: string;
+    let action: string;
+    let color: string;
+    let desc: string;
+
+    if (!isTechHigh && isFuncHigh) {
+      quadrant = 'MIGRATE';
+      title = 'Migrate';
+      action = 'Modernize / Replatform';
+      color = '#e67700';
+      desc = 'High functional value, low technical fit';
+    } else if (isTechHigh && isFuncHigh) {
+      quadrant = 'INVEST';
+      title = 'Invest';
+      action = 'Grow / Expand';
+      color = '#2b8a3e';
+      desc = 'High functional value, high technical fit';
+    } else if (isTechHigh && !isFuncHigh) {
+      quadrant = 'TOLERATE';
+      title = 'Tolerate';
+      action = 'Retain / Maintain';
+      color = '#228be6';
+      desc = 'Low functional value, high technical fit';
+    } else {
+      quadrant = 'ELIMINATE';
+      title = 'Eliminate';
+      action = 'Retire / Decommission';
+      color = '#c92a2a';
+      desc = 'Low functional value, low technical fit';
+    }
+
+    return { quadrant, title, action, color, desc, isTechHigh, isFuncHigh, isCostHigh, isCritHigh };
+  }, [formData.technicalFit, formData.functionalFit, formData.cost, effectiveCriticality, activeThresholds]);
+
+  const previewAppItem = useMemo(() => ({
+    id: id || 'preview-app',
+    name: formData.name?.trim() || (isNew ? 'New Application' : 'Application'),
+    technicalFit: formData.technicalFit,
+    functionalFit: formData.functionalFit,
+    criticality: effectiveCriticality,
+    cost: formData.cost,
+  }), [id, formData.name, isNew, formData.technicalFit, formData.functionalFit, effectiveCriticality, formData.cost]);
 
   const appMetaDefs = metaDefs?.filter(d => d.entityType === 'Application') || [];
   
@@ -397,45 +469,64 @@ export const EditAppPage = () => {
               </div>
             </section>
 
-            {/* STRATEGIC ASSESSMENT */}
+            {/* STRATEGIC ASSESSMENT & TIME MATRIX PREVIEW */}
             <section style={{ background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
-              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <ShieldCheck size={16} /> Strategic Assessment
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0 }}>
+                  <ShieldCheck size={16} /> Strategic Assessment & TIME Classification
+                </h3>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', background: 'var(--background)', padding: '0.25rem 0.65rem', borderRadius: '20px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>Assessment:</span>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    color: timeAssessment.color,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}>
+                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: timeAssessment.color }} />
+                    {timeAssessment.title.toUpperCase()} ({timeAssessment.action})
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'start' }}>
+                {/* Sliders Column */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   {strategicPicklists.map(item => {
                     const isDisabled = item.key === 'criticality' && isFieldDisabled;
                     const minVal = item.options.length > 0 ? Math.min(...item.options.map((o: any) => Number(o.value) || 1)) : 1;
                     const maxVal = item.options.length > 0 ? Math.max(...item.options.map((o: any) => Number(o.value) || 5)) : 5;
                     const selectedOpt = item.options.find((o: any) => String(o.value) === String((formData as any)[item.key]));
                     return (
-                        <div key={item.key} className="field" style={{ opacity: isDisabled ? 0.6 : 1 }}>
+                      <div key={item.key} className="field" style={{ opacity: isDisabled ? 0.6 : 1, marginBottom: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{item.label}</label>
-                                {isDisabled && <span style={{ fontSize: '0.65rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM CAPABILITIES</span>}
-                                {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
-                            </div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{item.label}</label>
+                            {isDisabled && <span style={{ fontSize: '0.65rem', color: 'var(--brand-focus)', fontWeight: 800 }}>INHERITED FROM CAPABILITIES</span>}
+                            {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                             {selectedOpt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: selectedOpt.color }} />}
                             {selectedOpt?.label || (formData as any)[item.key]}
-                            </div>
+                          </div>
                         </div>
                         <input 
-                            type="range" 
-                            min={minVal} 
-                            max={maxVal} 
-                            step="1" 
-                            disabled={isDisabled}
-                            style={{ background: getScaleGradient(item.scaleType), cursor: isDisabled ? 'not-allowed' : 'pointer' }} 
-                            value={(formData as any)[item.key]} 
-                            onChange={e => setFormData({...formData, [item.key]: e.target.value})} 
+                          type="range" 
+                          min={minVal} 
+                          max={maxVal} 
+                          step="1" 
+                          disabled={isDisabled}
+                          style={{ background: getScaleGradient(item.scaleType), cursor: isDisabled ? 'not-allowed' : 'pointer' }} 
+                          value={(formData as any)[item.key]} 
+                          onChange={e => setFormData({...formData, [item.key]: e.target.value})} 
                         />
-                        </div>
+                      </div>
                     );
                   })}
                   {rangeMetaDefs.map(def => (
-                    <div key={def.id} className="field">
+                    <div key={def.id} className="field" style={{ marginBottom: 0 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                         <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{def.label}</label>
                         <div style={{ fontSize: '0.8rem', fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</div>
@@ -443,6 +534,105 @@ export const EditAppPage = () => {
                       <input type="range" min={def.min ?? 0} max={def.max ?? 100} step="1" style={{ background: getScaleGradient(def.scaleType) }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
                     </div>
                   ))}
+                </div>
+
+                {/* Matrix Preview Column */}
+                <div style={{
+                  background: 'var(--background)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                        Live TIME Matrix Position
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', fontStyle: 'italic', marginTop: '0.15rem' }}>
+                        {timeAssessment.action} — {timeAssessment.desc}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      padding: '0.2rem 0.6rem',
+                      borderRadius: '6px',
+                      background: `${timeAssessment.color}18`,
+                      color: timeAssessment.color,
+                      border: `1px solid ${timeAssessment.color}35`,
+                      whiteSpace: 'nowrap',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: timeAssessment.color }} />
+                      {timeAssessment.title}
+                    </span>
+                  </div>
+
+                  <div style={{ width: '100%', maxWidth: '340px', margin: '0 auto' }}>
+                    <TimeMatrix
+                      singleApp={previewAppItem}
+                      selectedAppId={previewAppItem.id}
+                      thresholds={activeThresholds}
+                      aspectRatio="1 / 1"
+                      showLegend={true}
+                    />
+                  </div>
+
+                  {/* Summary metric scorecards */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '0.5rem',
+                    paddingTop: '0.75rem',
+                    borderTop: '1px solid var(--border)'
+                  }}>
+                    <div style={{ textAlign: 'center', background: 'var(--card)', padding: '0.5rem 0.2rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700 }}>Tech Fit</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: timeAssessment.isTechHigh ? '#2b8a3e' : '#c92a2a' }}>
+                        {formData.technicalFit}/5
+                      </div>
+                      <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)' }}>
+                        {timeAssessment.isTechHigh ? 'High' : 'Low'} (≥{activeThresholds?.technicalFit ?? 3})
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', background: 'var(--card)', padding: '0.5rem 0.2rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700 }}>Func Fit</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: timeAssessment.isFuncHigh ? '#2b8a3e' : '#c92a2a' }}>
+                        {formData.functionalFit}/5
+                      </div>
+                      <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)' }}>
+                        {timeAssessment.isFuncHigh ? 'High' : 'Low'} (≥{activeThresholds?.functionalFit ?? 3})
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', background: 'var(--card)', padding: '0.5rem 0.2rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700 }}>Criticality</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                        {effectiveCriticality}/5
+                      </div>
+                      <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)' }}>
+                        {timeAssessment.isCritHigh ? 'High' : 'Normal'} (≥{activeThresholds?.businessCriticality ?? 4})
+                      </div>
+                    </div>
+
+                    <div style={{ textAlign: 'center', background: 'var(--card)', padding: '0.5rem 0.2rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700 }}>Cost</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: timeAssessment.isCostHigh ? '#e67700' : 'var(--foreground)' }}>
+                        {formData.cost}/5
+                      </div>
+                      <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)' }}>
+                        {timeAssessment.isCostHigh ? 'High' : 'Normal'} (≥{activeThresholds?.cost ?? 4})
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </section>
 

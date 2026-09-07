@@ -406,9 +406,9 @@ const AppContent = () => {
             timeThresholds={timeThresholds}
           />
         } />
-        <Route path="/apps/new" element={<EditAppPage />} />
+        <Route path="/apps/new" element={<EditAppPage timeThresholds={timeThresholds} />} />
         <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} />} />
-        <Route path="/apps/:id/edit" element={<EditAppPage />} />
+        <Route path="/apps/:id/edit" element={<EditAppPage timeThresholds={timeThresholds} />} />
 
         {/* Capability Routes */}
         <Route path="/capabilities" element={

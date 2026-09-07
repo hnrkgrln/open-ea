@@ -148,6 +148,14 @@ export const TimeDashboardView: React.FC<Props> = ({
     return max;
   };
 
+  // Memoize apps with effective inherited criticality for matrix plotting
+  const appsWithEffectiveCrit = useMemo(() => {
+    return apps.map(app => ({
+      ...app,
+      criticality: getAppCriticality(app)
+    }));
+  }, [apps, allCapabilities]);
+
   // Compute coordinate and TIME quadrant for each app
   const appPlots = useMemo(() => {
     // Group apps by identical (techScore, funcScore) to jitter overlapping coordinates slightly
@@ -165,6 +173,8 @@ export const TimeDashboardView: React.FC<Props> = ({
 
     const techCutoff = thresholds?.technicalFit ?? 3;
     const funcCutoff = thresholds?.functionalFit ?? 3;
+    const critCutoff = thresholds?.businessCriticality ?? 4;
+    const costCutoff = thresholds?.cost ?? 4;
 
     return apps.map(app => {
       const tech = Number(app.technicalFit);
@@ -193,9 +203,11 @@ export const TimeDashboardView: React.FC<Props> = ({
       }
 
       const crit = getAppCriticality(app);
-      const dotSize = 12 + (crit - 1) * 3.5;
       const costNum = Number(app.cost);
       const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
+      const isHighCost = costVal >= costCutoff;
+      const isMissionCritical = crit >= critCutoff;
+      const dotSize = isMissionCritical ? 20 + (crit - critCutoff) * 3 : 11 + (crit - 1) * 2;
 
       // Symmetrical threshold-aware coordinates:
       // Guarantees that apps are positioned strictly within their classified quadrant
@@ -231,7 +243,9 @@ export const TimeDashboardView: React.FC<Props> = ({
         techScore: tVal,
         funcScore: fVal,
         xPct,
-        yPct
+        yPct,
+        isHighCost,
+        isMissionCritical
       };
     });
   }, [apps, allCapabilities, thresholds]);
@@ -345,7 +359,7 @@ export const TimeDashboardView: React.FC<Props> = ({
           </div>
 
           <TimeMatrix
-            apps={apps}
+            apps={appsWithEffectiveCrit}
             selectedAppId={selectedAppId}
             hoveredAppId={hoveredAppId}
             selectedQuadrant={selectedQuadrant}
@@ -615,8 +629,25 @@ export const TimeDashboardView: React.FC<Props> = ({
                     <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>
                       T:{plot.techScore} F:{plot.funcScore}
                     </span>
+                    {plot.isMissionCritical && (
+                      <span 
+                        style={{ 
+                          fontSize: '0.6rem', 
+                          fontWeight: 800, 
+                          padding: '0.08rem 0.35rem', 
+                          borderRadius: '3px', 
+                          background: 'rgba(201, 42, 42, 0.12)', 
+                          border: '1px solid rgba(201, 42, 42, 0.3)',
+                          color: '#c92a2a'
+                        }}
+                        title={`Mission-Critical Urgency (Criticality ${plot.crit} ≥ ${thresholds?.businessCriticality ?? 4})`}
+                      >
+                        Urgent
+                      </span>
+                    )}
                     {(() => {
                       const opt = costOptions.find((o: any) => String(o.value) === String(plot.cost));
+                      const isHigh = plot.isHighCost;
                       return (
                         <span 
                           style={{ 
@@ -624,15 +655,16 @@ export const TimeDashboardView: React.FC<Props> = ({
                             fontWeight: 700, 
                             padding: '0.05rem 0.35rem', 
                             borderRadius: '3px', 
-                            background: 'var(--card)', 
-                            border: '1px solid var(--border)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem'
+                            background: isHigh ? 'rgba(253, 126, 20, 0.12)' : 'var(--card)', 
+                            border: isHigh ? '1px solid #fd7e14' : '1px solid var(--border)',
+                            color: isHigh ? '#fd7e14' : 'var(--foreground)',
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem' 
                           }}
-                          title={`Cost: ${opt?.label || `${plot.cost}/5`}`}
+                          title={`Cost: ${opt?.label || `${plot.cost}/5`}${isHigh ? ' (High Cost Alert ≥ ' + (thresholds?.cost ?? 4) + ')' : ''}`}
                         >
-                          {opt?.color && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: opt.color }} />}
+                          {isHigh ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#fd7e14' }} /> : opt?.color && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: opt.color }} />}
                           ${plot.cost}
                         </span>
                       );
