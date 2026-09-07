@@ -100,12 +100,21 @@ export const EditRangePicklistDialog = ({ picklist, isScale, onSuccess }: Props)
       const res = await fetch(`/api/picklists/${picklist.id}/options`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(options.map(({ id, ...rest }, idx) => ({ ...rest, order: idx + 1 }))),
+        body: JSON.stringify(options.map((opt, idx) => ({
+          value: String(opt.value),
+          label: String(opt.label),
+          description: opt.description ?? undefined,
+          color: opt.color || undefined,
+          order: idx + 1
+        }))),
       });
 
       if (res.ok) {
         setOpen(false);
         onSuccess();
+      } else {
+        const errorData = await res.json().catch(() => null);
+        console.error('Failed to update picklist options:', errorData);
       }
     } catch (err) {
       console.error(err);

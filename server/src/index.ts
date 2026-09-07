@@ -937,15 +937,19 @@ server.post('/picklists/:id/options', {
     body: z.object({
       value: z.string(),
       label: z.string(),
-      description: z.string().optional(),
+      description: z.string().nullish(),
       color: z.string().nullish(),
       order: z.number().optional(),
-    }),
+    }).passthrough(),
   },
 }, async (request) => {
   return prisma.picklistOption.create({
     data: {
-      ...request.body,
+      value: request.body.value,
+      label: request.body.label,
+      description: request.body.description ?? null,
+      color: request.body.color ?? null,
+      order: request.body.order ?? 0,
       picklistId: request.params.id,
     },
   });
@@ -957,10 +961,10 @@ server.put('/picklists/:id/options', {
     body: z.array(z.object({
       value: z.string(),
       label: z.string(),
-      description: z.string().optional(),
+      description: z.string().nullish(),
       color: z.string().nullish(),
       order: z.number().optional(),
-    })),
+    }).passthrough()),
   },
 }, async (request) => {
   const { id } = request.params;
@@ -970,7 +974,13 @@ server.put('/picklists/:id/options', {
       where: { id },
       data: {
         options: {
-          create: request.body.map((opt, i) => ({ ...opt, order: opt.order ?? (i + 1) }))
+          create: request.body.map((opt, i) => ({
+            value: opt.value,
+            label: opt.label,
+            description: opt.description ?? null,
+            color: opt.color ?? null,
+            order: opt.order ?? (i + 1)
+          }))
         }
       },
       include: { options: { orderBy: { order: 'asc' } } }
