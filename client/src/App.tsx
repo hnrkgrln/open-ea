@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock, LayoutDashboard } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock, LayoutDashboard, Coins } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -31,7 +31,21 @@ export const TIME_OPTIONS = [
   { value: 'ELIMINATE', label: 'Eliminate', color: '#c92a2a', bg: 'rgba(201, 42, 42, 0.12)', border: 'rgba(201, 42, 42, 0.3)' }
 ];
 
-export const getAppTimeAssessment = (app: any) => {
+export interface TimeThresholds {
+  technicalFit: number;        // 1 to 5, default 3
+  functionalFit: number;       // 1 to 5, default 3
+  businessCriticality: number; // 1 to 5, default 4
+  cost: number;                // 1 to 5, default 4
+}
+
+export const DEFAULT_TIME_THRESHOLDS: TimeThresholds = {
+  technicalFit: 3,
+  functionalFit: 3,
+  businessCriticality: 4,
+  cost: 4,
+};
+
+export const getAppTimeAssessment = (app: any, thresholds: TimeThresholds = DEFAULT_TIME_THRESHOLDS) => {
   const tech = Number(app?.technicalFit);
   const func = Number(app?.functionalFit);
   const hasTech = !isNaN(tech) && tech > 0;
@@ -41,8 +55,8 @@ export const getAppTimeAssessment = (app: any) => {
 
   const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
   const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
-  const isTechHigh = tVal >= 3;
-  const isFuncHigh = fVal >= 3;
+  const isTechHigh = tVal >= (thresholds?.technicalFit ?? 3);
+  const isFuncHigh = fVal >= (thresholds?.functionalFit ?? 3);
 
   if (!isTechHigh && isFuncHigh) {
     return TIME_OPTIONS.find(o => o.value === 'MIGRATE')!;
@@ -79,7 +93,12 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      if (!item) return initialValue;
+      const parsed = JSON.parse(item);
+      if (typeof initialValue === 'object' && initialValue !== null && !Array.isArray(initialValue)) {
+        return { ...initialValue, ...parsed };
+      }
+      return parsed;
     } catch (error) {
       return initialValue;
     }
@@ -133,7 +152,7 @@ const getOverlayColor = (value: number, def: any) => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60, // 1 minute
+      staleTime: 0,
       refetchOnWindowFocus: true,
     },
   },
@@ -155,6 +174,7 @@ interface Application {
   contractDetails?: string;
   type: string;
   criticality: string;
+  cost?: string;
   functionalFit: string;
   technicalFit: string;
   metadata?: string;
@@ -223,8 +243,8 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const isFullWidth = location.pathname.startsWith('/diagrams');
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <header className="header">
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <header className="header" style={{ flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
           <Link to="/apps" className="logo" style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav" style={{ gap: '1.25rem' }}>
@@ -265,9 +285,9 @@ const useSmartBack = (fallback: string) => {
   };
 };
 
-const AppDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+const AppDetailWrapper = ({ onRefresh, timeThresholds }: { onRefresh: () => void; timeThresholds?: TimeThresholds }) => {
   const { id } = useParams<{ id: string }>();
-  return <AppDetailsView appId={id || ''} onBack={useSmartBack('/apps')} onRefresh={onRefresh} />;
+  return <AppDetailsView appId={id || ''} onBack={useSmartBack('/apps')} onRefresh={onRefresh} thresholds={timeThresholds} />;
 };
 
 // Capability Detail Wrapper for Route
@@ -298,6 +318,8 @@ const AppContent = () => {
   const navigate = useNavigate();
   const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
   const queryClient = useQueryClient();
+
+  const [timeThresholds, setTimeThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
 
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['applications'] });
@@ -381,10 +403,11 @@ const AppContent = () => {
             onSelectApp={(id) => navigate(`/apps/${id}`)}
             onEditApp={(app) => navigate(`/apps/${app.id}/edit`)}
             onNewApp={<button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button>}
+            timeThresholds={timeThresholds}
           />
         } />
         <Route path="/apps/new" element={<EditAppPage />} />
-        <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} />} />
         <Route path="/apps/:id/edit" element={<EditAppPage />} />
 
         {/* Capability Routes */}
@@ -425,16 +448,28 @@ const AppContent = () => {
             capabilities={capabilities || []}
             integrations={integrations || []}
             isVisible={true}
+            timeThresholds={timeThresholds}
           />
         } />
         <Route path="/settings" element={
-          <PicklistsView brandName={brandName} onUpdateBrand={setBrandName} apps={apps || []} capabilities={capabilities || []} organizations={organizations || []} informationObjects={informationObjects || []} integrations={integrations || []} onRefresh={handleRefresh} />
+          <PicklistsView 
+            brandName={brandName} 
+            onUpdateBrand={setBrandName} 
+            apps={apps || []} 
+            capabilities={capabilities || []} 
+            organizations={organizations || []} 
+            informationObjects={informationObjects || []} 
+            integrations={integrations || []} 
+            onRefresh={handleRefresh} 
+            timeThresholds={timeThresholds}
+            onUpdateTimeThresholds={setTimeThresholds}
+          />
         } />
       </Routes>
     </Layout>
   );
 };
-const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode }) => {
+const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
@@ -444,6 +479,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     lifecycle: [] as string[], 
     type: [] as string[],
     criticality: [] as string[],
+    cost: [] as string[],
     functionalFit: [] as string[],
     technicalFit: [] as string[],
     time: [] as string[],
@@ -471,7 +507,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
   // Auto-show filters if any are active
   const isAnyFilterActive = useMemo(() => {
     const hasCustom = Object.values(filters.custom || {}).some(vals => vals.length > 0);
-    return filters.search !== '' || filters.owner.length > 0 || (filters.ownerOrgId?.length || 0) > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.criticality.length > 0 || filters.functionalFit.length > 0 || filters.technicalFit.length > 0 || (filters.time?.length || 0) > 0 || hasCustom;
+    return filters.search !== '' || filters.owner.length > 0 || (filters.ownerOrgId?.length || 0) > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.criticality.length > 0 || (filters.cost?.length || 0) > 0 || filters.functionalFit.length > 0 || filters.technicalFit.length > 0 || (filters.time?.length || 0) > 0 || hasCustom;
   }, [filters]);
 
   const [showFilters, setShowFilters] = useState(isAnyFilterActive);
@@ -481,15 +517,17 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
   const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   
   const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
+  const costOptions = picklists?.find(p => p.name === 'application_cost')?.options || [];
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
 
   const scoreFields = [
     { id: 'crit', fieldName: 'criticality', label: 'Criticality', scaleType: 'importance', min: 1, max: 5 },
+    { id: 'cost', fieldName: 'cost', label: 'Cost', scaleType: 'good-bad', min: 1, max: 5 },
     { id: 'func', fieldName: 'functionalFit', label: 'Functional Fit', scaleType: 'bad-good', min: 1, max: 5 },
     { id: 'tech', fieldName: 'technicalFit', label: 'Technical Fit', scaleType: 'bad-good', min: 1, max: 5 },
   ];
-  const customRangeFields = appMetaDefs.filter(d => d.fieldType === 'range' && !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [];
+  const customRangeFields = appMetaDefs.filter(d => d.fieldType === 'range' && !['criticality', 'cost', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [];
   const allRangeFields = [...scoreFields, ...customRangeFields];
 
   const getTimeAssessment = (app: any, effectiveCrit?: string | number) => {
@@ -563,11 +601,11 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         : String(app.criticality || 1);
 
       const matchCrit = filters.criticality.length === 0 || filters.criticality.includes(inheritedCrit);
-
+      const matchCost = (filters.cost?.length || 0) === 0 || filters.cost.includes(app.cost || '1');
       const matchFunc = filters.functionalFit.length === 0 || filters.functionalFit.includes(app.functionalFit);
       const matchTech = filters.technicalFit.length === 0 || filters.technicalFit.includes(app.technicalFit);
       
-      const appTime = getAppTimeAssessment(app)?.value;
+      const appTime = getAppTimeAssessment(app, timeThresholds)?.value;
       const matchTime = (filters.time?.length || 0) === 0 || (appTime && filters.time.includes(appTime));
 
       // Custom Meta Filters
@@ -585,13 +623,13 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         }
       }
 
-      return matchSearch && matchOwner && matchOwnerOrg && matchLifecycle && matchType && matchCrit && matchFunc && matchTech && matchTime && matchCustom;
+      return matchSearch && matchOwner && matchOwnerOrg && matchLifecycle && matchType && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom;
     });
-  }, [apps, filters]);
+  }, [apps, filters, timeThresholds]);
 
   const clearFilters = () => setFilters({ 
     search: '', owner: [], ownerOrgId: [], lifecycle: [], type: [], 
-    criticality: [], functionalFit: [], technicalFit: [], time: [],
+    criticality: [], cost: [], functionalFit: [], technicalFit: [], time: [],
     custom: {}
   });
 
@@ -613,7 +651,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     if (filteredApps.length === 0) return;
     
     // Define headers
-    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Contract Start', 'Contract End', 'Contract Details', 'Criticality', 'Functional Fit', 'Technical Fit', 'Capabilities'];
+    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Contract Start', 'Contract End', 'Contract Details', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'Capabilities'];
     const customHeaders = appMetaDefs.map(d => d.label);
     const allHeaders = [...headers, ...customHeaders];
 
@@ -632,6 +670,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           `"${app.contractEndDate ? app.contractEndDate.split('T')[0] : ''}"`,
           `"${(app.contractDetails || '').replace(/"/g, '""')}"`,
           `"${app.criticality || ''}"`,
+          `"${app.cost || ''}"`,
           `"${app.functionalFit || ''}"`,
           `"${app.technicalFit || ''}"`,
           `"${caps}"`
@@ -686,6 +725,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             <MultiSelect label="Lifecycle" options={lifecycleOptions} selectedValues={filters.lifecycle || []} onChange={(val) => setFilters({...filters, lifecycle: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             
             <MultiSelect label="Criticality" options={criticalityOptions} selectedValues={filters.criticality || []} onChange={(val) => setFilters({...filters, criticality: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
+            <MultiSelect label="Cost" options={costOptions} selectedValues={filters.cost || []} onChange={(val) => setFilters({...filters, cost: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Functional Fit" options={funcFitOptions} selectedValues={filters.functionalFit || []} onChange={(val) => setFilters({...filters, functionalFit: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Technical Fit" options={techFitOptions} selectedValues={filters.technicalFit || []} onChange={(val) => setFilters({...filters, technicalFit: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="TIME" options={TIME_OPTIONS} selectedValues={filters.time || []} onChange={(val) => setFilters({...filters, time: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
@@ -727,6 +767,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             const next = current.includes(val) ? current.filter(x => x !== val) : [...current, val];
             setFilters({ ...filters, time: next });
           }}
+          thresholds={timeThresholds}
         />
       ) : viewMode === 'grid' ? (
         <div className="grid">
@@ -817,6 +858,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
                     ) : '—'}
                   </div>
                   <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: appTypeOptions.find((o: any) => o.value === app.type)?.color }} />} {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
+                  <div><strong>Cost:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{costOptions.find((o: any) => String(o.value) === String(app.cost || '1'))?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: costOptions.find((o: any) => String(o.value) === String(app.cost || '1'))?.color }} />} {costOptions.find((o: any) => String(o.value) === String(app.cost || '1'))?.label || app.cost || '1'}</span></div>
                 </div>
               </div>
             );
@@ -825,7 +867,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>TIME</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owning Org</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>TIME</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Cost</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owning Org</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
             {filteredApps.map(app => {
               const meta = safeJsonParse(app.metadata);
@@ -872,6 +914,18 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
                       <span style={{ color: 'var(--muted-foreground)', fontSize: '0.7rem' }}>—</span>
                     )}
                   </td>
+                  <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
+                    {(() => {
+                      const costVal = String(app.cost || '1');
+                      const opt = costOptions.find((o: any) => String(o.value) === costVal);
+                      return (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }} title={opt?.label ? `Cost: ${opt.label}` : `Cost: ${costVal}/5`}>
+                          {opt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color, flexShrink: 0 }} />}
+                          <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{opt ? opt.label : `$${costVal}`}</span>
+                        </div>
+                      );
+                    })()}
+                  </td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>{ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || '—'}</td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
                     {app.ownerOrg ? (
@@ -916,7 +970,10 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
 
 const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0, forceExpandState }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number, forceExpandState?: { state: boolean, timestamp: number } }) => {
   const navigate = useNavigate();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState<boolean>(() => {
+    if (forceExpandState && forceExpandState.timestamp > 0) return forceExpandState.state;
+    return true;
+  });
   const hasChildren = node.children && node.children.length > 0;
   
   useEffect(() => {
@@ -953,7 +1010,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
         gap: '1rem', 
         borderLeft: `4px solid ${criticality?.color || 'var(--border)'}`,
         background: depth % 2 === 0 ? 'var(--card)' : 'rgba(0,0,0,0.02)',
-        height: '100%',
+        height: 'auto',
         boxShadow: depth === 0 ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -1077,7 +1134,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
   const [isPending, startTransition] = useTransition();
-  const [forceExpandState, setForceExpandState] = useState({ state: false, timestamp: 0 });
+  const [forceExpandState, setForceExpandState] = useState({ state: true, timestamp: 0 });
 
   const handleToggleExpandAll = () => {
     setForceExpandState(prev => ({ state: !prev.state, timestamp: Date.now() }));
@@ -1138,7 +1195,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   };
 
   return (
-    <div>
+    <div style={{ width: '100%', minWidth: 0, paddingBottom: '3rem' }}>
       <div style={{ marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}><Boxes size={24} /> Business Capabilities</h1>
@@ -1256,7 +1313,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   );
 };
 
-const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: Application[], capabilities: Capability[], integrations: any[], isVisible: boolean }) => {
+const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], integrations: any[], isVisible: boolean, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -1284,6 +1341,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
     type: getParamArray('type'),
     capabilityId: getParamArray('cap'),
     criticality: getParamArray('crit'),
+    cost: getParamArray('cost'),
     functionalFit: getParamArray('func'),
     technicalFit: getParamArray('tech'),
     time: getParamArray('time'),
@@ -1305,6 +1363,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
     if (newFilters.type !== undefined) setOrRemove('type', newFilters.type);
     if (newFilters.capabilityId !== undefined) setOrRemove('cap', newFilters.capabilityId);
     if (newFilters.criticality !== undefined) setOrRemove('crit', newFilters.criticality);
+    if (newFilters.cost !== undefined) setOrRemove('cost', newFilters.cost);
     if (newFilters.functionalFit !== undefined) setOrRemove('func', newFilters.functionalFit);
     if (newFilters.technicalFit !== undefined) setOrRemove('tech', newFilters.technicalFit);
     if (newFilters.time !== undefined) setOrRemove('time', newFilters.time);
@@ -1362,7 +1421,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
 
-  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => d.fieldType !== 'range' && !['criticality', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
+  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => d.fieldType !== 'range' && !['criticality', 'cost', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
   const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
@@ -1370,6 +1429,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
   const appTypeOptions = picklists?.find(p => p.name === 'application_type')?.options || [];
   
   const criticalityOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
+  const costOptions = picklists?.find(p => p.name === 'application_cost')?.options || [];
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
   const infoTypeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
@@ -1378,6 +1438,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
     { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'time', fieldName: 'time', label: 'TIME Assessment', icon: <Clock size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'crit', fieldName: 'criticality', label: 'Business Criticality', icon: <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} /> },
+    { id: 'cost', fieldName: 'cost', label: 'Cost', scaleType: 'good-bad', icon: <Coins size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'func', fieldName: 'functionalFit', label: 'Functional Fit', scaleType: 'bad-good', icon: <Boxes size={16} style={{ marginRight: '0.5rem' }} /> },
     { id: 'tech', fieldName: 'technicalFit', label: 'Technical Fit', scaleType: 'bad-good', icon: <Monitor size={16} style={{ marginRight: '0.5rem' }} /> },
   ];
@@ -1403,10 +1464,11 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
         : String(localCrit);
 
       const matchCrit = (filters.criticality?.length || 0) === 0 || filters.criticality?.includes(inheritedCrit);
+      const matchCost = (filters.cost?.length || 0) === 0 || filters.cost?.includes(app.cost || '1');
       const matchFunc = (filters.functionalFit?.length || 0) === 0 || filters.functionalFit?.includes(app.functionalFit);
       const matchTech = (filters.technicalFit?.length || 0) === 0 || filters.technicalFit?.includes(app.technicalFit);
       
-      const appTime = getAppTimeAssessment(app)?.value;
+      const appTime = getAppTimeAssessment(app, timeThresholds)?.value;
       const matchTime = (filters.time?.length || 0) === 0 || (appTime && filters.time.includes(appTime));
 
       let matchCustom = true;
@@ -1433,7 +1495,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
         matchCap = app.capabilities?.some(c => allTargetIds.includes(c.id)) || false;
       }
 
-      return matchOwner && matchLifecycle && matchType && matchCap && matchCrit && matchFunc && matchTech && matchTime && matchCustom;
+      return matchOwner && matchLifecycle && matchType && matchCap && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom;
     });
 
     // 2. Search Filtering (Applied on top of categorical)
@@ -1472,7 +1534,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, capabilities, integrations]);
+  }, [apps, filters, capabilities, integrations, timeThresholds]);
 
   const orphanCount = useMemo(() => {
     const appsWithIntegrations = new Set(integrations?.flatMap(i => [i.sourceAppId, i.targetAppId]));
@@ -1511,6 +1573,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
                     { value: 'lifecycle', label: 'Lifecycle' },
                     { value: 'time', label: 'TIME Assessment' },
                     { value: 'criticality', label: 'Business Criticality' },
+                    { value: 'cost', label: 'Cost' },
                     { value: 'functionalFit', label: 'Functional Fit' },
                     { value: 'technicalFit', label: 'Technical Fit' },
                   ]}
@@ -1586,6 +1649,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
               { label: 'Lifecycle Status', options: lifecycleOptions, key: 'lifecycle' },
               { label: 'TIME', options: TIME_OPTIONS, key: 'time' },
               { label: 'Criticality', options: criticalityOptions, key: 'criticality' },
+              { label: 'Cost', options: costOptions, key: 'cost' },
               { label: 'Functional Fit', options: funcFitOptions, key: 'functionalFit' },
               { label: 'Technical Fit', options: techFitOptions, key: 'technicalFit' },
               { label: 'Information Type', options: infoTypeOptions, key: 'infoType' }
@@ -1636,7 +1700,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible }: { apps: A
             ))}
 
             <button 
-              onClick={() => { updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], functionalFit: [], technicalFit: [], infoType: [], custom: {} }); setActiveCustomOverlays([]); }} 
+              onClick={() => { updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], cost: [], functionalFit: [], technicalFit: [], infoType: [], custom: {} }); setActiveCustomOverlays([]); }} 
               style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
             >
               <X size={16} style={{ marginRight: '0.5rem' }} /> Clear All

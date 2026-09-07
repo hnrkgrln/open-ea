@@ -51,6 +51,7 @@ export const EditAppPage = () => {
     contractDetails: '',
     type: '',
     criticality: '3',
+    cost: '1',
     functionalFit: '3',
     technicalFit: '3',
   });
@@ -93,6 +94,7 @@ export const EditAppPage = () => {
         contractDetails: app.contractDetails || '',
         type: app.type || '',
         criticality: String(app.criticality || '3'),
+        cost: String(app.cost || '1'),
         functionalFit: String(app.functionalFit || '3'),
         technicalFit: String(app.technicalFit || '3'),
       });
@@ -195,11 +197,15 @@ export const EditAppPage = () => {
       if (res.ok) {
         const saved = await res.json();
         const appId = isNew ? saved.id : id;
-        queryClient.invalidateQueries({ queryKey: ['application', appId] });
-        queryClient.invalidateQueries({ queryKey: ['applications'] });
-        queryClient.invalidateQueries({ queryKey: ['integrations'] });
-        queryClient.invalidateQueries({ queryKey: ['organizations'] });
-        queryClient.invalidateQueries({ queryKey: ['organization'] });
+        queryClient.setQueryData(['application', appId], saved);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['application', appId] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+          queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+          queryClient.invalidateQueries({ queryKey: ['organization'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate(`/apps/${appId}`);
       }
     } catch (err) {
@@ -216,7 +222,13 @@ export const EditAppPage = () => {
     try {
       const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ['applications'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+          queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+          queryClient.invalidateQueries({ queryKey: ['organization'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate('/apps');
       }
     } catch (err) { console.error(err); } finally { setDeleting(false); }
@@ -230,9 +242,10 @@ export const EditAppPage = () => {
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading application...</div>;
 
   const strategicPicklists = [
-    { label: 'Business Criticality', key: 'criticality', options: picklists?.find(p => p.name === 'criticality')?.options || [] },
-    { label: 'Functional Fit', key: 'functionalFit', options: picklists?.find(p => p.name === 'functional_fit')?.options || [] },
-    { label: 'Technical Fit', key: 'technicalFit', options: picklists?.find(p => p.name === 'technical_fit')?.options || [] },
+    { label: 'Business Criticality', key: 'criticality', scaleType: 'importance', options: picklists?.find(p => p.name === 'criticality')?.options || [] },
+    { label: 'Cost', key: 'cost', scaleType: 'good-bad', options: picklists?.find(p => p.name === 'application_cost')?.options || [] },
+    { label: 'Functional Fit', key: 'functionalFit', scaleType: 'bad-good', options: picklists?.find(p => p.name === 'functional_fit')?.options || [] },
+    { label: 'Technical Fit', key: 'technicalFit', scaleType: 'bad-good', options: picklists?.find(p => p.name === 'technical_fit')?.options || [] },
   ];
 
   const otherMetaDefs = appMetaDefs.filter(d => d.fieldType !== 'range');
@@ -392,6 +405,9 @@ export const EditAppPage = () => {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
                   {strategicPicklists.map(item => {
                     const isDisabled = item.key === 'criticality' && isFieldDisabled;
+                    const minVal = item.options.length > 0 ? Math.min(...item.options.map((o: any) => Number(o.value) || 1)) : 1;
+                    const maxVal = item.options.length > 0 ? Math.max(...item.options.map((o: any) => Number(o.value) || 5)) : 5;
+                    const selectedOpt = item.options.find((o: any) => String(o.value) === String((formData as any)[item.key]));
                     return (
                         <div key={item.key} className="field" style={{ opacity: isDisabled ? 0.6 : 1 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
@@ -401,17 +417,17 @@ export const EditAppPage = () => {
                                 {!isDisabled && item.key === 'criticality' && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>Direct Application Attribute</span>}
                             </div>
                             <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            {item.options.find((o:any) => o.value === (formData as any)[item.key])?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: item.options.find((o:any) => o.value === (formData as any)[item.key])?.color }} />}
-                            {item.options.find((o:any) => o.value === (formData as any)[item.key])?.label}
+                            {selectedOpt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: selectedOpt.color }} />}
+                            {selectedOpt?.label || (formData as any)[item.key]}
                             </div>
                         </div>
                         <input 
                             type="range" 
-                            min="1" 
-                            max="5" 
+                            min={minVal} 
+                            max={maxVal} 
                             step="1" 
                             disabled={isDisabled}
-                            style={{ background: getScaleGradient(item.key === 'criticality' ? 'importance' : 'bad-good'), cursor: isDisabled ? 'not-allowed' : 'pointer' }} 
+                            style={{ background: getScaleGradient(item.scaleType), cursor: isDisabled ? 'not-allowed' : 'pointer' }} 
                             value={(formData as any)[item.key]} 
                             onChange={e => setFormData({...formData, [item.key]: e.target.value})} 
                         />

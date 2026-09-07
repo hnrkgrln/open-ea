@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Database, ExternalLink, Filter, Layers, Info } from 'lucide-react';
-import { TIME_OPTIONS } from '../App';
+import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
+import { TimeMatrix, getTimeCoordinateX, getTimeCoordinateY, type PlottedApp } from './TimeMatrix';
 
 interface Application {
   id: string;
@@ -12,6 +14,7 @@ interface Application {
   lifecycle: string;
   type: string;
   criticality: string;
+  cost?: string;
   functionalFit: string;
   technicalFit: string;
   metadata?: string;
@@ -28,6 +31,7 @@ interface Props {
   onEditApp: (app: any) => void;
   activeTimeFilters: string[];
   onToggleTimeFilter: (timeVal: string) => void;
+  thresholds?: TimeThresholds;
 }
 
 const QUADRANTS = [
@@ -83,14 +87,37 @@ export const TimeDashboardView: React.FC<Props> = ({
   onSelectApp,
   onEditApp,
   activeTimeFilters,
-  onToggleTimeFilter
+  onToggleTimeFilter,
+  thresholds = DEFAULT_TIME_THRESHOLDS
 }) => {
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [hoveredAppId, setHoveredAppId] = useState<string | null>(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState<string | null>(null);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const leftColRef = useRef<HTMLDivElement>(null);
+  const [leftColHeight, setLeftColHeight] = useState<number | null>(null);
 
-  // Auto-scroll list to selected app
+  const { data: picklists } = useQuery<any[]>({
+    queryKey: ['picklists'],
+    queryFn: () => fetch('/api/picklists').then(res => res.json())
+  });
+  const costOptions = useMemo(() => picklists?.find((p: any) => p.name === 'application_cost')?.options || [], [picklists]);
+
+  // Measure left column height dynamically to ensure the app list is exactly as tall as the matrix
+  useEffect(() => {
+    if (!leftColRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentRect.height > 0) {
+          setLeftColHeight(Math.round(entry.contentRect.height));
+        }
+      }
+    });
+    ro.observe(leftColRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Auto-scroll list to selected app inside the scrollable container
   useEffect(() => {
     if (selectedAppId && itemRefs.current[selectedAppId]) {
       itemRefs.current[selectedAppId]?.scrollIntoView({
@@ -136,6 +163,9 @@ export const TimeDashboardView: React.FC<Props> = ({
       coordGroups[key].push(app);
     });
 
+    const techCutoff = thresholds?.technicalFit ?? 3;
+    const funcCutoff = thresholds?.functionalFit ?? 3;
+
     return apps.map(app => {
       const tech = Number(app.technicalFit);
       const func = Number(app.functionalFit);
@@ -143,8 +173,8 @@ export const TimeDashboardView: React.FC<Props> = ({
       const hasFunc = !isNaN(func) && func > 0;
       const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
       const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
-      const isTechHigh = tVal >= 3;
-      const isFuncHigh = fVal >= 3;
+      const isTechHigh = tVal >= techCutoff;
+      const isFuncHigh = fVal >= funcCutoff;
 
       let quadrant: 'INVEST' | 'MIGRATE' | 'TOLERATE' | 'ELIMINATE';
       let color = '#2b8a3e';
@@ -164,10 +194,13 @@ export const TimeDashboardView: React.FC<Props> = ({
 
       const crit = getAppCriticality(app);
       const dotSize = 12 + (crit - 1) * 3.5;
+      const costNum = Number(app.cost);
+      const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
 
-      // Base coordinates
-      let baseX = 12 + ((tVal - 1) / 4) * 76;
-      let baseY = 88 - ((fVal - 1) / 4) * 76;
+      // Symmetrical threshold-aware coordinates:
+      // Guarantees that apps are positioned strictly within their classified quadrant
+      let baseX = getTimeCoordinateX(tVal, techCutoff);
+      let baseY = getTimeCoordinateY(fVal, funcCutoff);
 
       // Subtle jitter if multiple apps share the exact coordinate
       const groupKey = `${tVal}_${fVal}`;
@@ -180,19 +213,28 @@ export const TimeDashboardView: React.FC<Props> = ({
         baseY += Math.sin(angle) * radius;
       }
 
+      // Clamp strictly within the quadrant boundaries so jitter never pushes an app across the 50% divider
+      const xPct = isTechHigh
+        ? Math.max(52, Math.min(94, baseX))
+        : Math.max(6, Math.min(48, baseX));
+      const yPct = isFuncHigh
+        ? Math.max(6, Math.min(48, baseY))
+        : Math.max(52, Math.min(94, baseY));
+
       return {
         app,
         quadrant,
         color,
         crit,
+        cost: costVal,
         dotSize,
         techScore: tVal,
         funcScore: fVal,
-        xPct: Math.max(5, Math.min(95, baseX)),
-        yPct: Math.max(5, Math.min(95, baseY))
+        xPct,
+        yPct
       };
     });
-  }, [apps, allCapabilities]);
+  }, [apps, allCapabilities, thresholds]);
 
   // Quadrant summary stats
   const quadrantStats = useMemo(() => {
@@ -283,21 +325,17 @@ export const TimeDashboardView: React.FC<Props> = ({
 
       {/* Main 2x2 TIME Diagram Card */}
       <div 
-        className="card" 
+        className="card time-dashboard-grid" 
         style={{ 
           padding: '1.75rem', 
           background: 'var(--card)', 
           borderRadius: '16px', 
-          boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1fr) minmax(320px, 400px)',
-          gap: '2.5rem',
-          alignItems: 'stretch'
+          boxShadow: '0 2px 10px rgba(0,0,0,0.04)'
         }}
       >
         {/* 2x2 Interactive Chart Container */}
-        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div ref={leftColRef} style={{ display: 'flex', flexDirection: 'column', width: '100%', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', minHeight: '1.75rem' }}>
             <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted-foreground)' }}>
               TIME Assessment Matrix
             </div>
@@ -306,296 +344,62 @@ export const TimeDashboardView: React.FC<Props> = ({
             </div>
           </div>
 
-          <div style={{ 
-            position: 'relative', 
-            width: '100%', 
-            aspectRatio: '4 / 3', 
-            maxHeight: 'calc(100vh - 350px)',
-            margin: '0.5rem 0 2rem 0' 
-          }}>
-            {/* Quadrant grid box */}
-            <div style={{ 
-              width: '100%', 
-              height: '100%', 
-              borderRadius: '14px', 
-              overflow: 'hidden', 
-              border: '1.5px solid var(--border)', 
-              display: 'grid', 
-              gridTemplateColumns: '1fr 1fr', 
-              gridTemplateRows: '1fr 1fr',
-              position: 'relative',
-              background: 'var(--background)'
-            }}>
-              {/* Top-Left: MIGRATE */}
-              <div style={{ 
-                padding: '0.75rem 0.85rem', 
-                background: selectedQuadrant === 'MIGRATE' ? 'rgba(230, 119, 0, 0.18)' : 'rgba(230, 119, 0, 0.05)',
-                borderRight: '1px dashed var(--border)',
-                borderBottom: '1px dashed var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                cursor: 'pointer',
-                transition: 'background 0.2s'
-              }}
-              onClick={() => setSelectedQuadrant(prev => prev === 'MIGRATE' ? null : 'MIGRATE')}
-              >
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#e67700', letterSpacing: '0.04em' }}>MIGRATE</span>
-                <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>High Fit · Low Tech</span>
-              </div>
-
-              {/* Top-Right: INVEST */}
-              <div style={{ 
-                padding: '0.75rem 0.85rem', 
-                background: selectedQuadrant === 'INVEST' ? 'rgba(43, 138, 62, 0.18)' : 'rgba(43, 138, 62, 0.05)',
-                borderBottom: '1px dashed var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-start',
-                alignItems: 'flex-end',
-                textAlign: 'right',
-                cursor: 'pointer',
-                transition: 'background 0.2s'
-              }}
-              onClick={() => setSelectedQuadrant(prev => prev === 'INVEST' ? null : 'INVEST')}
-              >
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#2b8a3e', letterSpacing: '0.04em' }}>INVEST</span>
-                <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>High Fit · High Tech</span>
-              </div>
-
-              {/* Bottom-Left: ELIMINATE */}
-              <div style={{ 
-                padding: '0.75rem 0.85rem', 
-                background: selectedQuadrant === 'ELIMINATE' ? 'rgba(201, 42, 42, 0.18)' : 'rgba(201, 42, 42, 0.05)',
-                borderRight: '1px dashed var(--border)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                cursor: 'pointer',
-                transition: 'background 0.2s'
-              }}
-              onClick={() => setSelectedQuadrant(prev => prev === 'ELIMINATE' ? null : 'ELIMINATE')}
-              >
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#c92a2a', letterSpacing: '0.04em' }}>ELIMINATE</span>
-                <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>Low Fit · Low Tech</span>
-              </div>
-
-              {/* Bottom-Right: TOLERATE */}
-              <div style={{ 
-                padding: '0.75rem 0.85rem', 
-                background: selectedQuadrant === 'TOLERATE' ? 'rgba(34, 139, 230, 0.18)' : 'rgba(34, 139, 230, 0.05)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'flex-end',
-                alignItems: 'flex-end',
-                textAlign: 'right',
-                cursor: 'pointer',
-                transition: 'background 0.2s'
-              }}
-              onClick={() => setSelectedQuadrant(prev => prev === 'TOLERATE' ? null : 'TOLERATE')}
-              >
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#228be6', letterSpacing: '0.04em' }}>TOLERATE</span>
-                <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>Low Fit · High Tech</span>
-              </div>
-
-              {/* Center divider node */}
-              <div style={{ 
-                position: 'absolute', 
-                top: '50%', 
-                left: '50%', 
-                transform: 'translate(-50%, -50%)',
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                background: 'var(--border)',
-                zIndex: 2
-              }} />
-
-              {/* Plotted Application Dots */}
-              {displayedPlots.map(plot => {
-                const isSelected = selectedAppId === plot.app.id;
-                const isHovered = hoveredAppId === plot.app.id;
-                const isInspected = inspectedPlot?.app.id === plot.app.id;
-
-                return (
-                  <div
-                    key={plot.app.id}
-                    onClick={() => setSelectedAppId(plot.app.id)}
-                    onMouseEnter={() => setHoveredAppId(plot.app.id)}
-                    onMouseLeave={() => setHoveredAppId(null)}
-                    style={{
-                      position: 'absolute',
-                      left: `${plot.xPct}%`,
-                      top: `${plot.yPct}%`,
-                      transform: (isHovered || isSelected) ? 'translate(-50%, -50%) scale(1.3)' : 'translate(-50%, -50%) scale(1)',
-                      width: `${plot.dotSize}px`,
-                      height: `${plot.dotSize}px`,
-                      borderRadius: '50%',
-                      backgroundColor: plot.color,
-                      border: '2px solid #ffffff',
-                      boxShadow: isSelected 
-                        ? `0 0 0 3.5px ${plot.color}, 0 6px 14px rgba(0,0,0,0.35)` 
-                        : isHovered
-                        ? `0 0 0 2.5px ${plot.color}aa, 0 4px 10px rgba(0,0,0,0.25)`
-                        : isInspected
-                        ? `0 0 0 2px ${plot.color}77, 0 2px 6px rgba(0,0,0,0.18)`
-                        : `0 0 0 1.5px ${plot.color}44, 0 2px 5px rgba(0,0,0,0.15)`,
-                      zIndex: isHovered ? 45 : isSelected ? 30 : isInspected ? 20 : 10,
-                      cursor: 'pointer',
-                      transition: 'transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease'
-                    }}
-                  >
-                    {/* Rich custom hover tooltip */}
-                    {isHovered && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: plot.yPct < 22 ? 'auto' : 'calc(100% + 10px)',
-                          top: plot.yPct < 22 ? 'calc(100% + 10px)' : 'auto',
-                          left: plot.xPct > 70 ? 'auto' : plot.xPct < 30 ? '0' : '50%',
-                          right: plot.xPct > 70 ? '0' : 'auto',
-                          transform: (plot.xPct <= 70 && plot.xPct >= 30) ? 'translateX(-50%)' : 'none',
-                          background: 'rgba(24, 24, 27, 0.92)',
-                          backdropFilter: 'blur(8px)',
-                          color: '#ffffff',
-                          padding: '0.55rem 0.75rem',
-                          borderRadius: '8px',
-                          boxShadow: '0 8px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.12)',
-                          zIndex: 100,
-                          pointerEvents: 'none',
-                          minWidth: '170px',
-                          maxWidth: '240px',
-                          animation: 'fadeIn 0.12s ease-out'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.3rem' }}>
-                          <span style={{ fontWeight: 800, fontSize: '0.78rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {plot.app.name}
-                          </span>
-                          <span style={{ 
-                            fontSize: '0.58rem', 
-                            fontWeight: 800, 
-                            letterSpacing: '0.04em',
-                            padding: '0.08rem 0.35rem', 
-                            borderRadius: '4px', 
-                            background: plot.color, 
-                            color: '#fff',
-                            flexShrink: 0
-                          }}>
-                            {plot.quadrant}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '0.6rem', fontSize: '0.65rem', color: '#a1a1aa' }}>
-                          <span>Tech: <strong style={{ color: '#fff' }}>{plot.techScore}/5</strong></span>
-                          <span>Func: <strong style={{ color: '#fff' }}>{plot.funcScore}/5</strong></span>
-                          <span>Crit: <strong style={{ color: '#fff' }}>{plot.crit}/5</strong></span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* X-Axis Labels */}
-            <div style={{ 
-              position: 'absolute', 
-              bottom: '-1.4rem', 
-              left: 0, 
-              right: 0, 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              fontSize: '0.62rem', 
-              fontWeight: 700, 
-              color: 'var(--muted-foreground)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em'
-            }}>
-              <span>Low Tech Fit (1)</span>
-              <span style={{ fontWeight: 800, color: 'var(--foreground)' }}>Technical Fit →</span>
-              <span>High Tech Fit (5)</span>
-            </div>
-
-            {/* Y-Axis Labels: Top (High), Center (Title), Bottom (Low) */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: '-1.8rem',
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              color: 'var(--muted-foreground)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              writingMode: 'vertical-rl',
-              transform: 'rotate(180deg)',
-              whiteSpace: 'nowrap'
-            }}>
-              High Functional (5)
-            </div>
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '-1.8rem',
-              transform: 'translateY(-50%) rotate(180deg)',
-              writingMode: 'vertical-rl',
-              fontSize: '0.62rem',
-              fontWeight: 800,
-              color: 'var(--foreground)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              whiteSpace: 'nowrap'
-            }}>
-              Functional Fit →
-            </div>
-            <div style={{
-              position: 'absolute',
-              bottom: 0,
-              left: '-1.8rem',
-              fontSize: '0.62rem',
-              fontWeight: 700,
-              color: 'var(--muted-foreground)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              writingMode: 'vertical-rl',
-              transform: 'rotate(180deg)',
-              whiteSpace: 'nowrap'
-            }}>
-              Low Functional (1)
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '1.25rem' }}>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--muted-foreground)', opacity: 0.5 }} /> Bubble size scales with Business Criticality (1–5) · Click to lock selection
-            </span>
-          </div>
+          <TimeMatrix
+            apps={apps}
+            selectedAppId={selectedAppId}
+            hoveredAppId={hoveredAppId}
+            selectedQuadrant={selectedQuadrant}
+            onSelectApp={setSelectedAppId}
+            onHoverApp={setHoveredAppId}
+            onSelectQuadrant={setSelectedQuadrant}
+            thresholds={thresholds}
+            aspectRatio="1 / 1"
+            showLegend={true}
+          />
         </div>
 
         {/* Right Side: Sticky/Hover Inspection Card + Scrollable Application List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', minWidth: 0 }}>
+        <div 
+          className="time-dashboard-right-col"
+          style={{ 
+            height: leftColHeight ? `${leftColHeight}px` : undefined,
+            maxHeight: leftColHeight ? `${leftColHeight}px` : undefined
+          }}
+        >
+          {/* Header row aligned with left column header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', minHeight: '1.75rem', flexShrink: 0 }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted-foreground)' }}>
+              Application Inspector
+            </div>
+            {inspectedPlot && (
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                Active: <strong style={{ color: inspectedPlot.color }}>{inspectedPlot.app.name}</strong>
+              </div>
+            )}
+          </div>
           
           {/* Static height inspector box showing hover preview OR locked clicked app */}
           <div 
             style={{ 
-              height: '190px', 
+              height: '165px', 
               borderRadius: '12px', 
               border: inspectedPlot ? `1.5px solid ${inspectedPlot.color}` : '1.5px dashed var(--border)', 
               background: 'var(--card)',
               boxShadow: inspectedPlot ? `0 4px 16px ${inspectedPlot.color}15` : 'none',
-              padding: '1.1rem 1.25rem',
+              padding: '0.9rem 1.15rem',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
               transition: 'border-color 0.2s, box-shadow 0.2s',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              flexShrink: 0
             }}
           >
             {inspectedPlot ? (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
                       <span style={{ 
                         fontSize: '0.62rem', 
                         fontWeight: 900, 
@@ -618,14 +422,14 @@ export const TimeDashboardView: React.FC<Props> = ({
                         {inspectedPlot.app.owner || 'Unassigned'} {inspectedPlot.app.ownerOrg && `• ${inspectedPlot.app.ownerOrg.name}`}
                       </span>
                     </div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {inspectedPlot.app.name}
                     </h3>
                   </div>
                   <button 
                     onClick={() => onSelectApp(inspectedPlot.app.id)}
                     className="primary"
-                    style={{ height: '1.9rem', padding: '0 0.75rem', fontSize: '0.75rem', gap: '0.3rem', flexShrink: 0 }}
+                    style={{ height: '1.85rem', padding: '0 0.7rem', fontSize: '0.75rem', gap: '0.3rem', flexShrink: 0 }}
                     title="Open full application details page"
                   >
                     Details <ExternalLink size={12} />
@@ -634,10 +438,10 @@ export const TimeDashboardView: React.FC<Props> = ({
 
                 <p style={{ 
                   margin: 0, 
-                  fontSize: '0.75rem', 
+                  fontSize: '0.72rem', 
                   color: 'var(--foreground)', 
                   opacity: 0.85, 
-                  lineHeight: 1.4,
+                  lineHeight: 1.35,
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
@@ -646,24 +450,54 @@ export const TimeDashboardView: React.FC<Props> = ({
                   {inspectedPlot.app.description || 'No description provided.'}
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', background: 'var(--secondary)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', background: 'var(--secondary)', padding: '0.4rem 0.65rem', borderRadius: '8px' }}>
                   <div>
                     <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Technical Fit</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: inspectedPlot.techScore >= 3 ? '#2b8a3e' : '#c92a2a' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: inspectedPlot.techScore >= (thresholds?.technicalFit ?? 3) ? '#2b8a3e' : '#c92a2a' }}>
                       {inspectedPlot.techScore}/5
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Functional Fit</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800, color: inspectedPlot.funcScore >= 3 ? '#2b8a3e' : '#c92a2a' }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: inspectedPlot.funcScore >= (thresholds?.functionalFit ?? 3) ? '#2b8a3e' : '#c92a2a' }}>
                       {inspectedPlot.funcScore}/5
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Criticality</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800 }}>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 800, color: inspectedPlot.crit >= (thresholds?.businessCriticality ?? 4) ? '#c92a2a' : 'var(--foreground)' }}>
                       {inspectedPlot.crit}/5
                     </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Cost</div>
+                    {(() => {
+                      const costCutoff = thresholds?.cost ?? 4;
+                      const isHighCost = inspectedPlot.cost >= costCutoff;
+                      const opt = costOptions.find((o: any) => String(o.value) === String(inspectedPlot.cost));
+                      return (
+                        <div 
+                          style={{ 
+                            fontSize: '0.88rem', 
+                            fontWeight: 800, 
+                            color: isHighCost ? '#fd7e14' : (opt?.color || 'var(--foreground)'), 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '0.25rem', 
+                            overflow: 'hidden', 
+                            textOverflow: 'ellipsis', 
+                            whiteSpace: 'nowrap' 
+                          }} 
+                          title={opt?.label ? `Cost: ${opt.label} (${isHighCost ? 'High Cost ≥ ' + costCutoff : 'Normal / Low < ' + costCutoff})` : `Cost: ${inspectedPlot.cost}/5`}
+                        >
+                          {opt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color, flexShrink: 0 }} />}
+                          <span>{inspectedPlot.cost}/5</span>
+                          <span style={{ fontSize: '0.62rem', fontWeight: 700, color: isHighCost ? '#fd7e14' : '#2b8a3e' }}>
+                            ({isHighCost ? 'High' : 'Low'})
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </>
@@ -676,7 +510,7 @@ export const TimeDashboardView: React.FC<Props> = ({
           </div>
 
           {/* Application List Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginTop: '1.1rem', flexShrink: 0 }}>
             <div style={{ fontSize: '0.8rem', fontWeight: 800 }}>
               {selectedQuadrant ? `${selectedQuadrant} Applications (${displayedPlots.length})` : `All Filtered Applications (${displayedPlots.length})`}
             </div>
@@ -691,7 +525,7 @@ export const TimeDashboardView: React.FC<Props> = ({
           </div>
 
           {/* List of Applications in Quadrant or Overall */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1, maxHeight: 'calc(100vh - 560px)', minHeight: '300px', overflowY: 'auto', paddingRight: '0.35rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '0.35rem', marginTop: '0.75rem' }}>
             {displayedPlots.map(plot => {
               const isSelected = selectedAppId === plot.app.id;
               const isHovered = hoveredAppId === plot.app.id;
@@ -765,7 +599,7 @@ export const TimeDashboardView: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0, marginLeft: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexShrink: 0, marginLeft: '0.5rem' }}>
                     <span style={{ 
                       fontSize: '0.6rem', 
                       fontWeight: 800, 
@@ -781,6 +615,28 @@ export const TimeDashboardView: React.FC<Props> = ({
                     <span style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>
                       T:{plot.techScore} F:{plot.funcScore}
                     </span>
+                    {(() => {
+                      const opt = costOptions.find((o: any) => String(o.value) === String(plot.cost));
+                      return (
+                        <span 
+                          style={{ 
+                            fontSize: '0.65rem', 
+                            fontWeight: 700, 
+                            padding: '0.05rem 0.35rem', 
+                            borderRadius: '3px', 
+                            background: 'var(--card)', 
+                            border: '1px solid var(--border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem'
+                          }}
+                          title={`Cost: ${opt?.label || `${plot.cost}/5`}`}
+                        >
+                          {opt?.color && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: opt.color }} />}
+                          ${plot.cost}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
               );

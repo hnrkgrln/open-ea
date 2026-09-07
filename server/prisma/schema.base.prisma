@@ -12,6 +12,7 @@ model Application {
   contractDetails    String?
   type          String?
   criticality   String?       @default("3")
+  cost          String?       @default("1")
   functionalFit String?       @default("3")
   technicalFit  String?       @default("3")
   metadata      String?

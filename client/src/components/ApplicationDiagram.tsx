@@ -47,6 +47,7 @@ interface Application {
   type: string;
   metadata?: string;
   criticality: string;
+  cost?: string;
   functionalFit: string;
   technicalFit: string;
   capabilities?: { id: string; name: string; criticality: string }[];
@@ -126,6 +127,7 @@ interface Props {
 const STANDARD_DEFS: MetadataDefinition[] = [
   { id: 'crit-app', entityType: 'Application', fieldName: 'criticality', fieldType: 'range', label: 'Business Criticality', min: 1, max: 5, scaleType: 'importance' },
   { id: 'crit-cap', entityType: 'Capability', fieldName: 'criticality', fieldType: 'range', label: 'Business Criticality', min: 1, max: 5, scaleType: 'importance' },
+  { id: 'cost-app', entityType: 'Application', fieldName: 'cost', fieldType: 'range', label: 'Cost', min: 1, max: 5, scaleType: 'good-bad' },
   { id: 'func-app', entityType: 'Application', fieldName: 'functionalFit', fieldType: 'range', label: 'Functional Fit', min: 1, max: 5, scaleType: 'bad-good' },
   { id: 'tech-app', entityType: 'Application', fieldName: 'technicalFit', fieldType: 'range', label: 'Technical Fit', min: 1, max: 5, scaleType: 'bad-good' },
 ];
@@ -400,7 +402,10 @@ const getOverlayColor = (value: string | number, def: MetadataDefinition, pickli
   // Normalize field names for matching: application_type, applicationType, ApplicationType -> applicationtype
   const normalize = (s: string) => s.toLowerCase().replace(/_/g, '').replace(/\s+/g, '');
   const fieldKey = normalize(def.fieldName);
-  const picklist = picklists.find(p => normalize(p.name) === fieldKey);
+  const picklist = picklists.find(p => {
+    const pNorm = normalize(p.name);
+    return pNorm === fieldKey || (fieldKey === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost'));
+  });
   
   if (picklist) {
     const valStr = String(value);
@@ -600,7 +605,10 @@ const DiagramInner = ({
           } else {
             const normalize = (s: string) => s.toLowerCase().replace(/_/g, '').replace(/\s+/g, '');
             const fieldKey = normalize(d.fieldName);
-            const picklist = picklists?.find(p => normalize(p.name) === fieldKey);
+            const picklist = picklists?.find(p => {
+              const pNorm = normalize(p.name);
+              return pNorm === fieldKey || (fieldKey === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost'));
+            });
 
             if (picklist) {
               const opt = picklist.options.find((o: any) => String(o.value) === valStr || o.label === valStr);
@@ -649,6 +657,10 @@ const DiagramInner = ({
     const getFieldValue = (app: Application, field: string) => {
       if (field === 'criticality') {
         return String(getAppScore(app, 'criticality', appCritDef));
+      }
+      if (field === 'cost') {
+        const def = metaDefs.find(d => d.fieldName === 'cost' && d.entityType === 'Application');
+        return String(getAppScore(app, 'cost', def));
       }
       if (field === 'functionalFit') {
         const def = metaDefs.find(d => d.fieldName === 'functionalFit' && d.entityType === 'Application');
@@ -1515,7 +1527,11 @@ const DiagramInner = ({
                   </div>
                 ))
               ) : ( 
-                picklists?.find(p => p.name.toLowerCase().replace(/_/g, '') === activeOverlay?.toLowerCase().replace(/_/g, ''))?.options.map(opt => ( 
+                picklists?.find(p => {
+                  const pNorm = p.name.toLowerCase().replace(/_/g, '');
+                  const oNorm = activeOverlay?.toLowerCase().replace(/_/g, '');
+                  return pNorm === oNorm || (oNorm === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost'));
+                })?.options.map(opt => ( 
                   <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
                     <span>{opt.label}</span>

@@ -114,10 +114,14 @@ export const EditInformationPage = () => {
       if (res.ok) {
         const saved = await res.json();
         const finalId = isNew ? saved.id : id;
-        queryClient.invalidateQueries({ queryKey: ['information-object', finalId] });
-        queryClient.invalidateQueries({ queryKey: ['information-objects'] });
-        queryClient.invalidateQueries({ queryKey: ['organizations'] });
-        queryClient.invalidateQueries({ queryKey: ['organization'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['information-object', finalId] }),
+          queryClient.invalidateQueries({ queryKey: ['information-objects'] }),
+          queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+          queryClient.invalidateQueries({ queryKey: ['organization'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate(`/information/${finalId}`);
       }
     } catch (err) {
@@ -133,7 +137,13 @@ export const EditInformationPage = () => {
     try {
       const res = await fetch(`/api/information-objects/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ['information-objects'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['information-objects'] }),
+          queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+          queryClient.invalidateQueries({ queryKey: ['organization'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate('/information');
       }
     } catch (err) { console.error(err); }

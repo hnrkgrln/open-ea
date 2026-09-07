@@ -76,8 +76,13 @@ export const EditOrganizationPage = () => {
       if (res.ok) {
         const saved = await res.json();
         const finalId = isNew ? saved.id : id;
-        queryClient.invalidateQueries({ queryKey: ['organization', finalId] });
-        queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['organization', finalId] }),
+          queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['information-objects'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate(`/organizations/${finalId}`);
       }
     } catch (err) {
@@ -93,7 +98,12 @@ export const EditOrganizationPage = () => {
     try {
       const res = await fetch(`/api/organizations/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ['organizations'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['organizations'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['information-objects'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate('/organizations');
       }
     } catch (err) { console.error(err); }

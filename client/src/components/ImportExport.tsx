@@ -72,7 +72,7 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
 
     let headers: string[] = [];
     if (type === 'applications') {
-      headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'type', 'criticality', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
+      headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'type', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
     } else if (type === 'capabilities') {
       headers = ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'];
     } else if (type === 'organizations') {

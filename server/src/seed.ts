@@ -46,9 +46,18 @@ async function seedPicklist(name: string, label: string, options: any[]) {
     { value: '5', label: '5 - Mission Critical', color: '#311b92' },
   ];
 
+  const costOptions = [
+    { value: '1', label: '1 - Free / Negligible', color: '#2b8a3e' },
+    { value: '2', label: '2 - Inexpensive / Low', color: '#94d82d' },
+    { value: '3', label: '3 - Moderate', color: '#fab005' },
+    { value: '4', label: '4 - Expensive', color: '#e67700' },
+    { value: '5', label: '5 - Very Expensive', color: '#c92a2a' },
+  ];
+
   await seedPicklist('technical_fit', 'Technical Fit', fitOptions);
   await seedPicklist('functional_fit', 'Functional Fit', fitOptions);
   await seedPicklist('criticality', 'Business Criticality', criticalityOptions);
+  await seedPicklist('application_cost', 'Application Cost', costOptions);
 
   await seedPicklist('lifecycle', 'Application Lifecycle', [
     { value: 'Discovery', label: 'Discovery' },

@@ -139,9 +139,12 @@ export const EditCapabilityPage = () => {
       if (res.ok) {
         const saved = await res.json();
         const finalId = isNew ? saved.id : id;
-        queryClient.invalidateQueries({ queryKey: ['capability', finalId] });
-        queryClient.invalidateQueries({ queryKey: ['capabilities'] });
-        queryClient.invalidateQueries({ queryKey: ['applications'] }); // Re-fetch apps as they might have new capability links
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['capability', finalId] }),
+          queryClient.invalidateQueries({ queryKey: ['capabilities'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate(`/capabilities/${finalId}`);
       }
     } catch (err) {
@@ -159,7 +162,11 @@ export const EditCapabilityPage = () => {
     try {
       const res = await fetch(`/api/capabilities/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ['capabilities'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['capabilities'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate('/capabilities');
       }
     } catch (err) { console.error(err); } finally { setDeleting(false); }

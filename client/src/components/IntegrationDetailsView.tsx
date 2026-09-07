@@ -34,7 +34,6 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
   const { data: i, isLoading } = useQuery<any>({
     queryKey: ['integration', integrationId],
     queryFn: () => fetch(`/api/integrations/${integrationId}`).then(res => res.json()),
-    initialData: () => allIntegrations?.find(int => int.id === integrationId),
     enabled: !!integrationId && integrationId !== 'undefined'
   });
 

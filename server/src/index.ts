@@ -250,6 +250,7 @@ server.post('/applications', {
       contractDetails: z.string().optional().nullable(),
       type: z.string().optional(),
       criticality: z.string().optional(),
+      cost: z.string().optional(),
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
       metadata: z.string().optional(),
@@ -295,7 +296,17 @@ server.post('/applications', {
   // If linked to capabilities, the app's stored criticality is the max — apply
   // that server-side so a stale UI can't write the wrong value.
   if (validIds.length > 0) await recomputeApplicationCriticality(created.id);
-  return created;
+  const fullApp = await prisma.application.findUnique({
+    where: { id: created.id },
+    include: {
+      capabilities: true,
+      processedInformationObjects: true,
+      sourceOf: { include: { targetApp: true, payload: true } },
+      targetOf: { include: { sourceApp: true, payload: true } },
+      ownerOrg: true
+    }
+  });
+  return fullApp || created;
 });
 
 server.put('/applications/:id', {
@@ -314,6 +325,7 @@ server.put('/applications/:id', {
       contractDetails: z.string().optional().nullable(),
       type: z.string().optional(),
       criticality: z.string().optional(),
+      cost: z.string().optional(),
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
       metadata: z.string().optional(),
@@ -362,7 +374,17 @@ server.put('/applications/:id', {
     // Re-apply server-side after every update so direct API edits or stale
     // clients can't drift the stored value.
     await recomputeApplicationCriticality(updated.id);
-    return updated;
+    const fullApp = await prisma.application.findUnique({
+      where: { id: updated.id },
+      include: {
+        capabilities: true,
+        processedInformationObjects: true,
+        sourceOf: { include: { targetApp: true, payload: true } },
+        targetOf: { include: { sourceApp: true, payload: true } },
+        ownerOrg: true
+      }
+    });
+    return fullApp || updated;
   } catch (err: any) {
     if (err.code === 'P2025') return reply.status(404).send({ error: 'Application not found' });
     throw err;

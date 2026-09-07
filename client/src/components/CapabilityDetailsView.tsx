@@ -29,7 +29,6 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
   const { data: allCapabilities } = useQuery<any[]>({ 
     queryKey: ['capabilities'], 
     queryFn: () => fetch('/api/capabilities').then(res => res.json()),
-    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 
   const { data: capability, isLoading } = useQuery<any>({

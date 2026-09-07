@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { LifecycleBadge } from './LifecycleBadge';
 import { InlineFilter } from './FilterControls';
 import { ReferencesList } from './References';
+import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
+import { TimeMatrix } from './TimeMatrix';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -19,22 +21,18 @@ interface Props {
   appId: string | null;
   onBack: () => void;
   onRefresh: () => void;
+  thresholds?: TimeThresholds;
 }
 
-export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
+export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThresholds }: Props) => {
   const navigate = useNavigate();
   const [flowFilter, setFlowFilter] = useState('');
-
-  const { data: latestApps } = useQuery<any[]>({ 
-    queryKey: ['applications'], 
-    queryFn: () => fetch('/api/applications').then(res => res.json()),
-    staleTime: 1000 * 60 * 5,
-  });
+  const [storedThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
+  const thresholds = propThresholds || storedThresholds;
 
   const { data: app, isLoading } = useQuery<any>({
     queryKey: ['application', appId],
     queryFn: () => fetch(`/api/applications/${appId}`).then(res => res.json()),
-    initialData: () => latestApps?.find(a => a.id === appId),
     enabled: !!appId && appId !== 'undefined'
   });
 
@@ -96,9 +94,17 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
     const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
     const cVal = hasCrit ? Math.max(1, Math.min(5, crit)) : 3;
 
-    // Standard TIME threshold: 3 and above is High, below 3 is Low
-    const isTechHigh = tVal >= 3;
-    const isFuncHigh = fVal >= 3;
+    const techCutoff = thresholds?.technicalFit ?? 3;
+    const funcCutoff = thresholds?.functionalFit ?? 3;
+    const critCutoff = thresholds?.businessCriticality ?? 4;
+    const costCutoff = thresholds?.cost ?? 4;
+
+    const costNum = Number(app?.cost);
+    const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
+    const isCostHigh = costVal >= costCutoff;
+
+    const isTechHigh = tVal >= techCutoff;
+    const isFuncHigh = fVal >= funcCutoff;
 
     let quadrant: 'TOLERATE' | 'INVEST' | 'MIGRATE' | 'ELIMINATE';
     let title: string;
@@ -112,9 +118,9 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
       quadrant = 'MIGRATE';
       title = 'Migrate';
       action = 'Modernize / Replatform / Upgrade';
-      description = cVal >= 4
-        ? 'High business alignment and capability support, but compromised by technical debt or obsolete architecture. Urgent re-platforming, cloud migration, or refactoring required.'
-        : 'Good functional fit with aging or restrictive technical foundations. Target for modernization or SaaS migration.';
+      description = cVal >= critCutoff
+        ? `High business alignment and capability support, but compromised by technical debt or obsolete architecture. Urgent re-platforming, cloud migration, or refactoring required${isCostHigh ? ', with high expenditure offering significant potential TCO savings' : ''}.`
+        : `Good functional fit with aging or restrictive technical foundations. Target for modernization or SaaS migration${isCostHigh ? ' to eliminate elevated run costs' : ''}.`;
       color = '#e67700';
       bg = 'rgba(230, 119, 0, 0.12)';
       border = 'rgba(230, 119, 0, 0.35)';
@@ -122,9 +128,9 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
       quadrant = 'INVEST';
       title = 'Invest';
       action = 'Grow / Expand / Innovate';
-      description = cVal >= 4
-        ? 'Mission-critical asset with superior technical health and high strategic alignment. Priority recipient for ongoing discretionary investment and ecosystem integration.'
-        : 'High technical stability and good user satisfaction. Continue expanding features and standardizing adoption.';
+      description = cVal >= critCutoff
+        ? `Mission-critical asset with superior technical health and high strategic alignment. Priority recipient for ongoing discretionary investment and ecosystem integration${isCostHigh ? ' (ensure high enterprise adoption justifies premium cost)' : ''}.`
+        : `High technical stability and good user satisfaction. Continue expanding features and standardizing adoption${isCostHigh ? ', monitoring cost efficiency' : ''}.`;
       color = '#2b8a3e';
       bg = 'rgba(43, 138, 62, 0.12)';
       border = 'rgba(43, 138, 62, 0.35)';
@@ -132,9 +138,11 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
       quadrant = 'TOLERATE';
       title = 'Tolerate';
       action = 'Retain / Maintain / Low Discretionary Spend';
-      description = cVal >= 4
-        ? 'Robust and stable technical architecture that satisfies baseline operational requirements, but does not provide deep functional coverage. Maintain with minimal run costs.'
-        : 'Technically sound with low maintenance overhead and modest business impact. Retain as-is without significant new investment.';
+      description = isCostHigh
+        ? 'Robust technical architecture but limited functional alignment, coupled with high run costs. Strongly evaluate renegotiating contract terms or consolidating onto alternatives to eliminate excessive maintenance spend.'
+        : (cVal >= critCutoff
+            ? 'Robust and stable technical architecture that satisfies baseline operational requirements, but does not provide deep functional coverage. Maintain with minimal run costs.'
+            : 'Technically sound with low maintenance overhead and modest business impact. Retain as-is without significant new investment.');
       color = '#228be6';
       bg = 'rgba(34, 139, 230, 0.12)';
       border = 'rgba(34, 139, 230, 0.35)';
@@ -142,21 +150,15 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
       quadrant = 'ELIMINATE';
       title = 'Eliminate';
       action = 'Retire / Decommission / Consolidate';
-      description = cVal >= 4
-        ? 'Poor technical sustainability and low functional satisfaction despite high organizational reliance. Urgent replacement or capability transfer needed to avoid critical outage.'
-        : 'Low business utility and poor technical health. Immediate candidate for rationalization, decommission, or replacement.';
+      description = isCostHigh
+        ? 'Poor technical sustainability, low functional utility, and high ongoing cost. Prime candidate for contract termination or decommissioning, yielding immediate budget savings.'
+        : (cVal >= critCutoff
+            ? 'Poor technical sustainability and low functional satisfaction despite high organizational reliance. Urgent replacement or capability transfer needed to avoid critical outage.'
+            : 'Low business utility and poor technical health. Immediate candidate for rationalization, decommission, or replacement.');
       color = '#c92a2a';
       bg = 'rgba(201, 42, 42, 0.12)';
       border = 'rgba(201, 42, 42, 0.35)';
     }
-
-    // Coordinates:
-    // Technical Fit: X axis (1 to 5) -> 12% to 88%
-    // Functional Fit: Y axis (1 to 5) -> In screen coordinates, High Functional (5) is near top (12%), Low (1) near bottom (88%)
-    const xPct = 12 + ((tVal - 1) / 4) * 76;
-    const yPct = 88 - ((fVal - 1) / 4) * 76;
-    // Criticality dictates size of bubble (1: 14px, 3: 20px, 5: 28px)
-    const dotSize = 14 + (cVal - 1) * 3.5;
 
     return {
       quadrant,
@@ -169,11 +171,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
       techScore: tVal,
       funcScore: fVal,
       critScore: cVal,
-      xPct,
-      yPct,
-      dotSize,
+      costScore: costVal,
+      isCostHigh
     };
-  }, [app, effectiveCriticality]);
+  }, [app, effectiveCriticality, thresholds]);
 
   if (isLoading || !app) {
     return (
@@ -270,157 +271,20 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     alignItems: 'center'
                   }}>
                     {/* Interactive 2x2 TIME Diagram */}
-                    <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', maxWidth: '340px', margin: '0.5rem auto 1rem auto' }}>
-                      {/* Quadrant grid container */}
-                      <div style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        borderRadius: '12px', 
-                        overflow: 'hidden', 
-                        border: '1.5px solid var(--border)', 
-                        display: 'grid', 
-                        gridTemplateColumns: '1fr 1fr', 
-                        gridTemplateRows: '1fr 1fr',
-                        position: 'relative',
-                        background: 'var(--card)'
-                      }}>
-                        {/* Top-Left: MIGRATE */}
-                        <div style={{ 
-                          padding: '0.65rem 0.75rem', 
-                          background: timeAssessment.quadrant === 'MIGRATE' ? 'rgba(230, 119, 0, 0.16)' : 'rgba(230, 119, 0, 0.04)',
-                          borderRight: '1px dashed var(--border)',
-                          borderBottom: '1px dashed var(--border)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'flex-start',
-                          transition: 'all 0.25s'
-                        }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#e67700', letterSpacing: '0.04em' }}>MIGRATE</span>
-                          <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>High Fit · Low Tech</span>
-                        </div>
-
-                        {/* Top-Right: INVEST */}
-                        <div style={{ 
-                          padding: '0.65rem 0.75rem', 
-                          background: timeAssessment.quadrant === 'INVEST' ? 'rgba(43, 138, 62, 0.16)' : 'rgba(43, 138, 62, 0.04)',
-                          borderBottom: '1px dashed var(--border)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'flex-start',
-                          alignItems: 'flex-end',
-                          textAlign: 'right',
-                          transition: 'all 0.25s'
-                        }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#2b8a3e', letterSpacing: '0.04em' }}>INVEST</span>
-                          <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>High Fit · High Tech</span>
-                        </div>
-
-                        {/* Bottom-Left: ELIMINATE */}
-                        <div style={{ 
-                          padding: '0.65rem 0.75rem', 
-                          background: timeAssessment.quadrant === 'ELIMINATE' ? 'rgba(201, 42, 42, 0.16)' : 'rgba(201, 42, 42, 0.04)',
-                          borderRight: '1px dashed var(--border)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'flex-end',
-                          transition: 'all 0.25s'
-                        }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#c92a2a', letterSpacing: '0.04em' }}>ELIMINATE</span>
-                          <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>Low Fit · Low Tech</span>
-                        </div>
-
-                        {/* Bottom-Right: TOLERATE */}
-                        <div style={{ 
-                          padding: '0.65rem 0.75rem', 
-                          background: timeAssessment.quadrant === 'TOLERATE' ? 'rgba(34, 139, 230, 0.16)' : 'rgba(34, 139, 230, 0.04)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'flex-end',
-                          alignItems: 'flex-end',
-                          textAlign: 'right',
-                          transition: 'all 0.25s'
-                        }}>
-                          <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#228be6', letterSpacing: '0.04em' }}>TOLERATE</span>
-                          <span style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', marginTop: '0.15rem' }}>Low Fit · High Tech</span>
-                        </div>
-
-                        {/* Center Point */}
-                        <div style={{ 
-                          position: 'absolute', 
-                          top: '50%', 
-                          left: '50%', 
-                          transform: 'translate(-50%, -50%)',
-                          width: '8px',
-                          height: '8px',
-                          borderRadius: '50%',
-                          background: 'var(--border)',
-                          zIndex: 2
-                        }} />
-
-                        {/* Active Application Placement Dot */}
-                        {timeAssessment.quadrant && (
-                          <div 
-                            style={{
-                              position: 'absolute',
-                              left: `${timeAssessment.xPct}%`,
-                              top: `${timeAssessment.yPct}%`,
-                              transform: 'translate(-50%, -50%)',
-                              width: `${timeAssessment.dotSize}px`,
-                              height: `${timeAssessment.dotSize}px`,
-                              borderRadius: '50%',
-                              backgroundColor: timeAssessment.color,
-                              border: '2.5px solid #ffffff',
-                              boxShadow: `0 0 0 3px ${timeAssessment.color}55, 0 4px 10px rgba(0,0,0,0.25)`,
-                              zIndex: 10,
-                              cursor: 'pointer',
-                              transition: 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)'
-                            }}
-                            title={`${app.name} (${timeAssessment.title}): Tech Fit ${timeAssessment.techScore}/5, Functional Fit ${timeAssessment.funcScore}/5, Criticality ${timeAssessment.critScore}/5`}
-                          />
-                        )}
-                      </div>
-
-                      {/* X-Axis Labels */}
-                      <div style={{ 
-                        position: 'absolute', 
-                        bottom: '-1.35rem', 
-                        left: 0, 
-                        right: 0, 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
-                        fontSize: '0.58rem', 
-                        fontWeight: 700, 
-                        color: 'var(--muted-foreground)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em'
-                      }}>
-                        <span>Low Tech</span>
-                        <span style={{ fontWeight: 800, color: 'var(--foreground)' }}>Technical Fit →</span>
-                        <span>High Tech</span>
-                      </div>
-
-                      {/* Y-Axis Labels */}
-                      <div style={{ 
-                        position: 'absolute', 
-                        top: 0, 
-                        bottom: 0, 
-                        left: '-1.45rem', 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        justifyContent: 'space-between', 
-                        fontSize: '0.58rem', 
-                        fontWeight: 700, 
-                        color: 'var(--muted-foreground)',
-                        textTransform: 'uppercase',
-                        writingMode: 'vertical-rl',
-                        transform: 'rotate(180deg)',
-                        letterSpacing: '0.04em',
-                        alignItems: 'center'
-                      }}>
-                        <span>Low Fit</span>
-                        <span style={{ fontWeight: 800, color: 'var(--foreground)' }}>Functional Fit →</span>
-                        <span>High Fit</span>
-                      </div>
+                    <div style={{ maxWidth: '340px', width: '100%', margin: '0 auto' }}>
+                      <TimeMatrix
+                        singleApp={{
+                          id: app.id,
+                          name: app.name,
+                          technicalFit: app.technicalFit,
+                          functionalFit: app.functionalFit,
+                          criticality: effectiveCriticality,
+                          cost: app.cost
+                        }}
+                        thresholds={thresholds}
+                        aspectRatio="1 / 1"
+                        showLegend={true}
+                      />
                     </div>
 
                     {/* TIME Assessment Narrative & Decision Breakdown */}
@@ -467,20 +331,26 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                       }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Tech Fit:</span>
-                          <span style={{ fontWeight: 800, color: timeAssessment.techScore >= 3 ? '#2b8a3e' : '#c92a2a' }}>
-                            {timeAssessment.techScore}/5 ({timeAssessment.techScore >= 3 ? 'High' : 'Low'})
+                          <span style={{ fontWeight: 800, color: timeAssessment.techScore >= (thresholds?.technicalFit ?? 3) ? '#2b8a3e' : '#c92a2a' }}>
+                            {timeAssessment.techScore}/5 ({timeAssessment.techScore >= (thresholds?.technicalFit ?? 3) ? 'High' : 'Low'})
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Functional Fit:</span>
-                          <span style={{ fontWeight: 800, color: timeAssessment.funcScore >= 3 ? '#2b8a3e' : '#c92a2a' }}>
-                            {timeAssessment.funcScore}/5 ({timeAssessment.funcScore >= 3 ? 'High' : 'Low'})
+                          <span style={{ fontWeight: 800, color: timeAssessment.funcScore >= (thresholds?.functionalFit ?? 3) ? '#2b8a3e' : '#c92a2a' }}>
+                            {timeAssessment.funcScore}/5 ({timeAssessment.funcScore >= (thresholds?.functionalFit ?? 3) ? 'High' : 'Low'})
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Criticality:</span>
-                          <span style={{ fontWeight: 800, color: 'var(--foreground)' }}>
-                            {timeAssessment.critScore}/5 {isInherited ? '(Inherited)' : ''}
+                          <span style={{ fontWeight: 800, color: timeAssessment.critScore >= (thresholds?.businessCriticality ?? 4) ? '#c92a2a' : 'var(--foreground)' }}>
+                            {timeAssessment.critScore}/5 {isInherited ? '(Inherited)' : ''} ({timeAssessment.critScore >= (thresholds?.businessCriticality ?? 4) ? 'High / Urgent' : 'Normal'})
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                          <span style={{ color: 'var(--muted-foreground)', fontWeight: 600 }}>Cost:</span>
+                          <span style={{ fontWeight: 800, color: timeAssessment.isCostHigh ? '#fd7e14' : '#2b8a3e' }}>
+                            {timeAssessment.costScore}/5 ({timeAssessment.isCostHigh ? 'High Cost' : 'Normal / Low'})
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -491,10 +361,11 @@ export const AppDetailsView = ({ appId, onBack, onRefresh }: Props) => {
                     </div>
                   </div>
 
-                  {/* Compact Scores Row (Criticality, Functional Fit, Technical Fit) */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                  {/* Compact Scores Row (Criticality, Cost, Functional Fit, Technical Fit) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
                     {[
                       { label: 'Criticality', val: effectiveCriticality, key: 'criticality', inherited: isInherited },
+                      { label: 'Cost', val: app.cost, key: 'application_cost', inherited: false },
                       { label: 'Functional Fit', val: app.functionalFit, key: 'functional_fit', inherited: false },
                       { label: 'Technical Fit', val: app.technicalFit, key: 'technical_fit', inherited: false }
                     ].map(score => {

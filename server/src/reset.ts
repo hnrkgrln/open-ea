@@ -51,11 +51,27 @@ async function main() {
     }
   });
 
+  const costOptions = [
+    { value: '1', label: '1 - Free / Negligible', color: '#2b8a3e', order: 1 },
+    { value: '2', label: '2 - Inexpensive / Low', color: '#94d82d', order: 2 },
+    { value: '3', label: '3 - Moderate', color: '#fab005', order: 3 },
+    { value: '4', label: '4 - Expensive', color: '#e67700', order: 4 },
+    { value: '5', label: '5 - Very Expensive', color: '#c92a2a', order: 5 },
+  ];
+
   await prisma.picklist.create({
     data: {
       name: 'criticality',
       label: 'Business Criticality',
       options: { create: criticalityOptions }
+    }
+  });
+
+  await prisma.picklist.create({
+    data: {
+      name: 'application_cost',
+      label: 'Application Cost',
+      options: { create: costOptions }
     }
   });
 

@@ -27,13 +27,11 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
   const { data: latestInfo } = useQuery<any[]>({
     queryKey: ['information-objects'],
     queryFn: () => fetch('/api/information-objects').then(res => res.json()),
-    staleTime: 1000 * 60 * 5,
   });
 
   const { data: item, isLoading } = useQuery<any>({
     queryKey: ['information-object', infoId],
     queryFn: () => fetch(`/api/information-objects/${infoId}`).then(res => res.json()),
-    initialData: () => latestInfo?.find(i => i.id === infoId),
     enabled: !!infoId && infoId !== 'undefined'
   });
 

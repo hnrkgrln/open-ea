@@ -113,8 +113,12 @@ export const EditIntegrationPage = () => {
       if (res.ok) {
         const saved = await res.json();
         const finalId = isNew ? saved.id : id;
-        queryClient.invalidateQueries({ queryKey: ['integration', finalId] });
-        queryClient.invalidateQueries({ queryKey: ['integrations'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['integration', finalId] }),
+          queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate(`/integrations/${finalId}`);
       }
     } catch (err) {
@@ -130,7 +134,11 @@ export const EditIntegrationPage = () => {
     try {
       const res = await fetch(`/api/integrations/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        queryClient.invalidateQueries({ queryKey: ['integrations'] });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['integrations'] }),
+          queryClient.invalidateQueries({ queryKey: ['applications'] }),
+          queryClient.invalidateQueries({ queryKey: ['search'] }),
+        ]);
         navigate('/integrations');
       }
     } catch (err) { console.error(err); }

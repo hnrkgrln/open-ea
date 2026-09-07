@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight } from 'lucide-react';
+import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight, Sliders, RotateCcw } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
-import { useLocalStorage } from '../App';
+import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
 import { ColoredSelect } from './ColoredSelect';
 
 interface PicklistOption {
@@ -44,12 +44,29 @@ interface Props {
   informationObjects: any[];
   integrations: any[];
   onRefresh: () => void;
+  timeThresholds?: TimeThresholds;
+  onUpdateTimeThresholds?: (t: TimeThresholds) => void;
 }
 
-export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, organizations, informationObjects, integrations, onRefresh }: Props) => {
+export const PicklistsView = ({ 
+  brandName, 
+  onUpdateBrand, 
+  apps, 
+  capabilities, 
+  organizations, 
+  informationObjects, 
+  integrations, 
+  onRefresh,
+  timeThresholds: propTimeThresholds,
+  onUpdateTimeThresholds: propOnUpdateTimeThresholds
+}: Props) => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useLocalStorage<'picklists' | 'metadata' | 'branding' | 'import-export'>('openea_settings_tab', 'picklists');
+  const [activeTab, setActiveTab] = useLocalStorage<'picklists' | 'metadata' | 'branding' | 'import-export' | 'time_thresholds'>('openea_settings_tab', 'picklists');
   const [selectedPicklistId, setSelectedPicklistId] = useLocalStorage<string | null>('openea_settings_picklist', null);
+
+  const [localTimeThresholds, setLocalTimeThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
+  const timeThresholds = propTimeThresholds || localTimeThresholds;
+  const setTimeThresholds = propOnUpdateTimeThresholds || setLocalTimeThresholds;
   
   // States for new picklist option
   const [newValue, setNewValue] = useState('');
@@ -83,7 +100,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, or
 
   if (loadingPicklists || loadingMeta) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading configuration...</div>;
 
-  const strategicFieldNames = ['criticality', 'functional_fit', 'technical_fit', 'cia_scale'];
+  const strategicFieldNames = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale'];
   
   const selectedPicklist = picklists?.find(p => p.id === selectedPicklistId);
   const isScalePicklist = selectedPicklist && strategicFieldNames.includes(selectedPicklist.name);
@@ -173,7 +190,7 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, or
       id: 'Application', 
       label: 'Applications', 
       icon: <Database size={16} />, 
-      picklists: ['application_type', 'owner', 'lifecycle', 'criticality', 'functional_fit', 'technical_fit'] 
+      picklists: ['application_type', 'owner', 'lifecycle', 'criticality', 'application_cost', 'functional_fit', 'technical_fit'] 
     },
     { 
       id: 'Capability', 
@@ -237,6 +254,23 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, or
                   {React.cloneElement(art.icon as React.ReactElement<any>, { size: 14 })} {art.label}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  {art.id === 'Application' && (
+                    <button
+                      onClick={() => { setActiveTab('time_thresholds'); setSelectedPicklistId(null); }}
+                      style={{
+                        width: '100%', justifyContent: 'flex-start', border: 'none',
+                        background: activeTab === 'time_thresholds' ? 'var(--accent)' : 'transparent',
+                        color: activeTab === 'time_thresholds' ? 'var(--primary)' : 'var(--muted-foreground)',
+                        padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: activeTab === 'time_thresholds' ? 700 : 500,
+                        textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: '0.4rem',
+                        marginBottom: '2px'
+                      }}
+                    >
+                      <Sliders size={12} style={{ color: activeTab === 'time_thresholds' ? 'var(--primary)' : 'inherit' }} />
+                      TIME Thresholds
+                    </button>
+                  )}
                   {art.picklists.map(pName => {
                     const p = picklists?.find(pl => pl.name === pName);
                     if (!p) return null;
@@ -476,6 +510,287 @@ export const PicklistsView = ({ brandName, onUpdateBrand, apps, capabilities, or
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          ) : activeTab === 'time_thresholds' ? (
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                <div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
+                    Strategic Portfolio Rationalization
+                  </div>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>TIME Assessment Thresholds</h2>
+                  <p style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem', marginTop: '0.35rem' }}>
+                    Define the cutoff boundaries for categorizing applications into Invest, Migrate, Tolerate, and Eliminate quadrants.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTimeThresholds(DEFAULT_TIME_THRESHOLDS)}
+                  className="secondary"
+                  style={{ height: '2.2rem', padding: '0 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                >
+                  <RotateCcw size={14} /> Reset Defaults
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(340px, 1fr) 320px', gap: '2rem', alignItems: 'start' }}>
+                {/* Sliders and Configuration */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* Technical Fit Cutoff */}
+                  <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>Technical Fit Cutoff (X-Axis)</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                          Score of <strong>{timeThresholds.technicalFit}</strong> and above is classified as <span style={{ color: '#2b8a3e', fontWeight: 700 }}>High Tech Fit</span> (Right side).
+                        </div>
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.25rem', fontWeight: 900, minWidth: '42px', height: '36px',
+                        background: 'var(--accent)', borderRadius: '8px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)'
+                      }}>
+                        {timeThresholds.technicalFit}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>1 (Low)</span>
+                      <input 
+                        type="range" 
+                        min={1} 
+                        max={5} 
+                        step={1}
+                        value={timeThresholds.technicalFit}
+                        onChange={(e) => setTimeThresholds({ ...timeThresholds, technicalFit: Number(e.target.value) })}
+                        style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>5 (High)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--muted-foreground)', marginTop: '0.4rem' }}>
+                      <span>&lt; {timeThresholds.technicalFit}: Low (Migrate / Eliminate)</span>
+                      <span>≥ {timeThresholds.technicalFit}: High (Invest / Tolerate)</span>
+                    </div>
+                  </div>
+
+                  {/* Functional Fit Cutoff */}
+                  <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>Functional Fit Cutoff (Y-Axis)</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                          Score of <strong>{timeThresholds.functionalFit}</strong> and above is classified as <span style={{ color: '#2b8a3e', fontWeight: 700 }}>High Functional Fit</span> (Top side).
+                        </div>
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.25rem', fontWeight: 900, minWidth: '42px', height: '36px',
+                        background: 'var(--accent)', borderRadius: '8px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)'
+                      }}>
+                        {timeThresholds.functionalFit}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>1 (Low)</span>
+                      <input 
+                        type="range" 
+                        min={1} 
+                        max={5} 
+                        step={1}
+                        value={timeThresholds.functionalFit}
+                        onChange={(e) => setTimeThresholds({ ...timeThresholds, functionalFit: Number(e.target.value) })}
+                        style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>5 (High)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--muted-foreground)', marginTop: '0.4rem' }}>
+                      <span>&lt; {timeThresholds.functionalFit}: Low (Tolerate / Eliminate)</span>
+                      <span>≥ {timeThresholds.functionalFit}: High (Invest / Migrate)</span>
+                    </div>
+                  </div>
+
+                  {/* Business Criticality Urgency Cutoff */}
+                  <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>Business Criticality Urgency Cutoff</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                          Criticality rating of <strong>{timeThresholds.businessCriticality}</strong> and above elevates strategic urgency and increases bubble visual weighting.
+                        </div>
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.25rem', fontWeight: 900, minWidth: '42px', height: '36px',
+                        background: 'var(--accent)', borderRadius: '8px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)'
+                      }}>
+                        {timeThresholds.businessCriticality}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>1 (Low)</span>
+                      <input 
+                        type="range" 
+                        min={1} 
+                        max={5} 
+                        step={1}
+                        value={timeThresholds.businessCriticality}
+                        onChange={(e) => setTimeThresholds({ ...timeThresholds, businessCriticality: Number(e.target.value) })}
+                        style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>5 (High)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--muted-foreground)', marginTop: '0.4rem' }}>
+                      <span>&lt; {timeThresholds.businessCriticality}: Standard Operational Priority</span>
+                      <span>≥ {timeThresholds.businessCriticality}: Elevated Mission-Critical Attention</span>
+                    </div>
+                  </div>
+
+                  {/* Application Cost Cutoff */}
+                  <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>Cost Alert Cutoff</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                          Cost rating of <strong>{timeThresholds.cost ?? 4}</strong> and above flags applications as <span style={{ color: '#fd7e14', fontWeight: 700 }}>High Cost</span>, highlighting them for contract reviews and rationalization savings.
+                        </div>
+                      </div>
+                      <div style={{ 
+                        fontSize: '1.25rem', fontWeight: 900, minWidth: '42px', height: '36px',
+                        background: 'var(--accent)', borderRadius: '8px', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)'
+                      }}>
+                        {timeThresholds.cost ?? 4}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>1 (Low / Free)</span>
+                      <input 
+                        type="range" 
+                        min={1} 
+                        max={5} 
+                        step={1}
+                        value={timeThresholds.cost ?? 4}
+                        onChange={(e) => setTimeThresholds({ ...timeThresholds, cost: Number(e.target.value) })}
+                        style={{ flex: 1, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>5 (Very Expensive)</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: 'var(--muted-foreground)', marginTop: '0.4rem' }}>
+                      <span>&lt; {timeThresholds.cost ?? 4}: Standard / Acceptable Run Cost</span>
+                      <span>≥ {timeThresholds.cost ?? 4}: Elevated / High TCO (Optimization Target)</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Matrix Split Preview */}
+                <div style={{ background: 'var(--secondary)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.75rem', color: 'var(--foreground)' }}>
+                    Live Matrix Preview
+                  </div>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', margin: '0 0 1rem 0', lineHeight: 1.4 }}>
+                    Threshold cutoffs determine classification into symmetrical quadrants on the 1–5 scale.
+                  </p>
+
+                  {/* 2x2 symmetrical grid preview */}
+                  <div style={{ position: 'relative', width: '100%', aspectRatio: '1 / 1', borderRadius: '10px', overflow: 'hidden', border: '1.5px solid var(--border)', background: 'var(--background)' }}>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gridTemplateRows: '1fr 1fr',
+                      width: '100%',
+                      height: '100%',
+                      position: 'relative'
+                    }}>
+                      {/* Migrate */}
+                      <div style={{ background: 'rgba(230, 119, 0, 0.12)', borderRight: '1.5px dashed var(--border)', borderBottom: '1.5px dashed var(--border)', padding: '0.6rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#e67700' }}>MIGRATE</span>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                          Tech &lt; {timeThresholds.technicalFit} · Fit ≥ {timeThresholds.functionalFit}
+                        </span>
+                      </div>
+                      {/* Invest */}
+                      <div style={{ background: 'rgba(43, 138, 62, 0.12)', borderBottom: '1.5px dashed var(--border)', padding: '0.6rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-start', textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#2b8a3e' }}>INVEST</span>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                          Tech ≥ {timeThresholds.technicalFit} · Fit ≥ {timeThresholds.functionalFit}
+                        </span>
+                      </div>
+                      {/* Eliminate */}
+                      <div style={{ background: 'rgba(201, 42, 42, 0.12)', borderRight: '1.5px dashed var(--border)', padding: '0.6rem', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#c92a2a' }}>ELIMINATE</span>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                          Tech &lt; {timeThresholds.technicalFit} · Fit &lt; {timeThresholds.functionalFit}
+                        </span>
+                      </div>
+                      {/* Tolerate */}
+                      <div style={{ background: 'rgba(34, 139, 230, 0.12)', padding: '0.6rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'flex-end', textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 900, color: '#228be6' }}>TOLERATE</span>
+                        <span style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                          Tech ≥ {timeThresholds.technicalFit} · Fit &lt; {timeThresholds.functionalFit}
+                        </span>
+                      </div>
+
+                      {/* Center junction dot */}
+                      <div style={{
+                        position: 'absolute',
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        background: 'var(--foreground)',
+                        border: '2px solid var(--background)',
+                        zIndex: 2
+                      }} />
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: '0.85rem', padding: '0.65rem', background: 'var(--card)', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '0.7rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--muted-foreground)' }}>Tech Fit Boundary:</span>
+                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.technicalFit}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--muted-foreground)' }}>Functional Fit Boundary:</span>
+                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.functionalFit}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--muted-foreground)' }}>Criticality Urgency:</span>
+                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.businessCriticality}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--muted-foreground)' }}>Cost Alert Cutoff:</span>
+                      <strong style={{ color: 'var(--foreground)' }}>≥ {timeThresholds.cost ?? 4}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : activeTab === 'branding' ? (
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Global Branding</h2>
+                <p style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', marginTop: '0.35rem' }}>Customize the appearance and title of your enterprise architecture workspace.</p>
+              </div>
+              <div style={{ background: 'var(--background)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)', maxWidth: '520px' }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1rem' }}>Application Name / Workspace Logo</h3>
+                <div className="field">
+                  <label className="label">Brand Name</label>
+                  <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.4rem' }}>
+                    <input 
+                      value={brandName} 
+                      onChange={(e) => onUpdateBrand(e.target.value)} 
+                      placeholder="e.g. OpenEA or Enterprise Architecture"
+                      style={{ height: '2.4rem', fontSize: '0.85rem' }}
+                    />
+                    <button onClick={() => onUpdateBrand('OpenEA')} className="secondary" style={{ height: '2.4rem', whiteSpace: 'nowrap' }}>
+                      Reset
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', margin: 0 }}>
+                    This brand name appears in the top navigation header and browser titles.
+                  </p>
+                </div>
               </div>
             </div>
           ) : activeTab === 'import-export' ? (
