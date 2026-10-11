@@ -95,6 +95,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   const vendorEditedRef = useRef(false);
   const [researchGeneration, setResearchGeneration] = useState(0);
   const [researching, setResearching] = useState(false);
+  const [aiSuggested, setAiSuggested] = useState({ description: false, type: false });
   const llmProviders = useLlmProviders();
   const activeProvider = activeLlmProvider(llmProviders.data);
 
@@ -395,6 +396,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     setVendorDismissedKey('');
     setFormData((current) => ({ ...current, ...patch }));
   };
+  const vendorSuggested = !vendorEdited && Boolean(formData.vendorName.trim() || formData.vendorUrl.trim() || formData.vendorSummary.trim());
   const suggestVendor = Boolean(activeProvider)
     && !vendorEdited
     && vendorDismissedKey !== `${formData.name.trim()}\n${formData.description.trim()}`
@@ -460,7 +462,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                 </div>
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">Description</label>
-                  <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Purpose and primary functions..." />
+                  <textarea rows={3} value={formData.description} className={aiSuggested.description ? 'app-ai-suggested' : undefined} onChange={e => { setAiSuggested((current) => current.description ? { ...current, description: false } : current); setFormData({...formData, description: e.target.value}); }} style={{ padding: '0.75rem' }} placeholder="Purpose and primary functions..." />
                 </div>
                 {activeProvider && (
                   <ApplicationSuggestions
@@ -470,8 +472,14 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     applicationType={formData.type}
                     researchGeneration={researchGeneration}
                     suggestVendor={suggestVendor}
-                    onApplyDescription={(description) => setFormData((current) => ({ ...current, description }))}
-                    onApplyType={(type) => setFormData((current) => ({ ...current, type }))}
+                    onApplyDescription={(description) => {
+                      setAiSuggested((current) => ({ ...current, description: true }));
+                      setFormData((current) => ({ ...current, description }));
+                    }}
+                    onApplyType={(type) => {
+                      setAiSuggested((current) => ({ ...current, type: true }));
+                      setFormData((current) => ({ ...current, type }));
+                    }}
                     onVendorProfile={(profile, reason) => {
                       if (reason === 'auto' && vendorEditedRef.current) return;
                       if (!profile) {
@@ -494,7 +502,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   />
                 )}
 
-                <section className="app-vendor" aria-label="Vendor">
+                <section className={vendorSuggested ? 'app-vendor app-ai-suggested' : 'app-vendor'} aria-label="Vendor">
                   <div className="app-vendor-heading">
                     <span>Vendor</span>
                     {activeProvider && (
@@ -587,9 +595,12 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     <label className="label">Application Type</label>
                     <ColoredSelect
                       value={formData.type}
-                      onChange={(val) => setFormData({ ...formData, type: val })}
+                      onChange={(val) => {
+                        setAiSuggested((current) => current.type ? { ...current, type: false } : current);
+                        setFormData({ ...formData, type: val });
+                      }}
                       options={[{ value: '', label: 'Select Type...' }, ...(picklists?.find(p => p.name === 'application_type')?.options || [])]}
-                      style={{ height: '2rem', fontSize: '0.85rem' }}
+                      style={{ height: '2rem', fontSize: '0.85rem', ...(aiSuggested.type ? { background: 'color-mix(in srgb, var(--brand-focus) 8%, var(--card))', borderColor: 'color-mix(in srgb, var(--brand-focus) 45%, var(--border))' } : {}) }}
                     />
                   </div>
                 </div>

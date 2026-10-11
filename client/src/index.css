@@ -493,7 +493,7 @@ button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   padding: 0.9rem 1rem;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--brand-focus) 6%, var(--card));
+  background: var(--card);
 }
 
 .app-suggest-heading {
@@ -566,7 +566,19 @@ button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   padding: 1rem;
   border: 1px solid var(--border);
   border-radius: 12px;
+  background: var(--card);
+}
+
+/* A field or group uses the AI tint only while it still holds a suggestion. */
+.app-ai-suggested {
   background: color-mix(in srgb, var(--brand-focus) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--brand-focus) 45%, var(--border));
+}
+
+input.app-ai-suggested,
+textarea.app-ai-suggested {
+  background: color-mix(in srgb, var(--brand-focus) 8%, var(--card));
+  border-color: color-mix(in srgb, var(--brand-focus) 45%, var(--border));
 }
 
 .app-vendor .field {

@@ -164,7 +164,7 @@ export function ApplicationSuggestions({
   askRef.current = ask;
 
   return (
-    <div className="app-suggest">
+    <div className={suggestion ? 'app-suggest app-ai-suggested' : 'app-suggest'}>
       <div className="app-suggest-heading">
         <Sparkles size={14} />
         <span>Suggestions</span>
