@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText, FileSignature } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,10 +6,25 @@ import { DatePicker } from './DatePicker';
 import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
 import { CustomCheckbox } from './CustomCheckbox';
+import { ApplicationSuggestions, applicationVendor, withVendorProfile } from './ApplicationSuggestions';
+import { activeLlmProvider, useLlmProviders } from './useLlmProviders';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { TimeMatrix } from './TimeMatrix';
 import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '../App';
 import { getAppTimeAssessment } from '../timeAssessment';
+
+function vendorUrlForSave(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const parsed = new URL(withScheme);
+    if (parsed.username || parsed.password || !/^https?:$/i.test(parsed.protocol)) return null;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -64,12 +79,24 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     cost: '1',
     functionalFit: '3',
     technicalFit: '3',
+    timeRationale: '',
+    vendorName: '',
+    vendorUrl: '',
+    vendorSummary: '',
   });
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
   const [selectedInfoIds, setSelectedInfoIds] = useState<string[]>([]);
   const [infoSearch, setInfoSearch] = useState('');
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
   const [references, setReferences] = useState<Reference[]>([]);
+  const [vendorNote, setVendorNote] = useState('');
+  const [vendorEdited, setVendorEdited] = useState(false);
+  const [vendorDismissedKey, setVendorDismissedKey] = useState('');
+  const vendorEditedRef = useRef(false);
+  const [researchGeneration, setResearchGeneration] = useState(0);
+  const [researching, setResearching] = useState(false);
+  const llmProviders = useLlmProviders();
+  const activeProvider = activeLlmProvider(llmProviders.data);
 
   const { data: app, isLoading: isAppLoading } = useQuery({
     queryKey: ['application', id],
@@ -91,6 +118,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
     if (app && !isNew && !hydrated) {
+      const storedVendor = applicationVendor(app);
       setFormData({
         name: app.name || '',
         description: app.description || '',
@@ -107,10 +135,18 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
         cost: String(app.cost || '1'),
         functionalFit: String(app.functionalFit || '3'),
         technicalFit: String(app.technicalFit || '3'),
+        timeRationale: app.timeRationale || '',
+        vendorName: app.vendorName || storedVendor?.name || '',
+        vendorUrl: app.vendorUrl || storedVendor?.url || '',
+        vendorSummary: app.vendorSummary || storedVendor?.summary || '',
       });
+      const hasVendor = Boolean(app.vendorName || app.vendorUrl || app.vendorSummary || storedVendor);
+      vendorEditedRef.current = hasVendor;
+      setVendorEdited(hasVendor);
       setSelectedCapIds(app.capabilities?.map((c: any) => c.id) || []);
       setSelectedInfoIds(app.processedInformationObjects?.map((io: any) => io.id) || []);
-      setDynamicValues(safeJsonParse(app.metadata));
+      const metadata = safeJsonParse(app.metadata);
+      setDynamicValues(withVendorProfile(metadata, null));
       setReferences(parseReferences(app.references));
       setHydrated(true);
     }
@@ -230,6 +266,46 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     cost: formData.cost,
   }), [id, formData.name, isNew, formData.technicalFit, formData.functionalFit, effectiveCriticality, formData.cost]);
 
+  const organizationOptions = useMemo(() => {
+    const orgs = organizations || [];
+    const typeOptions = picklists?.find((list: any) => list.name === 'organization_type')?.options || [];
+    const typeLabel = (value?: string | null) => {
+      if (!value) return '';
+      const match = typeOptions.find((option: any) => String(option.value) === String(value));
+      return match?.label || value;
+    };
+    const ids = new Set(orgs.map((org: any) => org.id));
+    const byParent = new Map<string | null, any[]>();
+    for (const org of orgs) {
+      const parent = org.parentId && org.parentId !== org.id && ids.has(org.parentId) ? org.parentId : null;
+      const list = byParent.get(parent) ?? [];
+      list.push(org);
+      byParent.set(parent, list);
+    }
+    for (const list of byParent.values()) list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    const options: { value: string; label: string; detail?: string; depth?: number; parentValue?: string }[] = [
+      { value: '', label: 'Unassigned' },
+    ];
+    const seen = new Set<string>();
+    const walk = (parentId: string | null, depth: number) => {
+      for (const org of byParent.get(parentId) ?? []) {
+        if (seen.has(org.id)) continue;
+        seen.add(org.id);
+        const detail = typeLabel(org.type);
+        options.push({
+          value: org.id,
+          label: org.name,
+          ...(detail ? { detail } : {}),
+          depth,
+          ...(parentId ? { parentValue: parentId } : {}),
+        });
+        walk(org.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return options;
+  }, [organizations, picklists]);
+
   const appMetaDefs = metaDefs?.filter(d => d.entityType === 'Application') || [];
   
   const handleSubmit = async (e: React.FormEvent) => {
@@ -247,9 +323,13 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
       contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
       contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null,
       contractDetails: formData.contractDetails ? formData.contractDetails : null,
+      timeRationale: formData.timeRationale.trim() ? formData.timeRationale.trim() : null,
+      vendorName: formData.vendorName.trim() || null,
+      vendorUrl: vendorUrlForSave(formData.vendorUrl),
+      vendorSummary: formData.vendorSummary.trim() || null,
       capabilityIds: selectedCapIds,
       processedInformationObjectIds: selectedInfoIds,
-      metadata: JSON.stringify(dynamicValues),
+      metadata: JSON.stringify(withVendorProfile(dynamicValues, null)),
       references: serializeReferences(references)
     };
 
@@ -308,6 +388,18 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   if (!isNew && (isAppLoading || !app)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading application...</div>;
   if (!picklists) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading picklists...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading application...</div>;
+
+  const editVendor = (patch: { vendorName?: string; vendorUrl?: string; vendorSummary?: string }) => {
+    vendorEditedRef.current = true;
+    setVendorEdited(true);
+    setVendorDismissedKey('');
+    setFormData((current) => ({ ...current, ...patch }));
+  };
+  const suggestVendor = Boolean(activeProvider)
+    && !vendorEdited
+    && vendorDismissedKey !== `${formData.name.trim()}\n${formData.description.trim()}`
+    && formData.name.trim().length >= 2
+    && formData.description.trim().length >= 10;
 
   const strategicPicklists = [
     { label: 'Business Criticality', key: 'criticality', scaleType: 'importance', options: picklists?.find(p => p.name === 'criticality')?.options || [] },
@@ -370,6 +462,106 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   <label className="label">Description</label>
                   <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Purpose and primary functions..." />
                 </div>
+                {activeProvider && (
+                  <ApplicationSuggestions
+                    name={formData.name}
+                    description={formData.description}
+                    contractDetails={formData.contractDetails}
+                    applicationType={formData.type}
+                    researchGeneration={researchGeneration}
+                    suggestVendor={suggestVendor}
+                    onApplyDescription={(description) => setFormData((current) => ({ ...current, description }))}
+                    onApplyType={(type) => setFormData((current) => ({ ...current, type }))}
+                    onVendorProfile={(profile, reason) => {
+                      if (reason === 'auto' && vendorEditedRef.current) return;
+                      if (!profile) {
+                        setVendorNote(reason === 'auto'
+                          ? 'No vendor home page was found.'
+                          : 'No vendor home page was found. The current details are unchanged.');
+                        return;
+                      }
+                      vendorEditedRef.current = false;
+                      setVendorEdited(false);
+                      setFormData((current) => ({
+                        ...current,
+                        vendorName: profile.name,
+                        vendorUrl: profile.url,
+                        vendorSummary: profile.summary,
+                      }));
+                      setVendorNote('');
+                    }}
+                    onResearching={setResearching}
+                  />
+                )}
+
+                <section className="app-vendor" aria-label="Vendor">
+                  <div className="app-vendor-heading">
+                    <span>Vendor</span>
+                    {activeProvider && (
+                      <div className="app-vendor-actions">
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={researching || formData.name.trim().length < 2}
+                          onClick={() => {
+                            setVendorDismissedKey('');
+                            setResearchGeneration((generation) => generation + 1);
+                          }}
+                        >
+                          {researching ? 'Looking up vendor…' : 'Try again'}
+                        </button>
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={researching || (!formData.vendorName && !formData.vendorUrl && !formData.vendorSummary)}
+                          onClick={() => {
+                            vendorEditedRef.current = false;
+                            setVendorEdited(false);
+                            setVendorDismissedKey(`${formData.name.trim()}\n${formData.description.trim()}`);
+                            setFormData((current) => ({ ...current, vendorName: '', vendorUrl: '', vendorSummary: '' }));
+                            setVendorNote('');
+                          }}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="vendor-name">Vendor name</label>
+                    <input
+                      id="vendor-name"
+                      value={formData.vendorName}
+                      onChange={(event) => editVendor({ vendorName: event.target.value })}
+                      placeholder="e.g. Microsoft"
+                      style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem', height: '2rem' }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="vendor-url">Home page</label>
+                    <input
+                      id="vendor-url"
+                      value={formData.vendorUrl}
+                      onChange={(event) => editVendor({ vendorUrl: event.target.value })}
+                      placeholder="https://"
+                      style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem', height: '2rem' }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="vendor-summary">Vendor description</label>
+                    <textarea
+                      id="vendor-summary"
+                      rows={2}
+                      maxLength={1000}
+                      value={formData.vendorSummary}
+                      onChange={(event) => editVendor({ vendorSummary: event.target.value })}
+                      placeholder="One or two sentences about the vendor."
+                      style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  {researching && !formData.vendorName && <p className="app-vendor-note">Looking up the vendor…</p>}
+                  {vendorNote && <p className="app-vendor-note">{vendorNote}</p>}
+                </section>
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div className="field" style={{ marginBottom: 0 }}>
@@ -382,10 +574,9 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       value={formData.ownerOrgId}
                       onChange={(val) => setFormData({ ...formData, ownerOrgId: val })}
                       placeholder="Select organization..."
-                      options={[
-                        { value: '', label: 'Unassigned' },
-                        ...((organizations || []).map((o: any) => ({ value: o.id, label: o.name })))
-                      ]}
+                      searchable
+                      searchPlaceholder="Quick filter"
+                      options={organizationOptions}
                       style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
@@ -629,6 +820,19 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     </div>
                   </div>
                 </div>
+              </div>
+
+              <div className="field" style={{ marginTop: '1.5rem', marginBottom: 0 }}>
+                <label className="label" htmlFor="time-rationale">TIME rationale</label>
+                <textarea
+                  id="time-rationale"
+                  rows={3}
+                  maxLength={2000}
+                  value={formData.timeRationale}
+                  onChange={e => setFormData({ ...formData, timeRationale: e.target.value })}
+                  placeholder="A short note on why this TIME assessment holds."
+                  style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
+                />
               </div>
             </section>
 

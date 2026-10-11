@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers, FileSignature } from 'lucide-react';
+import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers, FileSignature, Building2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { LifecycleBadge } from './LifecycleBadge';
@@ -8,6 +8,7 @@ import { ReferencesList } from './References';
 import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
 import { getAppTimeAssessment } from '../timeAssessment';
 import { TimeMatrix } from './TimeMatrix';
+import { applicationVendor } from './ApplicationSuggestions';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -76,8 +77,6 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
         action: 'Incomplete Assessment',
         description: 'Provide Technical Fit and Functional Fit ratings to place this application on the TIME quadrant.',
         color: 'var(--muted-foreground)',
-        bg: 'var(--secondary)',
-        border: 'var(--border)',
         techScore: 0,
         funcScore: 0,
         critScore: hasCrit ? crit : 0,
@@ -128,8 +127,6 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
       action: story.action,
       description: story.description,
       color: assessment.color,
-      bg: assessment.bg,
-      border: assessment.border,
       techScore: assessment.techScore,
       funcScore: assessment.funcScore,
       critScore: cVal,
@@ -148,6 +145,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
   }
 
   const meta = safeJsonParse(app.metadata);
+  const vendor = applicationVendor(app);
+  const extendedMeta = Object.fromEntries(
+    Object.entries(meta).filter(([key]) => !['_vendorName', '_vendorUrl', '_vendorSummary'].includes(key))
+  );
   const getPicklistInfo = (picklistName: string, value: string) => {
     const list = picklists?.find(p => p.name === picklistName);
     const option = list?.options?.find((o: any) => o.value === String(value));
@@ -198,26 +199,9 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
               
               {/* Strategic Scores & TIME Assessment Dashboard */}
               <section>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', margin: 0, letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <Share2 size={14} /> Strategic Assessment & TIME Quadrant
-                  </h3>
-                  {timeAssessment.quadrant && (
-                    <span style={{ 
-                      fontSize: '0.65rem', 
-                      fontWeight: 800, 
-                      letterSpacing: '0.06em', 
-                      textTransform: 'uppercase', 
-                      padding: '0.2rem 0.65rem', 
-                      borderRadius: '999px', 
-                      background: timeAssessment.bg, 
-                      color: timeAssessment.color, 
-                      border: `1px solid ${timeAssessment.border}` 
-                    }}>
-                      TIME: {timeAssessment.title}
-                    </span>
-                  )}
-                </div>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', margin: '0 0 1rem 0', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Share2 size={14} /> Strategic Assessment & TIME Quadrant
+                </h3>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   {/* TIME Quadrant Visualization Card */}
@@ -284,6 +268,17 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                       }}>
                         {timeAssessment.description}
                       </p>
+
+                      {typeof app.timeRationale === 'string' && app.timeRationale.trim() && (
+                        <div>
+                          <div style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '0.3rem' }}>
+                            Rationale
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: 1.55, color: 'var(--foreground)', whiteSpace: 'pre-wrap' }}>
+                            {app.timeRationale.trim()}
+                          </p>
+                        </div>
+                      )}
 
                       {/* Integrated Visual Drivers (Criticality, Cost, Functional Fit, Technical Fit) */}
                       <div style={{ 
@@ -574,6 +569,22 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                 </div>
               </section>
 
+              {vendor && (
+                <section>
+                  <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Vendor</h3>
+                  <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                      <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><Building2 size={16} /></div>
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{vendor.name}</span>
+                        <a href={vendor.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.2rem', wordBreak: 'break-all' }}>{vendor.url}</a>
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.45 }}>{vendor.summary}</p>
+                  </div>
+                </section>
+              )}
+
               <section>
                 <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Technical Profile</h3>
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}>
@@ -622,11 +633,11 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
               </section>
 
               {/* Dynamic Metadata Section */}
-              {Object.keys(meta).length > 0 && (
+              {Object.keys(extendedMeta).length > 0 && (
                 <section>
                   <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Extended Attributes</h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {Object.entries(meta).map(([key, val]: [string, any]) => {
+                    {Object.entries(extendedMeta).map(([key, val]: [string, any]) => {
                       const def = metaDefs?.find(d => d.fieldName === key);
                       return (
                         <div key={key} style={{ background: 'var(--card)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border)' }}>

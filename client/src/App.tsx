@@ -134,11 +134,15 @@ interface Application {
   contractStartDate?: string;
   contractEndDate?: string;
   contractDetails?: string;
+  vendorName?: string;
+  vendorUrl?: string;
+  vendorSummary?: string;
   type: string;
   criticality: string;
   cost?: string;
   functionalFit: string;
   technicalFit: string;
+  timeRationale?: string;
   metadata?: string;
   capabilities?: Capability[];
   createdAt: string;
@@ -524,6 +528,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         app.owner?.toLowerCase().includes(filters.search.toLowerCase()) ||
         app.lifecycle?.toLowerCase().includes(filters.search.toLowerCase()) ||
         app.type?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.timeRationale?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.vendorName?.toLowerCase().includes(filters.search.toLowerCase()) ||
+        app.vendorSummary?.toLowerCase().includes(filters.search.toLowerCase()) ||
         app.capabilities?.some(c => c.name.toLowerCase().includes(filters.search.toLowerCase())) ||
         app.metadata?.toLowerCase().includes(filters.search.toLowerCase());
       const matchOwner = filters.owner.length === 0 || filters.owner.includes(app.owner) || filters.owner.includes(app.owner?.toLowerCase());
@@ -599,7 +606,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     if (filteredApps.length === 0) return;
     
     // Define headers
-    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Contract Start', 'Contract End', 'Contract Details', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'Capabilities'];
+    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities'];
     const customHeaders = appMetaDefs.map(d => d.label);
     const allHeaders = [...headers, ...customHeaders];
 
@@ -617,10 +624,14 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           `"${app.contractStartDate ? app.contractStartDate.split('T')[0] : ''}"`,
           `"${app.contractEndDate ? app.contractEndDate.split('T')[0] : ''}"`,
           `"${(app.contractDetails || '').replace(/"/g, '""')}"`,
+          `"${(app.vendorName || '').replace(/"/g, '""')}"`,
+          `"${(app.vendorUrl || '').replace(/"/g, '""')}"`,
+          `"${(app.vendorSummary || '').replace(/"/g, '""')}"`,
           `"${app.criticality || ''}"`,
           `"${app.cost || ''}"`,
           `"${app.functionalFit || ''}"`,
           `"${app.technicalFit || ''}"`,
+          `"${(app.timeRationale || '').replace(/"/g, '""')}"`,
           `"${caps}"`
         ];
 

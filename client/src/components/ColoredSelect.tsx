@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import * as Select from '@radix-ui/react-select';
-import { Check, ChevronDown, Search } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Search } from 'lucide-react';
 
 interface Option {
   value: string;
   label: string;
   description?: string;
   color?: string;
+  detail?: string;
+  depth?: number;
+  parentValue?: string;
 }
 
 interface ColoredSelectProps {
@@ -37,6 +40,45 @@ const Dot = ({ color }: { color: string }) => (
 // Radix Select cannot use empty-string values; we map "" <-> EMPTY_TOKEN internally.
 const EMPTY_TOKEN = '__empty__';
 
+const optionText = (option: Option) => [option.label, option.detail, option.description].filter(Boolean).join(' ').toLowerCase();
+
+function filterOptions(options: Option[], query: string): Option[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return options;
+  const hasTree = options.some((option) => option.depth != null || option.parentValue);
+  if (!hasTree) return options.filter((option) => optionText(option).includes(needle));
+
+  const byValue = new Map(options.filter((option) => option.value).map((option) => [option.value, option]));
+  const children = new Map<string, Option[]>();
+  for (const option of options) {
+    if (!option.value) continue;
+    const parent = option.parentValue ?? '';
+    const list = children.get(parent) ?? [];
+    list.push(option);
+    children.set(parent, list);
+  }
+  const visible = new Set<string>();
+  const expanded = new Set<string>();
+  const includeDescendants = (id: string) => {
+    if (expanded.has(id)) return;
+    expanded.add(id);
+    visible.add(id);
+    for (const child of children.get(id) ?? []) includeDescendants(child.value);
+  };
+  for (const option of options) {
+    if (!option.value || !optionText(option).includes(needle)) continue;
+    includeDescendants(option.value);
+    const seen = new Set<string>();
+    let parent = option.parentValue;
+    while (parent && byValue.has(parent) && !seen.has(parent)) {
+      seen.add(parent);
+      visible.add(parent);
+      parent = byValue.get(parent)?.parentValue;
+    }
+  }
+  return options.filter((option) => option.value ? visible.has(option.value) : optionText(option).includes(needle));
+}
+
 export const ColoredSelect = ({
   value,
   onChange,
@@ -65,9 +107,12 @@ export const ColoredSelect = ({
     }
   }, [open, searchable]);
 
-  const filteredOptions = searchable && query
-    ? options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()))
-    : options;
+  const filteredOptions = (() => {
+    const matched = filterOptions(options, searchable ? query : '');
+    if (!value || matched.some((option) => option.value === value)) return matched;
+    const current = options.find((option) => option.value === value);
+    return current ? [current, ...matched] : matched;
+  })();
 
   return (
     <>
@@ -112,8 +157,11 @@ export const ColoredSelect = ({
               soon as options change.
             */}
             {selected ? (
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {selected.label}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0, overflow: 'hidden' }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selected.label}</span>
+                {selected.detail ? (
+                  <span style={{ flexShrink: 0, color: 'var(--muted-foreground)', fontSize: '0.75rem', fontWeight: 600 }}>{selected.detail}</span>
+                ) : null}
               </span>
             ) : value ? (
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
@@ -169,6 +217,7 @@ export const ColoredSelect = ({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
                   style={{
                     border: 'none',
                     outline: 'none',
@@ -196,8 +245,9 @@ export const ColoredSelect = ({
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.75rem',
-                      padding: '0.6rem 0.85rem',
+                      gap: '0.5rem',
+                      padding: '0.55rem 0.75rem',
+                      paddingLeft: `${0.75 + (o.depth ?? 0) * 0.9}rem`,
                       borderRadius: 'var(--radius)',
                       fontSize: '0.875rem',
                       color: 'var(--foreground)',
@@ -209,9 +259,13 @@ export const ColoredSelect = ({
                     className="row-hover"
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+                        {(o.depth ?? 0) > 0 ? <ChevronRight size={12} style={{ color: 'var(--muted-foreground)', flexShrink: 0 }} /> : null}
                         {hasAnyColors ? (o.color ? <Dot color={o.color} /> : <span style={{ width: 10, flexShrink: 0 }} />) : null}
                         <Select.ItemText>{o.label}</Select.ItemText>
+                        {o.detail ? (
+                          <span style={{ marginLeft: 'auto', flexShrink: 0, fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.02em', color: 'var(--muted-foreground)' }}>{o.detail}</span>
+                        ) : null}
                       </div>
                       {o.description && (
                         <div style={{ 
@@ -224,7 +278,7 @@ export const ColoredSelect = ({
                         </div>
                       )}
                     </div>
-                    <Select.ItemIndicator style={{ marginLeft: 'auto', flexShrink: 0 }}>
+                    <Select.ItemIndicator style={{ flexShrink: 0 }}>
                       <Check size={14} />
                     </Select.ItemIndicator>
                   </Select.Item>

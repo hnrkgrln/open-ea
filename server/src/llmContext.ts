@@ -42,11 +42,15 @@ export type PortfolioSnapshot = {
     contractStartDate: Date | null;
     contractEndDate: Date | null;
     contractDetails: string | null;
+    vendorName: string | null;
+    vendorUrl: string | null;
+    vendorSummary: string | null;
     type: string | null;
     criticality: string | null;
     cost: string | null;
     functionalFit: string | null;
     technicalFit: string | null;
+    timeRationale: string | null;
     metadata: string | null;
     references: string | null;
     ownerOrg: Named | null;
@@ -242,6 +246,9 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
       field('owner', app.owner),
       field('organization', app.ownerOrg?.name),
       lifecycle,
+      field('vendor', app.vendorName),
+      field('vendor home page', app.vendorUrl),
+      field('vendor summary', note(app.vendorSummary)),
       field('contract', dateSpan(app.contractStartDate, app.contractEndDate)),
       field('contract note', note(app.contractDetails)),
       field('cost', app.cost),
@@ -249,6 +256,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
       field('functional fit', app.functionalFit),
       field('technical fit', app.technicalFit),
       field('TIME', timeLabel(app.functionalFit, app.technicalFit, cutoffs)),
+      field('TIME rationale', note(app.timeRationale)),
       field('capabilities', sortedNames(app.capabilities)),
       ...customFields('Application', app.metadata, snapshot.metadataDefinitions),
       field('description', note(app.description)),
@@ -302,7 +310,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
     'This is the full current portfolio, not a sample.',
     `Scores run from 1 to 5. A missing functional fit or technical fit is treated as 3. TIME treats technical fit ${techHigh} or above, and functional fit ${funcHigh} or above, as high: Invest when both are high, Migrate when only functional fit is high, Tolerate when only technical fit is high, Eliminate when both are low. TIME is omitted when both scores are missing.`,
     'Custom attributes are listed only when a value is stored.',
-    ...(includeNotes ? [] : ['Descriptions, contract notes, aliases, and reference lists were omitted because the snapshot was too long.']),
+    ...(includeNotes ? [] : ['Descriptions, contract notes, vendor summaries, TIME rationales, aliases, and reference lists were omitted because the snapshot was too long.']),
     '',
     section('Applications', applicationLines),
     '',
@@ -330,11 +338,15 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
         contractStartDate: true,
         contractEndDate: true,
         contractDetails: true,
+        vendorName: true,
+        vendorUrl: true,
+        vendorSummary: true,
         type: true,
         criticality: true,
         cost: true,
         functionalFit: true,
         technicalFit: true,
+        timeRationale: true,
         metadata: true,
         references: true,
         ownerOrg: { select: { name: true } },

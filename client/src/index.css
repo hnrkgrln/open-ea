@@ -486,6 +486,139 @@ button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   border: 1px solid var(--border);
 }
 
+.app-suggest {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-focus) 6%, var(--card));
+}
+
+.app-suggest-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brand-focus);
+}
+
+.app-suggest-help,
+.app-suggest-note {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--muted-foreground);
+}
+
+.app-suggest-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--destructive);
+}
+
+.app-suggest-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.app-suggest-results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.app-suggest-proposal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.app-suggest-proposal p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.app-suggest-sources {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.app-suggest-sources a {
+  color: var(--brand-focus);
+}
+
+.app-vendor {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-focus) 6%, var(--card));
+}
+
+.app-vendor .field {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.app-vendor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.app-vendor-heading > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.app-vendor-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.app-vendor a {
+  color: var(--brand-focus);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.app-vendor p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.app-vendor-name {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.app-vendor-note {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+}
+
 .chat-pending {
   margin: 0;
   font-size: 0.75rem;

@@ -1,8 +1,10 @@
+import 'dotenv/config';
 import { fastify } from 'fastify';
 import { fastifyCors } from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
+import { suggestApplicationFields } from './applicationSuggestions.js';
 import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
@@ -22,6 +24,79 @@ const parseCrit = (v: string | null | undefined) => {
   const n = Number(v ?? '');
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
+
+function normalizeTimeRationale(value: string | null | undefined): string | null {
+  const text = (value ?? '').trim();
+  return text.length > 0 ? text : null;
+}
+
+const VENDOR_META_KEYS = ['_vendorName', '_vendorUrl', '_vendorSummary'] as const;
+
+function isPublicHttpUrl(value: string): boolean {
+  if (!/^https?:\/\//i.test(value)) return false;
+  try {
+    const parsed = new URL(value);
+    return !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function readEmbeddedVendor(metadata: string | null | undefined): { name: string; url: string; summary: string } | null {
+  if (!metadata) return null;
+  try {
+    const parsed = JSON.parse(metadata) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const record = parsed as Record<string, unknown>;
+    const name = typeof record._vendorName === 'string' ? record._vendorName.trim() : '';
+    const url = typeof record._vendorUrl === 'string' ? record._vendorUrl.trim() : '';
+    const summary = typeof record._vendorSummary === 'string' ? record._vendorSummary.trim() : '';
+    if (!name || !isPublicHttpUrl(url) || !summary) return null;
+    return { name, url, summary };
+  } catch {
+    return null;
+  }
+}
+
+function stripEmbeddedVendor(metadata: string): string {
+  try {
+    const parsed = JSON.parse(metadata) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return metadata;
+    const record = parsed as Record<string, unknown>;
+    for (const key of VENDOR_META_KEYS) delete record[key];
+    return JSON.stringify(record);
+  } catch {
+    return metadata;
+  }
+}
+
+function applyStoredVendor(data: {
+  metadata?: string | null;
+  vendorName?: string | null;
+  vendorUrl?: string | null;
+  vendorSummary?: string | null;
+}) {
+  const embedded = readEmbeddedVendor(data.metadata);
+  if (typeof data.metadata === 'string') data.metadata = stripEmbeddedVendor(data.metadata);
+  const explicit = data.vendorName !== undefined || data.vendorUrl !== undefined || data.vendorSummary !== undefined;
+  if (!explicit && embedded) {
+    data.vendorName = embedded.name;
+    data.vendorUrl = embedded.url;
+    data.vendorSummary = embedded.summary;
+  }
+  if (data.vendorName !== undefined) {
+    const name = (data.vendorName ?? '').trim();
+    data.vendorName = name ? name.slice(0, 200) : null;
+  }
+  if (data.vendorUrl !== undefined) {
+    const url = (data.vendorUrl ?? '').trim();
+    data.vendorUrl = isPublicHttpUrl(url) ? url.slice(0, 500) : null;
+  }
+  if (data.vendorSummary !== undefined) {
+    const summary = (data.vendorSummary ?? '').trim();
+    data.vendorSummary = summary ? summary.slice(0, 1000) : null;
+  }
+}
 
 // Recompute the stored criticality of a capability based on its direct children.
 // Returns the (possibly-changed) criticality string. No-op for leaves.
@@ -251,11 +326,15 @@ server.post('/applications', {
       contractStartDate: z.string().datetime().optional().nullable(),
       contractEndDate: z.string().datetime().optional().nullable(),
       contractDetails: z.string().optional().nullable(),
+      vendorName: z.string().max(200).optional().nullable(),
+      vendorUrl: z.string().max(500).optional().nullable(),
+      vendorSummary: z.string().max(1000).optional().nullable(),
       type: z.string().optional(),
       criticality: z.string().optional(),
       cost: z.string().optional(),
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
+      timeRationale: z.string().max(2000).optional().nullable(),
       metadata: z.string().optional(),
       references: z.string().optional().nullable(),
       capabilityIds: z.array(z.string()).optional(),
@@ -265,6 +344,8 @@ server.post('/applications', {
 }, async (request) => {
   console.log('POST /applications - Body:', JSON.stringify(request.body));
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
+  if (data.timeRationale !== undefined) data.timeRationale = normalizeTimeRationale(data.timeRationale);
+  applyStoredVendor(data);
 
   // Filter for only existing capability IDs to prevent Prisma crash (P2025)
   let validIds: string[] = [];
@@ -326,11 +407,15 @@ server.put('/applications/:id', {
       contractStartDate: z.string().datetime().optional().nullable(),
       contractEndDate: z.string().datetime().optional().nullable(),
       contractDetails: z.string().optional().nullable(),
+      vendorName: z.string().max(200).optional().nullable(),
+      vendorUrl: z.string().max(500).optional().nullable(),
+      vendorSummary: z.string().max(1000).optional().nullable(),
       type: z.string().optional(),
       criticality: z.string().optional(),
       cost: z.string().optional(),
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
+      timeRationale: z.string().max(2000).optional().nullable(),
       metadata: z.string().optional(),
       references: z.string().optional().nullable(),
       capabilityIds: z.array(z.string()).optional(),
@@ -341,6 +426,8 @@ server.put('/applications/:id', {
   const { id } = request.params;
   console.log('PUT /applications/:id - Body:', JSON.stringify(request.body));
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
+  if (data.timeRationale !== undefined) data.timeRationale = normalizeTimeRationale(data.timeRationale);
+  applyStoredVendor(data);
 
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -1286,6 +1373,32 @@ server.post('/llm/ask', {
   }
 });
 
+server.post('/llm/application-suggestions', {
+  schema: {
+    body: z.object({
+      name: z.string().trim().min(2).max(200),
+      context: z.string().trim().max(2000).optional(),
+      description: z.string().max(4000).optional(),
+      contractDetails: z.string().max(4000).optional(),
+    }),
+  },
+}, async (request, reply) => {
+  const provider = await prisma.llmProvider.findFirst({ where: { isActive: true }, orderBy: { updatedAt: 'desc' } });
+  if (!provider) return reply.status(400).send({ error: 'No AI provider is active. Add one in Settings.' });
+  if (!provider.apiKey) return reply.status(400).send({ error: 'The active AI provider has no API key.' });
+  try {
+    const result = await suggestApplicationFields(prisma, provider, {
+      name: request.body.name,
+      context: request.body.context ?? '',
+      description: request.body.description ?? '',
+      contractDetails: request.body.contractDetails ?? '',
+    }, process.env.BRAVE_SEARCH_API_KEY ?? '');
+    return { ...result, providerName: provider.name, model: provider.model };
+  } catch (err) {
+    return sendLlmError(reply, err);
+  }
+});
+
 server.post('/llm/providers/:id/test', {
   schema: {
     params: z.object({ id: z.string() }),
@@ -1326,6 +1439,9 @@ server.get('/search', {
           { ownerOrg: { name: { contains: q, mode: 'insensitive' } } },
           { lifecycle: { contains: q, mode: 'insensitive' } },
           { type: { contains: q, mode: 'insensitive' } },
+          { vendorName: { contains: q, mode: 'insensitive' } },
+          { vendorSummary: { contains: q, mode: 'insensitive' } },
+          { timeRationale: { contains: q, mode: 'insensitive' } },
           { metadata: { contains: q, mode: 'insensitive' } },
         ],
       },

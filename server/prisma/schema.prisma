@@ -19,11 +19,15 @@ model Application {
   contractStartDate  DateTime?
   contractEndDate    DateTime?
   contractDetails    String?
+  vendorName    String?
+  vendorUrl     String?
+  vendorSummary String?
   type          String?
   criticality   String?       @default("3")
   cost          String?       @default("1")
   functionalFit String?       @default("3")
   technicalFit  String?       @default("3")
+  timeRationale String?
   metadata      String?
   references    String?
   createdAt     DateTime      @default(now())

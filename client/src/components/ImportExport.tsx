@@ -50,7 +50,7 @@ interface ImportExportProps {
 }
 
 const CSV_HEADERS: Record<ArtifactType, string[]> = {
-  applications: ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'type', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'],
+  applications: ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'vendorName', 'vendorUrl', 'vendorSummary', 'type', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'timeRationale', 'metadata', 'capabilityIds'],
   capabilities: ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'],
   organizations: ['id', 'name', 'description', 'type', 'parentId'],
   'information-objects': ['id', 'name', 'aliases', 'description', 'confidentiality', 'integrity', 'availability', 'piiCategory', 'type', 'businessOwnerId', 'appOwnerId', 'metadata'],

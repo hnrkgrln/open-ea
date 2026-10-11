@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -7,7 +7,6 @@ import ReactFlow, {
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
-  useNodesInitialized,
   useReactFlow,
   type Node,
   type Edge,
@@ -311,19 +310,37 @@ const DiagramInner = ({ organizations, picklists }: { organizations: Organizatio
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => layoutOrgs(organizations, picklists), [organizations, picklists]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const { fitView } = useReactFlow();
-  const initialized = useNodesInitialized();
-  const fittedKey = useRef('');
+  const { fitView, getNodes } = useReactFlow();
+  const graphKey = organizations.map((org) => org.id).join('\0');
 
   useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
 
+  // Fit after the filtered nodes have been measured. A fit that runs before
+  // measurement leaves the previous viewport in place, so the chart looks unchanged.
   useEffect(() => {
-    const key = `${nodes.length}:${edges.length}`;
-    if (initialized && nodes.length > 0 && fittedKey.current !== key) {
-      fittedKey.current = key;
-      requestAnimationFrame(() => fitView({ padding: 0.2, duration: 200 }));
-    }
-  }, [initialized, nodes.length, edges.length, fitView]);
+    if (organizations.length === 0) return;
+    let cancelled = false;
+    let frames = 0;
+    const attempt = () => {
+      if (cancelled) return;
+      const current = getNodes();
+      const expected = new Set(organizations.map((org) => org.id));
+      const ready = current.length === expected.size && current.every((node) => expected.has(node.id) && node.width && node.height);
+      if (ready) {
+        fitView({ padding: 0.2, duration: 200 });
+        return;
+      }
+      if (frames < 40) {
+        frames += 1;
+        requestAnimationFrame(attempt);
+      }
+    };
+    const frame = requestAnimationFrame(attempt);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, [graphKey, organizations.length, fitView, getNodes]);
 
   return (
     <ReactFlow
