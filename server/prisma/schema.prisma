@@ -137,3 +137,21 @@ model PicklistOption {
   picklistId String
   picklist   Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
 }
+
+model LlmProvider {
+  id        String   @id @default(uuid())
+  name      String
+  provider  String
+  model     String
+  baseUrl   String
+  apiKey    String
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LlmSettings {
+  id           String   @id
+  systemPrompt String
+  updatedAt    DateTime @updatedAt
+}

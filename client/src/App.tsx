@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock, LayoutDashboard, Coins } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock, LayoutDashboard, Coins, Lightbulb } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -20,54 +20,15 @@ import { ThemeToggle } from './components/ThemeToggle';
 import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
-import { SearchInput, MultiSelect } from './components/FilterControls';
+import { FilterDot, SearchInput, MultiSelect } from './components/FilterControls';
 import { ColoredSelect } from './components/ColoredSelect';
 import { TimeDashboardView } from './components/TimeDashboardView';
+import { InsightsView } from './components/InsightsView';
+import { PortfolioChatProvider } from './components/PortfolioChat';
+import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 
-export const TIME_OPTIONS = [
-  { value: 'TOLERATE', label: 'Tolerate', color: '#228be6', bg: 'rgba(34, 139, 230, 0.12)', border: 'rgba(34, 139, 230, 0.3)' },
-  { value: 'INVEST', label: 'Invest', color: '#2b8a3e', bg: 'rgba(43, 138, 62, 0.12)', border: 'rgba(43, 138, 62, 0.3)' },
-  { value: 'MIGRATE', label: 'Migrate', color: '#e67700', bg: 'rgba(230, 119, 0, 0.12)', border: 'rgba(230, 119, 0, 0.3)' },
-  { value: 'ELIMINATE', label: 'Eliminate', color: '#c92a2a', bg: 'rgba(201, 42, 42, 0.12)', border: 'rgba(201, 42, 42, 0.3)' }
-];
-
-export interface TimeThresholds {
-  technicalFit: number;        // 1 to 5, default 3
-  functionalFit: number;       // 1 to 5, default 3
-  businessCriticality: number; // 1 to 5, default 4
-  cost: number;                // 1 to 5, default 4
-}
-
-export const DEFAULT_TIME_THRESHOLDS: TimeThresholds = {
-  technicalFit: 3,
-  functionalFit: 3,
-  businessCriticality: 4,
-  cost: 4,
-};
-
-export const getAppTimeAssessment = (app: any, thresholds: TimeThresholds = DEFAULT_TIME_THRESHOLDS) => {
-  const tech = Number(app?.technicalFit);
-  const func = Number(app?.functionalFit);
-  const hasTech = !isNaN(tech) && tech > 0;
-  const hasFunc = !isNaN(func) && func > 0;
-
-  if (!hasTech && !hasFunc) return null;
-
-  const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
-  const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
-  const isTechHigh = tVal >= (thresholds?.technicalFit ?? 3);
-  const isFuncHigh = fVal >= (thresholds?.functionalFit ?? 3);
-
-  if (!isTechHigh && isFuncHigh) {
-    return TIME_OPTIONS.find(o => o.value === 'MIGRATE')!;
-  } else if (isTechHigh && isFuncHigh) {
-    return TIME_OPTIONS.find(o => o.value === 'INVEST')!;
-  } else if (isTechHigh && !isFuncHigh) {
-    return TIME_OPTIONS.find(o => o.value === 'TOLERATE')!;
-  } else {
-    return TIME_OPTIONS.find(o => o.value === 'ELIMINATE')!;
-  }
-};
+export { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, readStoredTimeThresholds } from './timeAssessment';
+export type { TimeThresholds } from './timeAssessment';
 
 // Helper for safe JSON parsing
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -243,11 +204,13 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const isFullWidth = location.pathname.startsWith('/diagrams');
 
   return (
+    <PortfolioChatProvider>
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
       <header className="header" style={{ flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
-          <Link to="/apps" className="logo" style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
+          <Link to="/insights" className="logo" style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav" style={{ gap: '1.25rem' }}>
+            <NavLink to="/insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /> Insights</NavLink>
             <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Database size={16} /> Applications</NavLink>
             <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Boxes size={16} /> Capabilities</NavLink>
             <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Layers size={16} /> Organizations</NavLink>
@@ -268,6 +231,7 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
         {children}
       </main>
     </div>
+    </PortfolioChatProvider>
   );
 };
 
@@ -392,8 +356,18 @@ const AppContent = () => {
   return (
     <Layout brandName={brandName} onRefresh={handleRefresh}>
       <Routes>
-        <Route path="/" element={<Navigate to="/apps" replace />} />
-        
+        <Route path="/" element={<Navigate to="/insights" replace />} />
+        <Route path="/insights" element={
+          <InsightsView
+            apps={apps || []}
+            capabilities={capabilities || []}
+            organizations={organizations || []}
+            informationObjects={informationObjects || []}
+            integrations={integrations || []}
+            thresholds={timeThresholds}
+          />
+        } />
+
         {/* Application Routes */}
         <Route path="/apps" element={
           <InventoryView
@@ -529,30 +503,6 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
   ];
   const customRangeFields = appMetaDefs.filter(d => d.fieldType === 'range' && !['criticality', 'cost', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [];
   const allRangeFields = [...scoreFields, ...customRangeFields];
-
-  const getTimeAssessment = (app: any, effectiveCrit?: string | number) => {
-    const tech = Number(app?.technicalFit);
-    const func = Number(app?.functionalFit);
-    const hasTech = !isNaN(tech) && tech > 0;
-    const hasFunc = !isNaN(func) && func > 0;
-
-    if (!hasTech && !hasFunc) return null;
-
-    const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
-    const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
-    const isTechHigh = tVal >= 3;
-    const isFuncHigh = fVal >= 3;
-
-    if (!isTechHigh && isFuncHigh) {
-      return { value: 'MIGRATE', label: 'Migrate', color: '#e67700', bg: 'rgba(230, 119, 0, 0.12)', border: 'rgba(230, 119, 0, 0.3)' };
-    } else if (isTechHigh && isFuncHigh) {
-      return { value: 'INVEST', label: 'Invest', color: '#2b8a3e', bg: 'rgba(43, 138, 62, 0.12)', border: 'rgba(43, 138, 62, 0.3)' };
-    } else if (isTechHigh && !isFuncHigh) {
-      return { value: 'TOLERATE', label: 'Tolerate', color: '#228be6', bg: 'rgba(34, 139, 230, 0.12)', border: 'rgba(34, 139, 230, 0.3)' };
-    } else {
-      return { value: 'ELIMINATE', label: 'Eliminate', color: '#c92a2a', bg: 'rgba(201, 42, 42, 0.12)', border: 'rgba(201, 42, 42, 0.3)' };
-    }
-  };
 
   // Active applications (excluding decommissioned)
   const activeApps = useMemo(() => {
@@ -706,7 +656,16 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.2rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}><Filter size={16} style={{ marginRight: '0.4rem' }} /> Filters</button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-label={isAnyFilterActive ? 'Filters, applied' : 'Filters'}
+            style={{ position: 'relative', height: '2.2rem', padding: isAnyFilterActive ? '0 1.15rem 0 0.6rem' : '0 0.6rem', border: `1px solid ${isAnyFilterActive ? 'var(--brand-focus)' : 'var(--border)'}`, background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}
+          >
+            <Filter size={16} style={{ marginRight: '0.4rem', color: isAnyFilterActive ? 'var(--brand-focus)' : undefined }} />
+            Filters
+            {isAnyFilterActive && <FilterDot badge />}
+          </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button title="TIME Dashboard" onClick={() => setViewMode('dashboard')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'dashboard' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'dashboard' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutDashboard size={16} /></button>
             <button title="Grid View" onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
@@ -792,7 +751,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
               ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities!.map(c => c.id))))
               : String(app.criticality || 1);
 
-            const timeInfo = getTimeAssessment(app, inheritedCrit);
+            const timeInfo = getAppTimeAssessment(app, timeThresholds);
 
             return (
               <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', padding: '0.75rem' }}>
@@ -890,7 +849,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
                 ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities!.map(c => c.id))))
                 : String(app.criticality || 1);
 
-              const timeInfo = getTimeAssessment(app, inheritedCrit);
+              const timeInfo = getAppTimeAssessment(app, timeThresholds);
 
               return (
                 <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -1536,6 +1495,12 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
   }, [apps, filters, capabilities, integrations, timeThresholds]);
 
+  const diagramFiltersActive = useMemo(() => {
+    const lists = [filters.owner, filters.lifecycle, filters.type, filters.capabilityId, filters.criticality, filters.cost, filters.functionalFit, filters.technicalFit, filters.time, filters.infoType];
+    const custom = Object.values(filters.custom || {}).some((vals) => vals.length > 0);
+    return filters.search !== '' || lists.some((vals) => vals.length > 0) || custom;
+  }, [filters]);
+
   const orphanCount = useMemo(() => {
     const appsWithIntegrations = new Set(integrations?.flatMap(i => [i.sourceAppId, i.targetAppId]));
     return filteredApps.filter(a => !appsWithIntegrations.has(a.id)).length;
@@ -1636,7 +1601,16 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
             )}
           </div>
           
-          <button onClick={() => setShowFilters(!showFilters)} style={{ height: '2.2rem', padding: '0 0.6rem', border: '1px solid var(--border)', background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}><Filter size={16} style={{ marginRight: '0.4rem' }} /> Filters</button>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            aria-expanded={showFilters}
+            aria-label={diagramFiltersActive ? 'Filters, applied' : 'Filters'}
+            style={{ position: 'relative', height: '2.2rem', padding: diagramFiltersActive ? '0 1.15rem 0 0.6rem' : '0 0.6rem', border: `1px solid ${diagramFiltersActive ? 'var(--brand-focus)' : 'var(--border)'}`, background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}
+          >
+            <Filter size={16} style={{ marginRight: '0.4rem', color: diagramFiltersActive ? 'var(--brand-focus)' : undefined }} />
+            Filters
+            {diagramFiltersActive && <FilterDot badge />}
+          </button>
         </div>
       </div>
       {showFilters && (
@@ -1730,6 +1704,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
           showCriticality={showCriticality} 
           filters={filters}
           groupingField={groupingField}
+          timeThresholds={timeThresholds}
           relationSearch={filters.search} 
           visible={isVisible}
         />

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { type TimeThresholds } from '../App';
+import { getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 
 export interface TimeAppItem {
   id: string;
@@ -116,53 +116,34 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
   }, [apps, singleApp]);
 
   const plots = useMemo(() => {
+    const assessed = appList.flatMap((app) => {
+      const assessment = getAppTimeAssessment(app, thresholds);
+      return assessment ? [{ app, assessment }] : [];
+    });
     const coordGroups: Record<string, TimeAppItem[]> = {};
-    appList.forEach(app => {
-      const tech = Number(app.technicalFit);
-      const func = Number(app.functionalFit);
-      const tVal = !isNaN(tech) && tech > 0 ? Math.max(1, Math.min(5, tech)) : 3;
-      const fVal = !isNaN(func) && func > 0 ? Math.max(1, Math.min(5, func)) : 3;
-      const key = `${tVal}_${fVal}`;
+    assessed.forEach(({ app, assessment }) => {
+      const key = `${assessment.techScore}_${assessment.funcScore}`;
       if (!coordGroups[key]) coordGroups[key] = [];
       coordGroups[key].push(app);
     });
 
-    return appList.map(app => {
-      const tech = Number(app.technicalFit);
-      const func = Number(app.functionalFit);
+    return assessed.map(({ app, assessment }) => {
       const crit = Number(app.criticality);
       const cost = Number(app.cost);
-
-      const hasTech = !isNaN(tech) && tech > 0;
-      const hasFunc = !isNaN(func) && func > 0;
       const hasCrit = !isNaN(crit) && crit > 0;
       const hasCost = !isNaN(cost) && cost > 0;
 
-      const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
-      const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
+      const tVal = assessment.techScore;
+      const fVal = assessment.funcScore;
       const cVal = hasCrit ? Math.max(1, Math.min(5, crit)) : 3;
       const costVal = hasCost ? Math.max(1, Math.min(5, cost)) : 1;
 
-      const isTechHigh = tVal >= techCutoff;
-      const isFuncHigh = fVal >= funcCutoff;
+      const isTechHigh = assessment.isTechHigh;
+      const isFuncHigh = assessment.isFuncHigh;
       const isHighCost = costVal >= costCutoff;
       const isMissionCritical = cVal >= critCutoff;
-
-      let quadrant: 'INVEST' | 'MIGRATE' | 'TOLERATE' | 'ELIMINATE';
-      let color = '#2b8a3e';
-      if (!isTechHigh && isFuncHigh) {
-        quadrant = 'MIGRATE';
-        color = '#e67700';
-      } else if (isTechHigh && isFuncHigh) {
-        quadrant = 'INVEST';
-        color = '#2b8a3e';
-      } else if (isTechHigh && !isFuncHigh) {
-        quadrant = 'TOLERATE';
-        color = '#228be6';
-      } else {
-        quadrant = 'ELIMINATE';
-        color = '#c92a2a';
-      }
+      const quadrant = assessment.value;
+      const color = assessment.color;
 
       // Bubble size dynamically scales with business criticality and threshold:
       // Applications meeting or exceeding critCutoff are given elevated mission-critical visual weighting

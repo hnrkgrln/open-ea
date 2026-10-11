@@ -3,6 +3,9 @@ import { fastifyCors } from '@fastify/cors';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
+import { linkApplicationMentions } from './appLinks.js';
+import { buildPortfolioContext } from './llmContext.js';
+import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
 
 const prisma = new PrismaClient();
 const server = fastify().withTypeProvider<ZodTypeProvider>();
@@ -1095,6 +1098,213 @@ server.delete('/metadata-definitions/:id', {
     // 3. Delete the definition
     return tx.metadataDefinition.delete({ where: { id } });
   });
+});
+
+// LLM providers. API keys stay in the database and are never returned.
+const llmProviderFields = {
+  name: z.string().trim().min(1).max(120),
+  provider: z.enum(LLM_PROVIDER_IDS),
+  model: z.string().trim().min(1).max(200),
+  baseUrl: z.string().trim().min(1).max(300).refine((value) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'http:' || url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }, 'Base URL must be an http(s) URL'),
+};
+
+const llmWriteBody = z.object({
+  ...llmProviderFields,
+  apiKey: z.string().trim().min(1).max(500),
+  isActive: z.boolean().optional(),
+});
+
+function sendLlmError(reply: any, err: unknown) {
+  if (err instanceof LlmError) {
+    return reply.status(err.status).send({ error: err.message });
+  }
+  const message = err instanceof Error ? err.message : 'LLM request failed';
+  return reply.status(502).send({ error: message });
+}
+
+function llmSettingsView(systemPrompt: string) {
+  return {
+    systemPrompt,
+    defaultSystemPrompt: DEFAULT_SYSTEM_PROMPT,
+    customized: systemPrompt !== DEFAULT_SYSTEM_PROMPT,
+  };
+}
+
+async function currentSystemPrompt() {
+  const row = await prisma.llmSettings.findUnique({ where: { id: LLM_SETTINGS_ID } });
+  return row?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
+}
+
+server.get('/llm/settings', async () => {
+  return llmSettingsView(await currentSystemPrompt());
+});
+
+server.put('/llm/settings', {
+  schema: {
+    body: z.object({
+      systemPrompt: z.string().max(20000),
+    }),
+  },
+}, async (request) => {
+  const systemPrompt = request.body.systemPrompt.replace(/\r\n/g, '\n').trim();
+  const row = await prisma.llmSettings.upsert({
+    where: { id: LLM_SETTINGS_ID },
+    create: { id: LLM_SETTINGS_ID, systemPrompt },
+    update: { systemPrompt },
+  });
+  return llmSettingsView(row.systemPrompt);
+});
+
+server.get('/llm/providers', async () => {
+  const rows = await prisma.llmProvider.findMany({ orderBy: { createdAt: 'asc' } });
+  return rows.map(toPublicLlmProvider);
+});
+
+server.post('/llm/providers', {
+  schema: { body: llmWriteBody },
+}, async (request) => {
+  const count = await prisma.llmProvider.count();
+  const makeActive = request.body.isActive === true || (request.body.isActive === undefined && count === 0);
+  if (makeActive) {
+    await prisma.llmProvider.updateMany({ data: { isActive: false } });
+  }
+  const created = await prisma.llmProvider.create({
+    data: {
+      name: request.body.name,
+      provider: request.body.provider,
+      model: request.body.model,
+      baseUrl: request.body.baseUrl,
+      apiKey: request.body.apiKey,
+      isActive: makeActive,
+    },
+  });
+  return toPublicLlmProvider(created);
+});
+
+server.patch('/llm/providers/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: llmWriteBody.partial().refine((body) => Object.keys(body).length > 0, 'No changes submitted'),
+  },
+}, async (request, reply) => {
+  const existing = await prisma.llmProvider.findUnique({ where: { id: request.params.id } });
+  if (!existing) return reply.status(404).send({ error: 'LLM provider not found' });
+
+  const data: {
+    name?: string;
+    provider?: string;
+    model?: string;
+    baseUrl?: string;
+    apiKey?: string;
+    isActive?: boolean;
+  } = {};
+  if (request.body.name !== undefined) data.name = request.body.name;
+  if (request.body.provider !== undefined) data.provider = request.body.provider;
+  if (request.body.model !== undefined) data.model = request.body.model;
+  if (request.body.baseUrl !== undefined) data.baseUrl = request.body.baseUrl;
+  if (request.body.apiKey) data.apiKey = request.body.apiKey;
+  if (request.body.isActive === true) {
+    await prisma.llmProvider.updateMany({ data: { isActive: false } });
+    data.isActive = true;
+  } else if (request.body.isActive === false) {
+    data.isActive = false;
+  }
+
+  const updated = await prisma.llmProvider.update({ where: { id: existing.id }, data });
+  return toPublicLlmProvider(updated);
+});
+
+server.delete('/llm/providers/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  try {
+    await prisma.llmProvider.delete({ where: { id: request.params.id } });
+    return { ok: true };
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'LLM provider not found' });
+    throw err;
+  }
+});
+
+server.post('/llm/providers/:id/activate', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  const existing = await prisma.llmProvider.findUnique({ where: { id: request.params.id } });
+  if (!existing) return reply.status(404).send({ error: 'LLM provider not found' });
+  await prisma.llmProvider.updateMany({ data: { isActive: false } });
+  const updated = await prisma.llmProvider.update({
+    where: { id: existing.id },
+    data: { isActive: true },
+  });
+  return toPublicLlmProvider(updated);
+});
+
+const llmTurn = z.discriminatedUnion('role', [
+  z.object({ role: z.literal('user'), content: z.string().trim().min(1).max(4000) }),
+  z.object({ role: z.literal('assistant'), content: z.string().trim().min(1).max(20000) }),
+]);
+
+const timeCutoffs = z.object({
+  technicalFit: z.number().min(1).max(5),
+  functionalFit: z.number().min(1).max(5),
+}).optional();
+
+server.post('/llm/ask', {
+  schema: {
+    body: z.object({
+      messages: z.array(llmTurn).min(1).max(12),
+      timeThresholds: timeCutoffs,
+    }),
+  },
+}, async (request, reply) => {
+  const messages = request.body.messages;
+  for (let index = 0; index < messages.length; index++) {
+    const expected = index % 2 === 0 ? 'user' : 'assistant';
+    if (messages[index]?.role !== expected) {
+      return reply.status(400).send({ error: 'Questions and answers must alternate, starting with a question.' });
+    }
+  }
+  const provider = await prisma.llmProvider.findFirst({ where: { isActive: true }, orderBy: { updatedAt: 'desc' } });
+  if (!provider) return reply.status(400).send({ error: 'No AI provider is active. Add one in Settings.' });
+  try {
+    const [systemPrompt, workspaceContext, applications] = await Promise.all([
+      currentSystemPrompt(),
+      buildPortfolioContext(prisma, request.body.timeThresholds),
+      prisma.application.findMany({ select: { id: true, name: true } }),
+    ]);
+    const text = await completeConversation(provider, messages, systemPrompt, workspaceContext, 2048);
+    return { text: linkApplicationMentions(text, applications), providerName: provider.name, model: provider.model };
+  } catch (err) {
+    return sendLlmError(reply, err);
+  }
+});
+
+server.post('/llm/providers/:id/test', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      prompt: z.string().trim().max(4000).optional(),
+      timeThresholds: timeCutoffs,
+    }).optional(),
+  },
+}, async (request, reply) => {
+  const existing = await prisma.llmProvider.findUnique({ where: { id: request.params.id } });
+  if (!existing) return reply.status(404).send({ error: 'LLM provider not found' });
+  const prompt = request.body?.prompt?.trim() || defaultTestPrompt();
+  try {
+    const workspaceContext = questionNeedsPortfolio(prompt) ? await buildPortfolioContext(prisma, request.body?.timeThresholds) : undefined;
+    const text = await completeLlm(existing, prompt, await currentSystemPrompt(), workspaceContext);
+    return { text };
+  } catch (err) {
+    return sendLlmError(reply, err);
+  }
 });
 
 // Unified Search API

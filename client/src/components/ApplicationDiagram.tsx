@@ -21,6 +21,7 @@ import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { toPng } from 'html-to-image';
 import { Database, Boxes, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-react';
+import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -123,6 +124,7 @@ interface Props {
   relationSearch?: string;
   visible?: boolean;
   containerRef?: React.RefObject<HTMLDivElement | null>;
+  timeThresholds?: TimeThresholds;
 }
 
 const STANDARD_DEFS: MetadataDefinition[] = [
@@ -160,26 +162,11 @@ const TIME_STAGES = [
   { value: 'ELIMINATE', label: 'Eliminate', color: '#c92a2a', lightColor: 'rgba(201, 42, 42, 0.15)' },
 ];
 
-const getTimeValueForApp = (app: Application) => {
-  const tech = Number(app.technicalFit);
-  const func = Number(app.functionalFit);
-  const hasTech = !isNaN(tech) && tech > 0;
-  const hasFunc = !isNaN(func) && func > 0;
-  if (!hasTech && !hasFunc) return null;
+const getTimeValueForApp = (app: Application, thresholds: TimeThresholds = DEFAULT_TIME_THRESHOLDS) =>
+  getAppTimeAssessment(app, thresholds)?.value ?? null;
 
-  const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
-  const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
-  const isTechHigh = tVal >= 3;
-  const isFuncHigh = fVal >= 3;
-
-  if (!isTechHigh && isFuncHigh) return 'MIGRATE';
-  if (isTechHigh && isFuncHigh) return 'INVEST';
-  if (isTechHigh && !isFuncHigh) return 'TOLERATE';
-  return 'ELIMINATE';
-};
-
-const getTimeColor = (app: Application, isDark: boolean) => {
-  const timeVal = getTimeValueForApp(app);
+const getTimeColor = (app: Application, isDark: boolean, thresholds: TimeThresholds = DEFAULT_TIME_THRESHOLDS) => {
+  const timeVal = getTimeValueForApp(app, thresholds);
   if (!timeVal) return { bg: isDark ? '#2c2e33' : '#f1f3f5', text: 'var(--foreground)' };
   const stage = TIME_STAGES.find(s => s.value === timeVal);
   if (!stage) return { bg: isDark ? '#2c2e33' : '#f1f3f5', text: 'var(--foreground)' };
@@ -476,7 +463,8 @@ const DiagramInner = ({
   groupingField = null,
   relationSearch = '',
   visible = false,
-  containerRef
+  containerRef,
+  timeThresholds = DEFAULT_TIME_THRESHOLDS,
 }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -739,7 +727,7 @@ const DiagramInner = ({
         return String(getAppScore(app, 'technicalFit', def));
       }
       if (field === 'time') {
-        return getTimeValueForApp(app) || 'Unassessed';
+        return getTimeValueForApp(app, timeThresholds) || 'Unassessed';
       }
       const val = (app as any)[field] || safeJsonParse(app.metadata)[field];
       return val ? String(val) : 'Unspecified';
@@ -835,7 +823,7 @@ const DiagramInner = ({
           const app = apps.find(a => a.id === id)!; if (!app) return;
           const dNode = g.node(id); let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark, picklists);
-          else if (activeOverlay === 'time') colors = getTimeColor(app, isDark);
+          else if (activeOverlay === 'time') colors = getTimeColor(app, isDark, timeThresholds);
           else {
             const overlayToUse = activeOverlay === 'criticality' ? appCritDef : appOverlayDef;
             if (overlayToUse) { colors = getOverlayColor(getAppScore(app, activeOverlay!, overlayToUse), overlayToUse, picklists); }
@@ -1050,7 +1038,7 @@ const DiagramInner = ({
             const c = i % appCols; const r = Math.floor(i / appCols);
             let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
             if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark, picklists);
-            else if (activeOverlay === 'time') colors = getTimeColor(app, isDark);
+            else if (activeOverlay === 'time') colors = getTimeColor(app, isDark, timeThresholds);
             else if (appOverlayDef) colors = getOverlayColor(getAppScore(app, activeOverlay!, appOverlayDef), appOverlayDef, picklists);
 
             groupNodes.push({
@@ -1117,7 +1105,7 @@ const DiagramInner = ({
 
           let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
           if (activeOverlay === 'lifecycle') colors = getLifecycleColor(app.lifecycle, isDark, picklists);
-          else if (activeOverlay === 'time') colors = getTimeColor(app, isDark);
+          else if (activeOverlay === 'time') colors = getTimeColor(app, isDark, timeThresholds);
           else if (appOverlayDef) colors = getOverlayColor(getAppScore(app, activeOverlay!, appOverlayDef), appOverlayDef, picklists);
 
           groupNodes.push({
@@ -1359,7 +1347,7 @@ const DiagramInner = ({
 
       setNodes(allFinalNodes); setEdges([]);
     }
-  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, windowWidth]);
+  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, windowWidth, timeThresholds]);
   useEffect(() => {
     const fitKey = `${nodes.length}-${visible}-${viewportWidth}-${mode}-${relationSearch}`;
     if (nodes.length > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== fitKey) {

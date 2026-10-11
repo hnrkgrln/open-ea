@@ -262,6 +262,7 @@ export const EditIntegrationPage = () => {
                     options={crudOptions}
                     selectedValues={formData.crud}
                     onChange={(vals) => setFormData({...formData, crud: vals})}
+                    markApplied={false}
                     placeholder="Select operations..."
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />

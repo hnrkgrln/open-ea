@@ -9,6 +9,7 @@ import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { TimeMatrix } from './TimeMatrix';
 import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '../App';
+import { getAppTimeAssessment } from '../timeAssessment';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -176,53 +177,48 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   }, [inheritedValue, formData.criticality]);
 
   const timeAssessment = useMemo(() => {
-    const tech = Number(formData.technicalFit);
-    const func = Number(formData.functionalFit);
     const crit = effectiveCriticality;
     const cost = Number(formData.cost);
-    const techCutoff = activeThresholds?.technicalFit ?? 3;
-    const funcCutoff = activeThresholds?.functionalFit ?? 3;
     const costCutoff = activeThresholds?.cost ?? 4;
     const critCutoff = activeThresholds?.businessCriticality ?? 4;
-
-    const isTechHigh = tech >= techCutoff;
-    const isFuncHigh = func >= funcCutoff;
     const isCostHigh = cost >= costCutoff;
     const isCritHigh = crit >= critCutoff;
+    const assessment = getAppTimeAssessment(
+      { technicalFit: formData.technicalFit, functionalFit: formData.functionalFit },
+      activeThresholds,
+    );
+    const copy = {
+      MIGRATE: { action: 'Modernize / Replatform', desc: 'High functional value, low technical fit' },
+      INVEST: { action: 'Grow / Expand', desc: 'High functional value, high technical fit' },
+      TOLERATE: { action: 'Retain / Maintain', desc: 'Low functional value, high technical fit' },
+      ELIMINATE: { action: 'Retire / Decommission', desc: 'Low functional value, low technical fit' },
+    } as const;
 
-    let quadrant: 'INVEST' | 'MIGRATE' | 'TOLERATE' | 'ELIMINATE';
-    let title: string;
-    let action: string;
-    let color: string;
-    let desc: string;
-
-    if (!isTechHigh && isFuncHigh) {
-      quadrant = 'MIGRATE';
-      title = 'Migrate';
-      action = 'Modernize / Replatform';
-      color = '#e67700';
-      desc = 'High functional value, low technical fit';
-    } else if (isTechHigh && isFuncHigh) {
-      quadrant = 'INVEST';
-      title = 'Invest';
-      action = 'Grow / Expand';
-      color = '#2b8a3e';
-      desc = 'High functional value, high technical fit';
-    } else if (isTechHigh && !isFuncHigh) {
-      quadrant = 'TOLERATE';
-      title = 'Tolerate';
-      action = 'Retain / Maintain';
-      color = '#228be6';
-      desc = 'Low functional value, high technical fit';
-    } else {
-      quadrant = 'ELIMINATE';
-      title = 'Eliminate';
-      action = 'Retire / Decommission';
-      color = '#c92a2a';
-      desc = 'Low functional value, low technical fit';
+    if (!assessment) {
+      return {
+        quadrant: null,
+        title: 'Unassessed',
+        action: 'Add fit scores',
+        color: 'var(--muted-foreground)',
+        desc: 'Functional fit and technical fit are both missing.',
+        isTechHigh: false,
+        isFuncHigh: false,
+        isCostHigh,
+        isCritHigh,
+      };
     }
 
-    return { quadrant, title, action, color, desc, isTechHigh, isFuncHigh, isCostHigh, isCritHigh };
+    return {
+      quadrant: assessment.value,
+      title: assessment.label,
+      action: copy[assessment.value].action,
+      color: assessment.color,
+      desc: copy[assessment.value].desc,
+      isTechHigh: assessment.isTechHigh,
+      isFuncHigh: assessment.isFuncHigh,
+      isCostHigh,
+      isCritHigh,
+    };
   }, [formData.technicalFit, formData.functionalFit, formData.cost, effectiveCriticality, activeThresholds]);
 
   const previewAppItem = useMemo(() => ({

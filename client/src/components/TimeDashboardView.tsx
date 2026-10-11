@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Database, ExternalLink, Filter, Layers, Info } from 'lucide-react';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
+import { getAppTimeAssessment } from '../timeAssessment';
 import { TimeMatrix, getTimeCoordinateX, getTimeCoordinateY, type PlottedApp } from './TimeMatrix';
 
 interface Application {
@@ -158,49 +159,30 @@ export const TimeDashboardView: React.FC<Props> = ({
 
   // Compute coordinate and TIME quadrant for each app
   const appPlots = useMemo(() => {
-    // Group apps by identical (techScore, funcScore) to jitter overlapping coordinates slightly
-    const coordGroups: Record<string, Application[]> = {};
+    const critCutoff = thresholds?.businessCriticality ?? 4;
+    const costCutoff = thresholds?.cost ?? 4;
+    const techCutoff = thresholds?.technicalFit ?? 3;
+    const funcCutoff = thresholds?.functionalFit ?? 3;
 
-    apps.forEach(app => {
-      const tech = Number(app.technicalFit);
-      const func = Number(app.functionalFit);
-      const tVal = !isNaN(tech) && tech > 0 ? Math.max(1, Math.min(5, tech)) : 3;
-      const fVal = !isNaN(func) && func > 0 ? Math.max(1, Math.min(5, func)) : 3;
-      const key = `${tVal}_${fVal}`;
+    const assessed = apps.flatMap((app) => {
+      const assessment = getAppTimeAssessment(app, thresholds);
+      return assessment ? [{ app, assessment }] : [];
+    });
+
+    const coordGroups: Record<string, Application[]> = {};
+    assessed.forEach(({ app, assessment }) => {
+      const key = `${assessment.techScore}_${assessment.funcScore}`;
       if (!coordGroups[key]) coordGroups[key] = [];
       coordGroups[key].push(app);
     });
 
-    const techCutoff = thresholds?.technicalFit ?? 3;
-    const funcCutoff = thresholds?.functionalFit ?? 3;
-    const critCutoff = thresholds?.businessCriticality ?? 4;
-    const costCutoff = thresholds?.cost ?? 4;
-
-    return apps.map(app => {
-      const tech = Number(app.technicalFit);
-      const func = Number(app.functionalFit);
-      const hasTech = !isNaN(tech) && tech > 0;
-      const hasFunc = !isNaN(func) && func > 0;
-      const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
-      const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
-      const isTechHigh = tVal >= techCutoff;
-      const isFuncHigh = fVal >= funcCutoff;
-
-      let quadrant: 'INVEST' | 'MIGRATE' | 'TOLERATE' | 'ELIMINATE';
-      let color = '#2b8a3e';
-      if (!isTechHigh && isFuncHigh) {
-        quadrant = 'MIGRATE';
-        color = '#e67700';
-      } else if (isTechHigh && isFuncHigh) {
-        quadrant = 'INVEST';
-        color = '#2b8a3e';
-      } else if (isTechHigh && !isFuncHigh) {
-        quadrant = 'TOLERATE';
-        color = '#228be6';
-      } else {
-        quadrant = 'ELIMINATE';
-        color = '#c92a2a';
-      }
+    return assessed.map(({ app, assessment }) => {
+      const tVal = assessment.techScore;
+      const fVal = assessment.funcScore;
+      const isTechHigh = assessment.isTechHigh;
+      const isFuncHigh = assessment.isFuncHigh;
+      const quadrant = assessment.value;
+      const color = assessment.color;
 
       const crit = getAppCriticality(app);
       const costNum = Number(app.cost);

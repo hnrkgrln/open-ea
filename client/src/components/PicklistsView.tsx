@@ -1,12 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight, Sliders, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight, Sliders, RotateCcw, Sparkles } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
 import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
 import { ColoredSelect } from './ColoredSelect';
 import { TimeMatrix } from './TimeMatrix';
+import { AiProvidersSettings } from './AiProvidersSettings';
+import { AiSystemPromptSettings } from './AiSystemPromptSettings';
 
 interface PicklistOption {
   id: string;
@@ -62,7 +64,7 @@ export const PicklistsView = ({
   onUpdateTimeThresholds: propOnUpdateTimeThresholds
 }: Props) => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useLocalStorage<'picklists' | 'metadata' | 'branding' | 'import-export' | 'time_thresholds'>('openea_settings_tab', 'picklists');
+  const [activeTab, setActiveTab] = useLocalStorage<'picklists' | 'metadata' | 'branding' | 'import-export' | 'time_thresholds' | 'ai' | 'ai-prompt'>('openea_settings_tab', 'picklists');
   const [selectedPicklistId, setSelectedPicklistId] = useLocalStorage<string | null>('openea_settings_picklist', null);
 
   const [localTimeThresholds, setLocalTimeThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
@@ -313,6 +315,42 @@ export const PicklistsView = ({
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="card" style={{ padding: '0.4rem', background: 'var(--card)' }}>
+            <div style={{ padding: '0.4rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 800, fontSize: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.2rem', paddingBottom: '0.6rem' }}>
+              <Sparkles size={14} /> AI
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+              <button
+                onClick={() => { setActiveTab('ai'); setSelectedPicklistId(null); }}
+                style={{
+                  width: '100%', justifyContent: 'flex-start', border: 'none',
+                  background: activeTab === 'ai' ? 'var(--accent)' : 'transparent',
+                  color: activeTab === 'ai' ? 'var(--foreground)' : 'var(--muted-foreground)',
+                  padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: activeTab === 'ai' ? 700 : 500,
+                  textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '0.4rem'
+                }}
+              >
+                <ChevronRight size={10} style={{ opacity: activeTab === 'ai' ? 1 : 0.3 }} />
+                Providers
+              </button>
+              <button
+                onClick={() => { setActiveTab('ai-prompt'); setSelectedPicklistId(null); }}
+                style={{
+                  width: '100%', justifyContent: 'flex-start', border: 'none',
+                  background: activeTab === 'ai-prompt' ? 'var(--accent)' : 'transparent',
+                  color: activeTab === 'ai-prompt' ? 'var(--foreground)' : 'var(--muted-foreground)',
+                  padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: activeTab === 'ai-prompt' ? 700 : 500,
+                  textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '0.4rem'
+                }}
+              >
+                <ChevronRight size={10} style={{ opacity: activeTab === 'ai-prompt' ? 1 : 0.3 }} />
+                System prompt
+              </button>
+            </div>
           </div>
 
           <div className="card" style={{ padding: '0.4rem' }}>
@@ -766,6 +804,10 @@ export const PicklistsView = ({
             </div>
           ) : activeTab === 'import-export' ? (
             <ImportExportSettings apps={apps} capabilities={capabilities} organizations={organizations} informationObjects={informationObjects} integrations={integrations} onRefresh={onRefresh} />
+          ) : activeTab === 'ai' ? (
+            <AiProvidersSettings />
+          ) : activeTab === 'ai-prompt' ? (
+            <AiSystemPromptSettings />
           ) : (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
               Select a configuration category from the sidebar.

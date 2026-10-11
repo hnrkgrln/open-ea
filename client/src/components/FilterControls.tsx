@@ -1,6 +1,10 @@
 import * as Popover from '@radix-ui/react-popover';
 import { Check, ChevronDown, X, Search } from 'lucide-react';
 
+export const FilterDot = ({ badge = false }: { badge?: boolean }) => (
+  <span className={badge ? 'filter-dot filter-dot-badge' : 'filter-dot'} aria-hidden="true" />
+);
+
 interface InlineFilterProps {
   value: string;
   onChange: (value: string) => void;
@@ -14,15 +18,18 @@ export const InlineFilter = ({ value, onChange, placeholder = 'Filter...', width
   const dims = size === 'md'
     ? { height: '2.5rem', iconSize: 18, iconLeft: '0.75rem', padLeft: '2.5rem', font: '0.9rem', xSize: 16 }
     : { height: '2.2rem', iconSize: 16, iconLeft: '0.6rem', padLeft: '1.85rem', font: '0.85rem', xSize: 14 };
+  const applied = value.trim().length > 0;
   return (
     <div style={{ position: 'relative', width }}>
-      <Search size={dims.iconSize} style={{ position: 'absolute', left: dims.iconLeft, top: '50%', transform: 'translateY(-50%)', opacity: 0.5, pointerEvents: 'none' }} />
+      <Search size={dims.iconSize} style={{ position: 'absolute', left: dims.iconLeft, top: '50%', transform: 'translateY(-50%)', opacity: applied ? 1 : 0.5, color: applied ? 'var(--brand-focus)' : undefined, pointerEvents: 'none' }} />
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        className={applied ? 'filter-applied' : undefined}
         style={{ paddingLeft: dims.padLeft, paddingRight: value ? '1.85rem' : '0.75rem', height: dims.height, fontSize: dims.font, marginTop: 0 }}
       />
+      {applied && <span className="filter-dot filter-dot-corner" aria-hidden="true" />}
       {value && (
         <button
           type="button"
@@ -48,7 +55,12 @@ interface SearchInputProps {
 export const SearchInput = ({ value, onChange, placeholder = "Search...", label, style }: SearchInputProps) => {
   return (
     <div className="field" style={{ margin: 0, position: 'relative', width: '100%' }}>
-      {label && <label className="label">{label}</label>}
+      {label && (
+        <label className="label" style={{ display: 'flex', alignItems: 'center' }}>
+          {label}
+          {value.trim() && <FilterDot />}
+        </label>
+      )}
       <div style={{ position: 'relative', marginTop: label ? '0.25rem' : 0 }}>
         <Search 
           size={18} 
@@ -57,7 +69,8 @@ export const SearchInput = ({ value, onChange, placeholder = "Search...", label,
             left: '0.85rem', 
             top: '50%', 
             transform: 'translateY(-50%)', 
-            opacity: 0.4, 
+            opacity: value.trim() ? 1 : 0.4,
+            color: value.trim() ? 'var(--brand-focus)' : undefined,
             pointerEvents: 'none' 
           }} 
         />
@@ -65,6 +78,7 @@ export const SearchInput = ({ value, onChange, placeholder = "Search...", label,
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          className={value.trim() ? 'filter-applied' : undefined}
           style={{ 
             paddingLeft: '2.75rem', 
             paddingRight: '2.5rem', 
@@ -74,6 +88,7 @@ export const SearchInput = ({ value, onChange, placeholder = "Search...", label,
             ...style 
           }}
         />
+        {!label && value.trim() && <span className="filter-dot filter-dot-corner" aria-hidden="true" />}
         {value && (
           <button
             onClick={() => onChange('')}
@@ -109,9 +124,11 @@ interface MultiSelectProps {
   onChange: (values: string[]) => void;
   placeholder?: string;
   style?: React.CSSProperties;
+  /** Form fields set this false. Filter dropdowns keep the applied dot. */
+  markApplied?: boolean;
 }
 
-export const MultiSelect = ({ label, options, selectedValues = [], onChange, placeholder = "Select...", style }: MultiSelectProps) => {
+export const MultiSelect = ({ label, options, selectedValues = [], onChange, placeholder = "Select...", style, markApplied = true }: MultiSelectProps) => {
   const safeSelectedValues = selectedValues || [];
   const toggleOption = (value: string) => {
     if (safeSelectedValues.includes(value)) {
@@ -131,13 +148,19 @@ export const MultiSelect = ({ label, options, selectedValues = [], onChange, pla
       ? selectedLabels.join(', ') 
       : `${selectedLabels.length} selected`;
 
+  const applied = markApplied && safeSelectedValues.length > 0;
+
   return (
     <div className="field" style={{ margin: 0 }}>
-      <label className="label">{label}</label>
+      <label className="label" style={{ display: 'flex', alignItems: 'center' }}>
+        {label}
+        {applied && <FilterDot />}
+      </label>
       <div style={{ position: 'relative', marginTop: '0.25rem' }}>
         <Popover.Root>
           <Popover.Trigger asChild>
             <button
+              className={applied ? 'filter-applied' : undefined}
               style={{
                 width: '100%',
                 justifyContent: 'space-between',

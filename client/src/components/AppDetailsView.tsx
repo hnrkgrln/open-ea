@@ -6,6 +6,7 @@ import { LifecycleBadge } from './LifecycleBadge';
 import { InlineFilter } from './FilterControls';
 import { ReferencesList } from './References';
 import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
+import { getAppTimeAssessment } from '../timeAssessment';
 import { TimeMatrix } from './TimeMatrix';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -62,17 +63,13 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
     };
   }, [app]);
 
-  // TIME Assessment Logic (Gartner TIME Framework)
+  // TIME quadrant comes from the shared assessment. Criticality and cost only change the wording.
   const timeAssessment = useMemo(() => {
-    const tech = Number(app?.technicalFit);
-    const func = Number(app?.functionalFit);
     const crit = Number(effectiveCriticality);
-
-    const hasTech = !isNaN(tech) && tech > 0;
-    const hasFunc = !isNaN(func) && func > 0;
     const hasCrit = !isNaN(crit) && crit > 0;
+    const assessment = getAppTimeAssessment(app, thresholds);
 
-    if (!hasTech && !hasFunc) {
+    if (!assessment) {
       return {
         quadrant: null,
         title: 'Unassessed',
@@ -90,85 +87,54 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
       };
     }
 
-    const tVal = hasTech ? Math.max(1, Math.min(5, tech)) : 3;
-    const fVal = hasFunc ? Math.max(1, Math.min(5, func)) : 3;
     const cVal = hasCrit ? Math.max(1, Math.min(5, crit)) : 3;
-
-    const techCutoff = thresholds?.technicalFit ?? 3;
-    const funcCutoff = thresholds?.functionalFit ?? 3;
     const critCutoff = thresholds?.businessCriticality ?? 4;
     const costCutoff = thresholds?.cost ?? 4;
-
     const costNum = Number(app?.cost);
     const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
     const isCostHigh = costVal >= costCutoff;
+    const missionCritical = cVal >= critCutoff;
 
-    const isTechHigh = tVal >= techCutoff;
-    const isFuncHigh = fVal >= funcCutoff;
-
-    let quadrant: 'TOLERATE' | 'INVEST' | 'MIGRATE' | 'ELIMINATE';
-    let title: string;
-    let action: string;
-    let description: string;
-    let color: string;
-    let bg: string;
-    let border: string;
-
-    if (!isTechHigh && isFuncHigh) {
-      quadrant = 'MIGRATE';
-      title = 'Migrate';
-      action = 'Modernize / Replatform';
-      description = cVal >= critCutoff
-        ? 'High business alignment on obsolete technical foundations. Urgent priority for modernization or cloud migration.'
-        : 'Good functional fit with aging technical architecture. Candidate for modernization or SaaS migration.';
-      color = '#e67700';
-      bg = 'rgba(230, 119, 0, 0.12)';
-      border = 'rgba(230, 119, 0, 0.35)';
-    } else if (isTechHigh && isFuncHigh) {
-      quadrant = 'INVEST';
-      title = 'Invest';
-      action = 'Grow / Expand';
-      description = cVal >= critCutoff
-        ? 'Mission-critical asset with superior technical health. Priority recipient for strategic investment and integration.'
-        : 'High technical stability and good user satisfaction. Continue expanding features and standardizing adoption.';
-      color = '#2b8a3e';
-      bg = 'rgba(43, 138, 62, 0.12)';
-      border = 'rgba(43, 138, 62, 0.35)';
-    } else if (isTechHigh && !isFuncHigh) {
-      quadrant = 'TOLERATE';
-      title = 'Tolerate';
-      action = 'Retain / Maintain';
-      description = isCostHigh
-        ? 'Technically sound but delivers limited functional return with elevated run costs. Evaluate renegotiation or consolidation.'
-        : 'Technically stable with limited functional scope. Maintain as-is with minimal discretionary spend.';
-      color = '#228be6';
-      bg = 'rgba(34, 139, 230, 0.12)';
-      border = 'rgba(34, 139, 230, 0.35)';
-    } else {
-      quadrant = 'ELIMINATE';
-      title = 'Eliminate';
-      action = 'Retire / Decommission';
-      description = isCostHigh
-        ? 'Low business utility, poor technical fit, and high ongoing costs. Prime candidate for contract termination or decommissioning.'
-        : 'Low business utility and poor technical health. Target for rationalization, decommission, or replacement.';
-      color = '#c92a2a';
-      bg = 'rgba(201, 42, 42, 0.12)';
-      border = 'rgba(201, 42, 42, 0.35)';
-    }
+    const story = {
+      MIGRATE: {
+        action: 'Modernize / Replatform',
+        description: missionCritical
+          ? 'High business alignment on obsolete technical foundations. Urgent priority for modernization or cloud migration.'
+          : 'Good functional fit with aging technical architecture. Candidate for modernization or SaaS migration.',
+      },
+      INVEST: {
+        action: 'Grow / Expand',
+        description: missionCritical
+          ? 'Mission-critical asset with superior technical health. Priority recipient for strategic investment and integration.'
+          : 'High technical stability and good user satisfaction. Continue expanding features and standardizing adoption.',
+      },
+      TOLERATE: {
+        action: 'Retain / Maintain',
+        description: isCostHigh
+          ? 'Technically sound but delivers limited functional return with elevated run costs. Evaluate renegotiation or consolidation.'
+          : 'Technically stable with limited functional scope. Maintain as-is with minimal discretionary spend.',
+      },
+      ELIMINATE: {
+        action: 'Retire / Decommission',
+        description: isCostHigh
+          ? 'Low business utility, poor technical fit, and high ongoing costs. Prime candidate for contract termination or decommissioning.'
+          : 'Low business utility and poor technical health. Target for rationalization, decommission, or replacement.',
+      },
+    }[assessment.value];
 
     return {
-      quadrant,
-      title,
-      action,
-      description,
-      color,
-      bg,
-      border,
-      techScore: tVal,
-      funcScore: fVal,
+      quadrant: assessment.value,
+      title: assessment.label,
+      action: story.action,
+      description: story.description,
+      color: assessment.color,
+      bg: assessment.bg,
+      border: assessment.border,
+      techScore: assessment.techScore,
+      funcScore: assessment.funcScore,
       critScore: cVal,
       costScore: costVal,
-      isCostHigh
+      isCostHigh,
     };
   }, [app, effectiveCriticality, thresholds]);
 

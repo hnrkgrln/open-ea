@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Search, Database, Boxes, X, FileText, Layers, Network, ArrowRight } from 'lucide-react';
+import { Search, Database, Boxes, X, FileText, Layers, Network, ArrowRight, Sparkles } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { ChatTranscript, useSearchPortfolioChat } from './PortfolioChat';
+import { activeLlmProvider, useLlmProviders } from './useLlmProviders';
 
 interface Props {}
 
@@ -11,8 +13,23 @@ export const UnifiedSearch = ({}: Props) => {
   const [open, setOpen] = useState(false);
   const [query, setQ] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-
   const [isMac, setIsMac] = useState(false);
+  const { messages, pending, error, ask, startNew, reset } = useSearchPortfolioChat();
+  const openRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const wasPending = useRef(false);
+  openRef.current = open;
+
+  const focusQuery = useCallback(() => {
+    if (!openRef.current) return;
+    inputRef.current?.focus({ preventScroll: true });
+  }, []);
+
+  useEffect(() => {
+    const was = wasPending.current;
+    wasPending.current = pending;
+    if (was && !pending) focusQuery();
+  }, [pending, focusQuery]);
 
   useEffect(() => {
     setIsMac(navigator.platform.toUpperCase().indexOf('MAC') >= 0);
@@ -27,6 +44,11 @@ export const UnifiedSearch = ({}: Props) => {
     },
     enabled: query.length > 1,
   });
+
+  const { data: providers } = useLlmProviders();
+  const activeProvider = activeLlmProvider(providers);
+  const question = query.trim();
+  const canAsk = Boolean(activeProvider) && question.length > 1 && question.length <= 4000;
 
   // Helper to score match relevance
   const getScore = (item: any, queryStr: string) => {
@@ -78,16 +100,25 @@ export const UnifiedSearch = ({}: Props) => {
     setSelectedIndex(0);
   }, [query, results]);
 
+  const openSearch = useCallback(() => {
+    if (openRef.current) return;
+    setQ('');
+    setSelectedIndex(0);
+    reset();
+    setOpen(true);
+  }, [reset]);
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
-        setOpen(open => !open);
+        if (openRef.current) setOpen(false);
+        else openSearch();
       }
     };
     document.addEventListener('keydown', down);
     return () => document.removeEventListener('keydown', down);
-  }, []);
+  }, [openSearch]);
 
   const closeAndSelect = useCallback((type: 'app' | 'cap' | 'org' | 'info' | 'integration', item: any) => {
     setOpen(false);
@@ -99,21 +130,47 @@ export const UnifiedSearch = ({}: Props) => {
     else if (type === 'integration') navigate(`/integrations/${item.id}`);
   }, [navigate]);
 
+  const askIndex = flatResults.length;
+  const optionCount = flatResults.length + (canAsk ? 1 : 0);
+  const hasAssistantAnswer = messages.some((message) => message.role === 'assistant');
+  const waitingForRecords = query.length > 1 && isLoading;
+  const showingRecords = query.length > 1 && !isLoading && flatResults.length > 0;
+  const answerFillsDialog = hasAssistantAnswer && !waitingForRecords && !showingRecords;
+
+  const askAi = useCallback(async () => {
+    if (!canAsk || pending) return;
+    const asked = question;
+    setQ('');
+    focusQuery();
+    const ok = await ask(asked);
+    if (!ok) setQ((current) => current.trim() ? current : asked);
+    focusQuery();
+  }, [ask, canAsk, focusQuery, pending, question]);
+
+  const beginNew = useCallback(async () => {
+    if (pending) return;
+    focusQuery();
+    await startNew(canAsk ? question : '');
+    focusQuery();
+  }, [canAsk, focusQuery, pending, question, startNew]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (flatResults.length === 0) return;
+    if (optionCount === 0) return;
 
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % flatResults.length);
+      setSelectedIndex((prev) => (prev + 1) % optionCount);
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + flatResults.length) % flatResults.length);
+      setSelectedIndex((prev) => (prev - 1 + optionCount) % optionCount);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const item = flatResults[selectedIndex];
-      if (item) {
-        closeAndSelect(item._type as any, item);
+      if (canAsk && selectedIndex === askIndex) {
+        askAi();
+        return;
       }
+      const item = flatResults[selectedIndex];
+      if (item) closeAndSelect(item._type as any, item);
     }
   };
 
@@ -128,7 +185,7 @@ export const UnifiedSearch = ({}: Props) => {
   return (
     <>
       <button 
-        onClick={() => setOpen(true)}
+        onClick={openSearch}
         className="secondary"
         style={{ height: '2.1rem', display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0 0.85rem', width: '280px', justifyContent: 'space-between' }}
       >
@@ -139,23 +196,25 @@ export const UnifiedSearch = ({}: Props) => {
         <kbd style={{ fontSize: '0.8rem', background: 'var(--muted)', padding: '0.15rem 0.4rem', borderRadius: '4px', opacity: 0.7 }}>{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
       </button>
 
-      <Dialog.Root open={open} onOpenChange={setOpen}>
+      <Dialog.Root open={open} onOpenChange={(next) => { if (next) openSearch(); else setOpen(false); }}>
         <Dialog.Portal>
           <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200 }} />
           <Dialog.Content style={{ 
             position: 'fixed', top: '10%', left: '50%', transform: 'translateX(-50%)',
             width: '95vw', maxWidth: '1100px', background: 'var(--card)', padding: '0',
             borderRadius: 'var(--radius)', zIndex: 250, border: '1px solid var(--border)',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            ...(answerFillsDialog ? { display: 'flex', flexDirection: 'column', height: '80vh' } : {}),
           }}>
             <Dialog.Title style={{ display: 'none' }}>Search</Dialog.Title>
             <Dialog.Description style={{ display: 'none' }}>Search for apps, owners, capabilities, information, or integrations.</Dialog.Description>
-            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
+            <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '1.25rem', alignItems: 'center', flexShrink: 0 }}>
               <Search size={28} style={{ color: 'var(--muted-foreground)' }} />
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
-                <input 
+                <input
+                  ref={inputRef}
                   autoFocus
-                  placeholder="Search apps, owners, capabilities, information, or integrations..."
+                  placeholder={messages.length > 0 ? 'Ask a follow-up, or search again...' : 'Search apps, owners, capabilities, information, or integrations...'}
                   value={query}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -190,15 +249,77 @@ export const UnifiedSearch = ({}: Props) => {
               </Dialog.Close>
             </div>
 
-            <div style={{ maxHeight: '70vh', overflowY: 'auto', padding: '1.25rem' }}>
-              {!query && (
+            <div style={{
+              maxHeight: answerFillsDialog ? undefined : '70vh',
+              overflowY: answerFillsDialog ? 'hidden' : 'auto',
+              padding: '1.25rem',
+              ...(answerFillsDialog ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}),
+            }}>
+              {(canAsk || messages.length > 0 || error) && (
+                <div style={{
+                  marginBottom: answerFillsDialog ? 0 : '1.25rem',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  ...(answerFillsDialog ? { flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' } : {}),
+                }}>
+                  {messages.length > 0 && (
+                    <ChatTranscript
+                      messages={messages}
+                      pendingLabel={pending ? 'Asking...' : undefined}
+                      style={answerFillsDialog
+                        ? { flex: 1, minHeight: 0, maxHeight: 'none', margin: '0.75rem 1rem 0.35rem', overflowY: 'auto' }
+                        : { maxHeight: '14rem', margin: '0.75rem 1rem 0.35rem' }}
+                    />
+                  )}
+                  {canAsk && (
+                    <button
+                      type="button"
+                      onClick={askAi}
+                      onMouseEnter={() => setSelectedIndex(askIndex)}
+                      disabled={pending}
+                      style={{
+                        width: '100%',
+                        padding: '0.9rem 1.25rem',
+                        textAlign: 'left',
+                        background: selectedIndex === askIndex ? 'var(--accent)' : 'transparent',
+                        border: 'none',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        justifyContent: 'flex-start',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        cursor: 'pointer',
+                        height: 'auto',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Sparkles size={16} />
+                      <span style={{ minWidth: 0 }}>
+                        <span style={{ display: 'block', fontWeight: 800, fontSize: '0.95rem' }}>Ask the portfolio</span>
+                        <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {pending ? 'Asking...' : messages.length > 0 ? `Continue with “${question}”` : `Ask “${question}” about the inventory`}
+                        </span>
+                      </span>
+                    </button>
+                  )}
+                  {messages.length > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 1.25rem 0.85rem', flexShrink: 0 }}>
+                      <button type="button" onClick={beginNew} disabled={pending} style={{ height: '2rem', padding: '0 0.85rem', fontSize: '0.78rem' }}>
+                        New question
+                      </button>
+                    </div>
+                  )}
+                  {error && <p style={{ color: 'var(--destructive)', fontSize: '0.82rem', margin: '0 1.25rem 0.9rem' }}>{error}</p>}
+                </div>
+              )}
+              {!query && messages.length === 0 && (
                 <div style={{ padding: '8rem 2rem', textAlign: 'center', color: 'var(--muted-foreground)' }}>
                   <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--foreground)' }}>Quick Landscape Search</div>
                   <div style={{ fontSize: '1.1rem' }}>Find apps, owners, capabilities, information objects or system integrations...</div>
                 </div>
               )}
 
-              {query && query.length > 1 && !isLoading && (
+              {query && query.length > 1 && !isLoading && !answerFillsDialog && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                   {/* Applications Section */}
                   {sortedApps?.length > 0 && (
