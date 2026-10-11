@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, ChevronRight, Sliders, RotateCcw, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, type LucideIcon } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
@@ -38,6 +38,136 @@ interface MetadataDefinition {
   scaleType?: string;
 }
 
+const STRATEGIC_FIELD_NAMES = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale'];
+
+const SETTINGS_TABS = ['artifact', 'metadata', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt'] as const;
+type SettingsTab = (typeof SETTINGS_TABS)[number];
+
+function isSettingsTab(value: string): value is SettingsTab {
+  return (SETTINGS_TABS as readonly string[]).includes(value);
+}
+
+interface ArtifactConfig {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  picklists: string[];
+}
+
+const ARTIFACTS: ArtifactConfig[] = [
+  {
+    id: 'Application',
+    label: 'Applications',
+    icon: Database,
+    picklists: ['application_type', 'owner', 'lifecycle', 'criticality', 'application_cost', 'functional_fit', 'technical_fit'],
+  },
+  {
+    id: 'Capability',
+    label: 'Capabilities',
+    icon: Boxes,
+    picklists: ['criticality'],
+  },
+  {
+    id: 'Organization',
+    label: 'Organizations',
+    icon: Layers,
+    picklists: ['organization_type'],
+  },
+  {
+    id: 'InformationObject',
+    label: 'Information Model',
+    icon: FileText,
+    picklists: ['information_type', 'pii_category', 'cia_scale'],
+  },
+  {
+    id: 'Integration',
+    label: 'Integrations',
+    icon: Network,
+    picklists: ['integration_type', 'integration_pattern', 'integration_frequency', 'integration_crud'],
+  },
+];
+
+function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+      <div style={{ padding: '0 0.85rem', fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>{title}</div>
+      <div className="card" style={{ padding: '0.4rem', background: 'var(--card)' }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function SettingsNavButton({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        width: '100%', height: 'auto', justifyContent: 'flex-start', border: 'none',
+        background: active ? 'var(--accent)' : 'transparent',
+        color: active ? 'var(--foreground)' : 'var(--muted-foreground)',
+        padding: '0.55rem 0.65rem', fontSize: '0.78rem', fontWeight: active ? 700 : 600,
+        textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: '0.45rem',
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function ArtifactPicklistCard({ picklist, onChanged }: { picklist: Picklist; onChanged: () => void }) {
+  const isScale = STRATEGIC_FIELD_NAMES.includes(picklist.name);
+  const options = [...picklist.options].sort((a, b) => a.order - b.order);
+
+  return (
+    <section className="card" style={{ padding: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem' }}>
+        <div>
+          <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>
+            {isScale ? 'Assessment scale' : 'Picklist'}
+          </div>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>{picklist.label}</h3>
+        </div>
+        <EditRangePicklistDialog picklist={picklist} isScale={isScale} onSuccess={onChanged} />
+      </div>
+
+      {options.length === 0 ? (
+        <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>No options defined yet.</div>
+      ) : isScale ? (
+        <div style={{ padding: '1rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {options.map(opt => (
+              <div key={opt.id} style={{ flex: 1, height: '34px', background: opt.color, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.1)' }} title={opt.label}>
+                <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{opt.value}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', padding: '0 0.15rem' }}>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>{options[0]?.label}</span>
+            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>{options[options.length - 1]?.label}</span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.65rem' }}>
+          {options.map(opt => (
+            <div key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', padding: '0.65rem 0.75rem', background: 'var(--background)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+              <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: opt.color || '#adb5bd', border: '1px solid var(--border)', flexShrink: 0, marginTop: '0.15rem' }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>{opt.label}</div>
+                {opt.description && (
+                  <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', lineHeight: 1.35, marginTop: '0.2rem' }}>{opt.description}</div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 interface Props {
   brandName: string;
   onUpdateBrand: (val: string) => void;
@@ -64,8 +194,11 @@ export const PicklistsView = ({
   onUpdateTimeThresholds: propOnUpdateTimeThresholds
 }: Props) => {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useLocalStorage<'picklists' | 'metadata' | 'branding' | 'import-export' | 'time_thresholds' | 'ai' | 'ai-prompt'>('openea_settings_tab', 'picklists');
-  const [selectedPicklistId, setSelectedPicklistId] = useLocalStorage<string | null>('openea_settings_picklist', null);
+  const [storedTab, setActiveTab] = useLocalStorage<string>('openea_settings_tab', 'artifact');
+  const [selectedArtifactId, setSelectedArtifactId] = useLocalStorage<string>('openea_settings_artifact', 'Application');
+  const [legacyPicklistId] = useLocalStorage<string | null>('openea_settings_picklist', null);
+  const activeTab: SettingsTab = isSettingsTab(storedTab) ? storedTab : 'artifact';
+  const migratedLegacyTab = useRef(false);
 
   const [localTimeThresholds, setLocalTimeThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
   const timeThresholds = propTimeThresholds || localTimeThresholds;
@@ -87,11 +220,6 @@ export const PicklistsView = ({
     ];
   }, [apps]);
   
-  // States for new picklist option
-  const [newValue, setNewValue] = useState('');
-  const [newLabel, setNewLabel] = useState('');
-  const [newColor, setNewColor] = useState('#adb5bd');
-
   // States for new metadata field
   const [metaLabel, setMetaLabel] = useState('');
   const [metaName, setMetaName] = useState('');
@@ -117,49 +245,22 @@ export const PicklistsView = ({
     }
   });
 
+  // Older builds stored one page per picklist. Land on the artifact that owned that field.
+  useEffect(() => {
+    if (migratedLegacyTab.current) return;
+    if (storedTab !== 'picklists') {
+      migratedLegacyTab.current = true;
+      return;
+    }
+    if (!picklists) return;
+    migratedLegacyTab.current = true;
+    const selected = picklists.find((picklist) => picklist.id === legacyPicklistId);
+    const match = ARTIFACTS.find((artifact) => selected && artifact.picklists.includes(selected.name));
+    if (match) setSelectedArtifactId(match.id);
+    setActiveTab('artifact');
+  }, [storedTab, picklists, legacyPicklistId, setActiveTab, setSelectedArtifactId]);
+
   if (loadingPicklists || loadingMeta) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading configuration...</div>;
-
-  const strategicFieldNames = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale'];
-  
-  const selectedPicklist = picklists?.find(p => p.id === selectedPicklistId);
-  const isScalePicklist = selectedPicklist && strategicFieldNames.includes(selectedPicklist.name);
-
-  const handleAddOption = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedPicklist || !newValue || !newLabel) return;
-
-    try {
-      const res = await fetch(`/api/picklists/${selectedPicklist.id}/options`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          value: newValue,
-          label: newLabel,
-          color: newColor,
-          order: selectedPicklist.options.length + 1
-        }),
-      });
-
-      if (res.ok) {
-        setNewValue('');
-        setNewLabel('');
-        setNewColor('#adb5bd');
-        queryClient.invalidateQueries({ queryKey: ['picklists'] });
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleDeleteOption = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this option?')) return;
-    try {
-      const res = await fetch(`/api/picklist-options/${id}`, { method: 'DELETE' });
-      if (res.ok) queryClient.invalidateQueries({ queryKey: ['picklists'] });
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   const handleAddMeta = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,237 +305,116 @@ export const PicklistsView = ({
     }
   };
 
-  const artifacts = [
-    { 
-      id: 'Application', 
-      label: 'Applications', 
-      icon: <Database size={16} />, 
-      picklists: ['application_type', 'owner', 'lifecycle', 'criticality', 'application_cost', 'functional_fit', 'technical_fit'] 
-    },
-    { 
-      id: 'Capability', 
-      label: 'Capabilities', 
-      icon: <Boxes size={16} />, 
-      picklists: ['criticality'] 
-    },
-    { 
-      id: 'Organization', 
-      label: 'Organizations', 
-      icon: <Layers size={16} />, 
-      picklists: ['organization_type'] 
-    },
-    { 
-      id: 'InformationObject', 
-      label: 'Information Model', 
-      icon: <FileText size={16} />, 
-      picklists: ['information_type', 'pii_category', 'cia_scale'] 
-    },
-    { 
-      id: 'Integration', 
-      label: 'Integrations', 
-      icon: <Network size={16} />, 
-      picklists: ['integration_type', 'integration_pattern', 'integration_frequency', 'integration_crud'] 
-    },
-  ];
+  const selectedArtifact = ARTIFACTS.find((artifact) => artifact.id === selectedArtifactId) ?? ARTIFACTS[0];
+  const ArtifactIcon = selectedArtifact.icon;
+  const artifactPicklists = selectedArtifact.picklists
+    .map((name) => picklists?.find((picklist) => picklist.name === name))
+    .filter((picklist): picklist is Picklist => Boolean(picklist));
+  const sharedPicklists = artifactPicklists.filter((picklist) =>
+    ARTIFACTS.some((artifact) => artifact.id !== selectedArtifact.id && artifact.picklists.includes(picklist.name))
+  );
+  const sharedWith = ARTIFACTS.filter((artifact) =>
+    artifact.id !== selectedArtifact.id && artifact.picklists.some((name) => sharedPicklists.some((picklist) => picklist.name === name))
+  ).map((artifact) => artifact.label);
+  const sharedFieldNote = sharedPicklists.length === 0
+    ? ''
+    : sharedPicklists.length === 1
+      ? ` ${sharedPicklists[0].label} is shared with ${sharedWith.join(' and ')}.`
+      : ` ${sharedPicklists.map((picklist) => picklist.label).join(' and ')} are shared with ${sharedWith.join(' and ')}.`;
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 0.75rem' }}>
       <div style={{ marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>Settings & Configuration</h1>
-        <p style={{ color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>Fine-tune your enterprise meta model and global branding.</p>
+        <p style={{ color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>Configure the meta model, assessment frameworks, and workspace.</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: '2rem', alignItems: 'flex-start' }}>
-        {/* Unified Sidebar */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          
-          {/* Global Tabs */}
-          <div className="card" style={{ padding: '0.4rem' }}>
-            <button
-              onClick={() => { setActiveTab('metadata'); setSelectedPicklistId(null); }}
-              style={{
-                width: '100%', justifyContent: 'flex-start', border: 'none',
-                background: activeTab === 'metadata' ? 'var(--primary)' : 'transparent',
-                color: activeTab === 'metadata' ? 'var(--primary-foreground)' : 'var(--foreground)',
-                padding: '0.6rem 0.85rem', fontSize: '0.8rem', fontWeight: 700,
-                textAlign: 'left', display: 'flex', gap: '0.6rem', alignItems: 'center', borderRadius: '6px', cursor: 'pointer'
-              }}
-            >
-              <FileCode size={16} /> Custom Attributes
-            </button>
-          </div>
+          <SettingsGroup title="Meta Model Configuration">
+            {ARTIFACTS.map((artifact) => {
+              const Icon = artifact.icon;
+              return (
+                <SettingsNavButton
+                  key={artifact.id}
+                  active={activeTab === 'artifact' && selectedArtifact.id === artifact.id}
+                  onClick={() => { setActiveTab('artifact'); setSelectedArtifactId(artifact.id); }}
+                  icon={<Icon size={16} />}
+                  label={artifact.label}
+                />
+              );
+            })}
+            <SettingsNavButton
+              active={activeTab === 'metadata'}
+              onClick={() => setActiveTab('metadata')}
+              icon={<FileCode size={16} />}
+              label="Custom Attributes"
+            />
+          </SettingsGroup>
 
-          {/* Artifact Groups */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            <div style={{ padding: '0 0.85rem', fontSize: '0.65rem', fontWeight: 800, color: 'var(--muted-foreground)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Artifact Configuration</div>
-            {artifacts.map(art => (
-              <div key={art.id} className="card" style={{ padding: '0.4rem', background: 'var(--card)' }}>
-                <div style={{ padding: '0.4rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 800, fontSize: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.2rem', paddingBottom: '0.6rem' }}>
-                  {React.cloneElement(art.icon as React.ReactElement<any>, { size: 14 })} {art.label}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                  {art.id === 'Application' && (
-                    <button
-                      onClick={() => { setActiveTab('time_thresholds'); setSelectedPicklistId(null); }}
-                      style={{
-                        width: '100%', justifyContent: 'flex-start', border: 'none',
-                        background: activeTab === 'time_thresholds' ? 'var(--accent)' : 'transparent',
-                        color: activeTab === 'time_thresholds' ? 'var(--primary)' : 'var(--muted-foreground)',
-                        padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: activeTab === 'time_thresholds' ? 700 : 500,
-                        textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: '0.4rem',
-                        marginBottom: '2px'
-                      }}
-                    >
-                      <Sliders size={12} style={{ color: activeTab === 'time_thresholds' ? 'var(--primary)' : 'inherit' }} />
-                      TIME Thresholds
-                    </button>
-                  )}
-                  {art.picklists.map(pName => {
-                    const p = picklists?.find(pl => pl.name === pName);
-                    if (!p) return null;
-                    const isSelected = activeTab === 'picklists' && selectedPicklistId === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => { setActiveTab('picklists'); setSelectedPicklistId(p.id); }}
-                        style={{
-                          width: '100%', justifyContent: 'flex-start', border: 'none',
-                          background: isSelected ? 'var(--accent)' : 'transparent',
-                          color: isSelected ? 'var(--foreground)' : 'var(--muted-foreground)',
-                          padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: 500,
-                          textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: '0.4rem'
-                        }}
-                      >
-                        <ChevronRight size={10} style={{ opacity: isSelected ? 1 : 0.3 }} />
-                        {p.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+          <SettingsGroup title="Frameworks">
+            <SettingsNavButton
+              active={activeTab === 'time_thresholds'}
+              onClick={() => setActiveTab('time_thresholds')}
+              icon={<Sliders size={16} />}
+              label="TIME"
+            />
+          </SettingsGroup>
 
-          <div className="card" style={{ padding: '0.4rem', background: 'var(--card)' }}>
-            <div style={{ padding: '0.4rem 0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--foreground)', fontWeight: 800, fontSize: '0.75rem', borderBottom: '1px solid var(--border)', marginBottom: '0.2rem', paddingBottom: '0.6rem' }}>
-              <Sparkles size={14} /> AI
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              <button
-                onClick={() => { setActiveTab('ai'); setSelectedPicklistId(null); }}
-                style={{
-                  width: '100%', justifyContent: 'flex-start', border: 'none',
-                  background: activeTab === 'ai' ? 'var(--accent)' : 'transparent',
-                  color: activeTab === 'ai' ? 'var(--foreground)' : 'var(--muted-foreground)',
-                  padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: activeTab === 'ai' ? 700 : 500,
-                  textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '0.4rem'
-                }}
-              >
-                <ChevronRight size={10} style={{ opacity: activeTab === 'ai' ? 1 : 0.3 }} />
-                Providers
-              </button>
-              <button
-                onClick={() => { setActiveTab('ai-prompt'); setSelectedPicklistId(null); }}
-                style={{
-                  width: '100%', justifyContent: 'flex-start', border: 'none',
-                  background: activeTab === 'ai-prompt' ? 'var(--accent)' : 'transparent',
-                  color: activeTab === 'ai-prompt' ? 'var(--foreground)' : 'var(--muted-foreground)',
-                  padding: '0.5rem 0.65rem', fontSize: '0.75rem', fontWeight: activeTab === 'ai-prompt' ? 700 : 500,
-                  textAlign: 'left', borderRadius: '5px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '0.4rem'
-                }}
-              >
-                <ChevronRight size={10} style={{ opacity: activeTab === 'ai-prompt' ? 1 : 0.3 }} />
-                System prompt
-              </button>
-            </div>
-          </div>
+          <SettingsGroup title="AI">
+            <SettingsNavButton
+              active={activeTab === 'ai'}
+              onClick={() => setActiveTab('ai')}
+              icon={<Sparkles size={16} />}
+              label="Providers"
+            />
+            <SettingsNavButton
+              active={activeTab === 'ai-prompt'}
+              onClick={() => setActiveTab('ai-prompt')}
+              icon={<FileText size={16} />}
+              label="System prompt"
+            />
+          </SettingsGroup>
 
-          <div className="card" style={{ padding: '0.4rem' }}>
-            <button
-              onClick={() => { setActiveTab('branding'); setSelectedPicklistId(null); }}
-              style={{
-                width: '100%', justifyContent: 'flex-start', border: 'none',
-                background: activeTab === 'branding' ? 'var(--accent)' : 'transparent',
-                color: activeTab === 'branding' ? 'var(--foreground)' : 'var(--muted-foreground)',
-                padding: '0.6rem 0.85rem', fontSize: '0.8rem', fontWeight: 600,
-                textAlign: 'left', display: 'flex', gap: '0.6rem', alignItems: 'center', borderRadius: '6px', cursor: 'pointer'
-              }}
-            >
-              <Palette size={16} /> Global Branding
-            </button>
-            <button
-              onClick={() => { setActiveTab('import-export'); setSelectedPicklistId(null); }}
-              style={{
-                width: '100%', justifyContent: 'flex-start', border: 'none',
-                background: activeTab === 'import-export' ? 'var(--accent)' : 'transparent',
-                color: activeTab === 'import-export' ? 'var(--foreground)' : 'var(--muted-foreground)',
-                padding: '0.6rem 0.85rem', fontSize: '0.8rem', fontWeight: 600,
-                textAlign: 'left', display: 'flex', gap: '0.6rem', alignItems: 'center', borderRadius: '6px', cursor: 'pointer'
-              }}
-            >
-              <Settings2 size={16} /> Data Management
-            </button>
-          </div>
+          <SettingsGroup title="Workspace">
+            <SettingsNavButton
+              active={activeTab === 'branding'}
+              onClick={() => setActiveTab('branding')}
+              icon={<Palette size={16} />}
+              label="Global Branding"
+            />
+            <SettingsNavButton
+              active={activeTab === 'import-export'}
+              onClick={() => setActiveTab('import-export')}
+              icon={<Settings2 size={16} />}
+              label="Data Management"
+            />
+          </SettingsGroup>
         </div>
 
         {/* Main Content Area */}
         <div style={{ minWidth: 0 }}>
-          {activeTab === 'picklists' && selectedPicklist ? (
-            <div className="card" style={{ padding: '1.5rem' }}>
-              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                <div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-                    {isScalePicklist ? 'Strategic Assessment Scale' : 'Standard Picklist'}
-                  </div>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>{selectedPicklist.label}</h2>
-                  <p style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem' }}>
-                    {isScalePicklist 
-                      ? 'Configure the scoring range and color profile for this assessment field.' 
-                      : `Managing allowed values for ${selectedPicklist.name}`}
-                  </p>
+          {activeTab === 'artifact' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div style={{ marginBottom: '0.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+                  <ArtifactIcon size={18} />
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>{selectedArtifact.label}</h2>
                 </div>
-                <EditRangePicklistDialog 
-                  picklist={selectedPicklist} 
-                  isScale={isScalePicklist}
-                  onSuccess={() => queryClient.invalidateQueries({ queryKey: ['picklists'] })} 
-                />
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem', margin: 0 }}>
+                  Fields and allowed values for this artifact.{sharedFieldNote}
+                </p>
               </div>
-
-              {isScalePicklist ? (
-                <div style={{ padding: '1.5rem', background: 'var(--background)', borderRadius: '16px', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--card)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                    {selectedPicklist.options.map(opt => (
-                      <div key={opt.id} style={{ flex: 1, height: '34px', background: opt.color, borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.1)', position: 'relative' }} title={opt.label}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>{opt.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.6rem', padding: '0 0.4rem' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>{selectedPicklist.options[0]?.label}</span>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>{selectedPicklist.options[selectedPicklist.options.length-1]?.label}</span>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
-                  {selectedPicklist.options.map(opt => (
-                    <div key={opt.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '0.75rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                      <div style={{ width: '20px', height: '20px', borderRadius: '5px', background: opt.color || '#adb5bd', border: '1px solid var(--border)', flexShrink: 0, marginTop: '0.2rem' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 700, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{opt.label}</div>
-                        <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', marginBottom: opt.description ? '0.4rem' : 0 }}>{opt.value}</div>
-                        {opt.description && (
-                          <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', fontStyle: 'italic', lineHeight: '1.2' }}>{opt.description}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {selectedPicklist.options.length === 0 && (
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', padding: '0.75rem' }}>No options defined yet.</div>
-                  )}
+              {artifactPicklists.map((picklist) => (
+                <ArtifactPicklistCard
+                  key={picklist.id}
+                  picklist={picklist}
+                  onChanged={() => queryClient.invalidateQueries({ queryKey: ['picklists'] })}
+                />
+              ))}
+              {artifactPicklists.length === 0 && (
+                <div className="card" style={{ padding: '1.5rem', color: 'var(--muted-foreground)', fontSize: '0.85rem' }}>
+                  No fields are configured for this artifact yet.
                 </div>
               )}
             </div>
@@ -493,7 +473,7 @@ export const PicklistsView = ({
                       <ColoredSelect
                         value={metaEntity}
                         onChange={setMetaEntity}
-                        options={artifacts.map(art => ({ value: art.id, label: art.label }))}
+                        options={ARTIFACTS.map(art => ({ value: art.id, label: art.label }))}
                         style={{ height: '2rem', fontSize: '0.8rem' }}
                       />
                     </div>
@@ -572,7 +552,7 @@ export const PicklistsView = ({
               <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>
-                    Strategic Portfolio Rationalization
+                    Framework
                   </div>
                   <h2 style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>TIME Assessment Thresholds</h2>
                   <p style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem', marginTop: '0.35rem' }}>

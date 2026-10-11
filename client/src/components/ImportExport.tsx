@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Download, Upload, AlertCircle, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
+import { Download, Upload, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 
 interface Application {
@@ -42,11 +42,119 @@ interface Integration {
   [key: string]: any;
 }
 
+type ArtifactType = 'applications' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
+
 interface ImportExportProps {
-  type: 'applications' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
+  type: ArtifactType;
   onImportSuccess: () => void;
-  data: any[];
 }
+
+const CSV_HEADERS: Record<ArtifactType, string[]> = {
+  applications: ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'type', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'],
+  capabilities: ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'],
+  organizations: ['id', 'name', 'description', 'type', 'parentId'],
+  'information-objects': ['id', 'name', 'aliases', 'description', 'confidentiality', 'integrity', 'availability', 'piiCategory', 'type', 'businessOwnerId', 'appOwnerId', 'metadata'],
+  integrations: ['id', 'name', 'sourceAppId', 'targetAppId', 'infoObjectId', 'pattern', 'frequency', 'crud'],
+};
+
+const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+const toCsv = (type: ArtifactType, data: any[]) => {
+  const headers = CSV_HEADERS[type];
+  const rows = (data || []).map((item) => headers.map((header) => {
+    let value = item[header];
+    if (header === 'capabilityIds' && type === 'applications') {
+      value = ((item as Application).capabilities || []).map((capability) => capability.id).join(';');
+    } else if (header === 'applicationIds' && type === 'capabilities') {
+      value = ((item as Capability).applications || []).map((app) => app.id).join(';');
+    } else if (value && ['lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate'].includes(header)) {
+      value = String(value).split('T')[0];
+    }
+    return csvCell(value);
+  }).join(','));
+  return [headers.join(','), ...rows].join('\n');
+};
+
+const CRC_TABLE = new Uint32Array(256).map((_, index) => {
+  let crc = index;
+  for (let bit = 0; bit < 8; bit++) crc = crc & 1 ? 0xedb88320 ^ (crc >>> 1) : crc >>> 1;
+  return crc >>> 0;
+});
+
+const crc32 = (bytes: Uint8Array) => {
+  let crc = 0xffffffff;
+  for (const byte of bytes) crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  return (crc ^ 0xffffffff) >>> 0;
+};
+
+const zipStored = (files: { name: string; text: string }[]) => {
+  const encoder = new TextEncoder();
+  const now = new Date();
+  const time = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const date = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const parts: Uint8Array[] = [];
+  const central: Uint8Array[] = [];
+  let offset = 0;
+
+  for (const file of files) {
+    const name = encoder.encode(file.name);
+    const payload = encoder.encode(file.text);
+    const checksum = crc32(payload);
+    const local = new Uint8Array(30 + name.length + payload.length);
+    const view = new DataView(local.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 0x0800, true);
+    view.setUint16(10, time, true);
+    view.setUint16(12, date, true);
+    view.setUint32(14, checksum, true);
+    view.setUint32(18, payload.length, true);
+    view.setUint32(22, payload.length, true);
+    view.setUint16(26, name.length, true);
+    local.set(name, 30);
+    local.set(payload, 30 + name.length);
+    parts.push(local);
+
+    const directory = new Uint8Array(46 + name.length);
+    const directoryView = new DataView(directory.buffer);
+    directoryView.setUint32(0, 0x02014b50, true);
+    directoryView.setUint16(4, 20, true);
+    directoryView.setUint16(6, 20, true);
+    directoryView.setUint16(8, 0x0800, true);
+    directoryView.setUint16(12, time, true);
+    directoryView.setUint16(14, date, true);
+    directoryView.setUint32(16, checksum, true);
+    directoryView.setUint32(20, payload.length, true);
+    directoryView.setUint32(24, payload.length, true);
+    directoryView.setUint16(28, name.length, true);
+    directoryView.setUint32(42, offset, true);
+    directory.set(name, 46);
+    central.push(directory);
+    offset += local.length;
+  }
+
+  const directorySize = central.reduce((sum, part) => sum + part.length, 0);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, files.length, true);
+  endView.setUint16(10, files.length, true);
+  endView.setUint32(12, directorySize, true);
+  endView.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end], { type: 'application/zip' });
+};
+
+const downloadBlob = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 interface ImportStatus {
   total: number;
@@ -56,7 +164,7 @@ interface ImportStatus {
   isFinished: boolean;
 }
 
-export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps) => {
+export const ImportExport = ({ type, onImportSuccess }: ImportExportProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showStatus, setShowStatus] = useState(false);
   const [status, setStatus] = useState<ImportStatus>({
@@ -66,53 +174,6 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
     error: 0,
     isFinished: false
   });
-
-  const exportToCSV = () => {
-    if (!data || data.length === 0) return;
-
-    let headers: string[] = [];
-    if (type === 'applications') {
-      headers = ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'type', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'metadata', 'capabilityIds'];
-    } else if (type === 'capabilities') {
-      headers = ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'];
-    } else if (type === 'organizations') {
-      headers = ['id', 'name', 'description', 'type', 'parentId'];
-    } else if (type === 'information-objects') {
-      headers = ['id', 'name', 'aliases', 'description', 'confidentiality', 'integrity', 'availability', 'piiCategory', 'type', 'businessOwnerId', 'appOwnerId', 'metadata'];
-    } else {
-      headers = ['id', 'name', 'sourceAppId', 'targetAppId', 'infoObjectId', 'pattern', 'frequency', 'crud'];
-    }
-
-    const csvRows = data.map(item => {
-      return headers.map(header => {
-        let val = (item as any)[header];
-        
-        // Handle special fields
-        if (header === 'capabilityIds' && type === 'applications') {
-          val = ((item as Application).capabilities || []).map(c => c.id).join(';');
-        } else if (header === 'applicationIds' && type === 'capabilities') {
-          val = ((item as Capability).applications || []).map(a => a.id).join(';');
-        } else if ((header === 'lifecycleStartDate' || header === 'lifecycleEndDate' || header === 'contractStartDate' || header === 'contractEndDate') && val) {
-          val = val.split('T')[0];
-        }
-        
-        const escaped = ('' + (val || '')).replace(/"/g, '""');
-        return `"${escaped}"`;
-      }).join(',');
-    });
-
-    const csvContent = [headers.join(','), ...csvRows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    const filenameType = type === 'information-objects' ? 'information' : type;
-    link.setAttribute('download', `${filenameType}_export_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -281,9 +342,6 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
   return (
     <>
       <div style={{ display: 'flex', gap: '0.4rem' }}>
-        <button onClick={exportToCSV} className="secondary" style={{ height: '1.8rem', padding: '0 0.6rem', display: 'flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.8rem' }}>
-          <Download size={13} /> Export CSV
-        </button>
         <button onClick={() => fileInputRef.current?.click()} className="secondary" style={{ height: '1.8rem', padding: '0 0.6rem', display: 'flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.8rem' }}>
           <Upload size={13} /> Import CSV
         </button>
@@ -377,71 +435,117 @@ export const ImportExport = ({ type, onImportSuccess, data }: ImportExportProps)
   );
 };
 
+const IMPORT_STEPS = [
+  {
+    title: 'Organizations',
+    reason: 'Owner references',
+    description: 'Import accountability structures first. Later files point at these owners.',
+    type: 'organizations' as const,
+    dataKey: 'organizations' as const,
+    file: '01-organizations.csv',
+  },
+  {
+    title: 'Capabilities',
+    reason: 'Initial hierarchy',
+    description: 'Import the business capability map before applications link to it.',
+    type: 'capabilities' as const,
+    dataKey: 'capabilities' as const,
+    file: '02-capabilities.csv',
+  },
+  {
+    title: 'Information Model',
+    reason: 'Payload definitions',
+    description: 'Import business data objects before integrations use them as payloads.',
+    type: 'information-objects' as const,
+    dataKey: 'informationObjects' as const,
+    file: '03-information.csv',
+  },
+  {
+    title: 'Applications',
+    reason: 'Links to owners and capabilities',
+    description: 'Import the inventory after the owners and capabilities it refers to.',
+    type: 'applications' as const,
+    dataKey: 'apps' as const,
+    file: '04-applications.csv',
+  },
+  {
+    title: 'Integrations',
+    reason: 'Links apps and payloads together',
+    description: 'Import last. Each integration needs both applications and a payload.',
+    type: 'integrations' as const,
+    dataKey: 'integrations' as const,
+    file: '05-integrations.csv',
+  },
+];
+
 export const ImportExportSettings = ({ onRefresh, apps, capabilities, organizations, informationObjects, integrations }: { onRefresh: () => void, apps: any[], capabilities: any[], organizations: any[], informationObjects: any[], integrations: any[] }) => {
+  const dataByKey = { apps, capabilities, organizations, informationObjects, integrations };
+
+  const exportAll = () => {
+    const files = IMPORT_STEPS.map((step) => ({
+      name: step.file,
+      text: toCsv(step.type, dataByKey[step.dataKey]),
+    }));
+    const day = new Date().toISOString().split('T')[0];
+    downloadBlob(zipStored(files), `openea_export_${day}.zip`);
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      <div style={{ marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Data Portability</h2>
-        <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>Bulk import and export of your architecture artifacts.</p>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Applications</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
-            Import or export your application inventory.
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+        <div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Data Portability</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', maxWidth: '40rem' }}>
+            The numbered steps are the import order. Export downloads every model at once, as CSV files in one archive.
           </p>
-          <ImportExport type="applications" data={apps} onImportSuccess={onRefresh} />
         </div>
-        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Capabilities</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
-            Import or export your business capability map.
-          </p>
-          <ImportExport type="capabilities" data={capabilities} onImportSuccess={onRefresh} />
-        </div>
-        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Organizations</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
-            Import or export accountability structures.
-          </p>
-          <ImportExport type="organizations" data={organizations} onImportSuccess={onRefresh} />
-        </div>
-        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Information Model</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
-            Import or export conceptual business data objects.
-          </p>
-          <ImportExport type="information-objects" data={informationObjects} onImportSuccess={onRefresh} />
-        </div>
-        <div style={{ padding: '1rem', background: 'var(--muted)', borderRadius: 'var(--radius)' }}>
-          <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.4rem' }}>Integrations</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem' }}>
-            Import or export system-to-system dependencies.
-          </p>
-          <ImportExport type="integrations" data={integrations} onImportSuccess={onRefresh} />
-        </div>
-      </div>
-      <div style={{ marginTop: '1rem', padding: '1rem', borderRadius: 'var(--radius)', background: 'var(--accent)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
-          <AlertCircle size={18} style={{ color: 'var(--primary)' }} />
-          <strong style={{ fontSize: '0.8rem' }}>Recommended Import Sequence</strong>
-        </div>
-        <div style={{ fontSize: '0.8rem', color: 'var(--foreground)', lineHeight: 1.4 }}>
-          To correctly restore all relationships between your data, please import files in this specific order:
-          <ol style={{ marginTop: '0.4rem', paddingLeft: '1.25rem' }}>
-            <li><strong>Organizations</strong> (Owner references)</li>
-            <li><strong>Capabilities</strong> (Initial hierarchy)</li>
-            <li><strong>Information Model</strong> (Payload definitions)</li>
-            <li><strong>Applications</strong> (Links to owners and capabilities)</li>
-            <li><strong>Integrations</strong> (Links apps and payloads together)</li>
-          </ol>
-        </div>
+        <button onClick={exportAll} className="secondary" style={{ height: '2.2rem', padding: '0 0.85rem', display: 'flex', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem', flexShrink: 0 }}>
+          <Download size={15} /> Export all
+        </button>
       </div>
 
-      <div style={{ marginTop: '0.75rem', padding: '0.75rem', borderRadius: 'var(--radius)', border: '1px solid var(--accent)', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-        <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
-          <strong>Pro tip:</strong> To update existing records, include the <code>id</code> column in your CSV. To create new records, leave the <code>id</code> empty or omit the column.
-        </div>
+      <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
+        {IMPORT_STEPS.map((step, index) => {
+          const isLast = index === IMPORT_STEPS.length - 1;
+          return (
+            <li key={step.type} style={{ display: 'grid', gridTemplateColumns: '2.75rem minmax(0, 1fr)', columnGap: '0.85rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }} aria-hidden="true">
+                <div style={{
+                  width: '2rem',
+                  height: '2rem',
+                  borderRadius: '999px',
+                  background: 'var(--brand-focus)',
+                  color: '#fff',
+                  display: 'grid',
+                  placeItems: 'center',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  flexShrink: 0,
+                  boxShadow: '0 0 0 4px color-mix(in srgb, var(--brand-focus) 16%, transparent)',
+                }}>{index + 1}</div>
+                {!isLast && (
+                  <div style={{ width: '2px', flex: 1, minHeight: '0.75rem', margin: '0.35rem 0', background: 'color-mix(in srgb, var(--brand-focus) 55%, var(--border))' }} />
+                )}
+              </div>
+              <div className="card" style={{ padding: '1rem 1.1rem', marginBottom: isLast ? 0 : '0.35rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--brand-focus)', marginBottom: '0.2rem' }}>{step.reason}</div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.01em', margin: 0 }}>{step.title}</h3>
+                    <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', margin: '0.3rem 0 0' }}>{step.description}</p>
+                  </div>
+                  <ImportExport type={step.type} onImportSuccess={onRefresh} />
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+
+      <div style={{ padding: '0.75rem 0.9rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--muted)' }}>
+        <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', margin: 0 }}>
+          <strong style={{ color: 'var(--foreground)' }}>Updating records.</strong> Include the <code>id</code> column to update existing rows. Leave <code>id</code> empty to create new ones.
+        </p>
       </div>
     </div>
   );

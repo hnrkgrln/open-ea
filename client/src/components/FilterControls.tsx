@@ -49,10 +49,11 @@ interface SearchInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   label?: string;
+  ariaLabel?: string;
   style?: React.CSSProperties;
 }
 
-export const SearchInput = ({ value, onChange, placeholder = "Search...", label, style }: SearchInputProps) => {
+export const SearchInput = ({ value, onChange, placeholder = "Search...", label, ariaLabel, style }: SearchInputProps) => {
   return (
     <div className="field" style={{ margin: 0, position: 'relative', width: '100%' }}>
       {label && (
@@ -78,6 +79,7 @@ export const SearchInput = ({ value, onChange, placeholder = "Search...", label,
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          aria-label={ariaLabel || label || placeholder}
           className={value.trim() ? 'filter-applied' : undefined}
           style={{ 
             paddingLeft: '2.75rem', 

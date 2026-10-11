@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, FileText, Layers, Clock, LayoutDashboard, Coins, Lightbulb } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, Layers, Clock, LayoutDashboard, Coins, Lightbulb } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -25,6 +25,7 @@ import { ColoredSelect } from './components/ColoredSelect';
 import { TimeDashboardView } from './components/TimeDashboardView';
 import { InsightsView } from './components/InsightsView';
 import { PortfolioChatProvider } from './components/PortfolioChat';
+import { ModelMenu } from './components/ModelMenu';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 
 export { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, readStoredTimeThresholds } from './timeAssessment';
@@ -206,23 +207,20 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   return (
     <PortfolioChatProvider>
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <header className="header" style={{ flexShrink: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
+      <header className="header" style={{ flexShrink: 0, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
           <Link to="/insights" className="logo" style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav" style={{ gap: '1.25rem' }}>
             <NavLink to="/insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /> Insights</NavLink>
             <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Database size={16} /> Applications</NavLink>
-            <NavLink to="/capabilities" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Boxes size={16} /> Capabilities</NavLink>
-            <NavLink to="/organizations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Layers size={16} /> Organizations</NavLink>
-            <NavLink to="/information" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><FileText size={16} /> Information</NavLink>
-            <NavLink to="/integrations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Network size={16} /> Integrations</NavLink>
+            <ModelMenu />
+            <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><MapIcon size={16} /> Diagrams</NavLink>
           </nav>
         </div>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
           <UnifiedSearch />
         </div>
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1.5rem' }}>
-          <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><MapIcon size={18} /> Diagrams</NavLink>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0, marginLeft: 'auto' }}>
           <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /> Settings</NavLink>
           <ThemeToggle />
         </div>
@@ -478,13 +476,13 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
 
   const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
-  // Auto-show filters if any are active
-  const isAnyFilterActive = useMemo(() => {
+  // Auto-show the filters panel when a panel filter is already applied. Quick filter stays outside that panel.
+  const isPanelFilterActive = useMemo(() => {
     const hasCustom = Object.values(filters.custom || {}).some(vals => vals.length > 0);
-    return filters.search !== '' || filters.owner.length > 0 || (filters.ownerOrgId?.length || 0) > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.criticality.length > 0 || (filters.cost?.length || 0) > 0 || filters.functionalFit.length > 0 || filters.technicalFit.length > 0 || (filters.time?.length || 0) > 0 || hasCustom;
+    return filters.owner.length > 0 || (filters.ownerOrgId?.length || 0) > 0 || filters.lifecycle.length > 0 || filters.type.length > 0 || filters.criticality.length > 0 || (filters.cost?.length || 0) > 0 || filters.functionalFit.length > 0 || filters.technicalFit.length > 0 || (filters.time?.length || 0) > 0 || hasCustom;
   }, [filters]);
 
-  const [showFilters, setShowFilters] = useState(isAnyFilterActive);
+  const [showFilters, setShowFilters] = useState(isPanelFilterActive);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -656,15 +654,24 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           </p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ width: '220px' }}>
+            <SearchInput
+              value={filters.search}
+              onChange={(val) => setFilters({ ...filters, search: val })}
+              placeholder="Quick filter"
+              ariaLabel="Quick filter"
+              style={{ height: '2.2rem', fontSize: '0.9rem' }}
+            />
+          </div>
           <button
             onClick={() => setShowFilters(!showFilters)}
             aria-expanded={showFilters}
-            aria-label={isAnyFilterActive ? 'Filters, applied' : 'Filters'}
-            style={{ position: 'relative', height: '2.2rem', padding: isAnyFilterActive ? '0 1.15rem 0 0.6rem' : '0 0.6rem', border: `1px solid ${isAnyFilterActive ? 'var(--brand-focus)' : 'var(--border)'}`, background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}
+            aria-label={isPanelFilterActive ? 'Filters, applied' : 'Filters'}
+            style={{ position: 'relative', height: '2.2rem', padding: isPanelFilterActive ? '0 1.15rem 0 0.6rem' : '0 0.6rem', border: `1px solid ${isPanelFilterActive ? 'var(--brand-focus)' : 'var(--border)'}`, background: showFilters ? 'var(--accent)' : 'var(--background)', fontSize: '0.9rem' }}
           >
-            <Filter size={16} style={{ marginRight: '0.4rem', color: isAnyFilterActive ? 'var(--brand-focus)' : undefined }} />
+            <Filter size={16} style={{ marginRight: '0.4rem', color: isPanelFilterActive ? 'var(--brand-focus)' : undefined }} />
             Filters
-            {isAnyFilterActive && <FilterDot badge />}
+            {isPanelFilterActive && <FilterDot badge />}
           </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button title="TIME Dashboard" onClick={() => setViewMode('dashboard')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'dashboard' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'dashboard' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutDashboard size={16} /></button>
@@ -677,7 +684,6 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
       {showFilters && (
         <div className="card" style={{ marginBottom: '1.25rem', background: 'var(--background)', padding: '1rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
-            <SearchInput label="Search" value={filters.search} onChange={(val) => setFilters({...filters, search: val})} placeholder="Search..." style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Owning Org" options={organizations?.map(o => ({ value: o.id, label: o.name })) || []} selectedValues={filters.ownerOrgId || []} onChange={(val) => setFilters({...filters, ownerOrgId: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Owner" options={ownerOptions} selectedValues={filters.owner || []} onChange={(val) => setFilters({...filters, owner: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />
             <MultiSelect label="Type" options={appTypeOptions} selectedValues={filters.type || []} onChange={(val) => setFilters({...filters, type: val})} placeholder="All" style={{ height: '2.2rem', fontSize: '0.9rem' }} />

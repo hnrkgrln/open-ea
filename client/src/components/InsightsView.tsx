@@ -373,8 +373,8 @@ export const InsightsView = ({
         <Stat to="/integrations" accent={STAT_ACCENTS[4]} icon={<Network size={14} />} label="Integrations" value={integrations.length} detail={integrations.length > 0 ? `${model.linkedApps} applications linked` : 'None recorded'} />
       </div>
 
-      <div className="insights-split">
-        <section className="card" style={{ padding: '1.15rem 1.25rem' }}>
+      <div className="insights-charts">
+        <section className="card">
           {cardTitle('TIME disposition', 'Applications still in use. Select a slice to open that set.')}
           <div className="insights-donut">
             <Donut slices={timeSlices} center={timeTotal ? `${investPct}%` : '—'} caption="Invest" />
@@ -387,7 +387,7 @@ export const InsightsView = ({
           </div>
         </section>
 
-        <section className="card" style={{ padding: '1.15rem 1.25rem' }}>
+        <section className="card">
           {cardTitle('Lifecycle', 'Where the portfolio sits, including decommissioned applications.')}
           <div className="insights-donut">
             <Donut slices={model.lifecycle.map((slice) => ({ key: slice.label, ...slice }))} center={String(apps.length)} caption="Applications" />
@@ -399,10 +399,8 @@ export const InsightsView = ({
             />
           </div>
         </section>
-      </div>
 
-      <div className="insights-split">
-        <section className="card" style={{ padding: '1.15rem 1.25rem' }}>
+        <section className="card">
           {cardTitle('Cost', `Applications still in use. ${costCutoff} and above is high cost. Select a level to open that set.`)}
           <div className="insights-donut">
             <Donut slices={costs} center={timeTotal ? `${highCostPct}%` : '—'} caption="High cost" />
@@ -415,7 +413,7 @@ export const InsightsView = ({
           </div>
         </section>
 
-        <section className="card" style={{ padding: '1.15rem 1.25rem' }}>
+        <section className="card">
           {cardTitle('Risk', `Technical fit below ${techCutoff}, high PII or CIA, or a contract ending within 6 months.`)}
           <div className="insights-donut">
             <Donut
@@ -426,7 +424,7 @@ export const InsightsView = ({
               center={timeTotal ? `${riskPct}%` : '—'}
               caption="At risk"
             />
-            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+            <div className="insights-legend insights-risk">
               <RiskMeter
                 label="Low technical fit"
                 detail={`Technical fit below ${techCutoff}.`}
@@ -459,7 +457,7 @@ export const InsightsView = ({
         </section>
       </div>
 
-      <section className="card" style={{ padding: '1.15rem 1.25rem', marginBottom: '0.75rem' }}>
+      <section className="card insights-completeness">
         {cardTitle('Portfolio completeness', `Share of ${model.activeCount} applications still in use that have each fact recorded.`)}
         <div className="insights-gauges">
           {model.completeness.map((item, index) => {
@@ -477,8 +475,8 @@ export const InsightsView = ({
         </div>
       </section>
 
-      <div className="insights-split">
-        <section className="card" style={{ padding: '1.15rem' }}>
+      <div className="insights-lists">
+        <section className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', flexWrap: 'wrap' }}>
             {cardTitle('Outside Invest', 'Migrate, Tolerate, and Eliminate, highest criticality first.')}
             {model.attention.length > 0 && (
@@ -512,7 +510,7 @@ export const InsightsView = ({
           )}
         </section>
 
-        <section className="card" style={{ padding: '1.15rem' }}>
+        <section className="card">
           {cardTitle('Capabilities with no application', 'No application is recorded as supporting them.')}
           {model.unsupported.length === 0 ? (
             <Empty>Every capability has at least one supporting application.</Empty>
@@ -526,10 +524,8 @@ export const InsightsView = ({
             <p style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', margin: '0.45rem 0 0' }}>{model.unsupported.length - ATTENTION_LIMIT} more have no application.</p>
           )}
         </section>
-      </div>
 
-      <div className="insights-split">
-        <section className="card" style={{ padding: '1.15rem' }}>
+        <section className="card">
           {cardTitle('Contracts due', 'End dates already passed, or inside the next 6 months.')}
           {model.contracts.length === 0 ? (
             <Empty>
@@ -552,7 +548,7 @@ export const InsightsView = ({
           )}
         </section>
 
-        <section className="card" style={{ padding: '1.15rem' }}>
+        <section className="card">
           {cardTitle('Sensitive information', 'Confidentiality of 4 or higher, or a PII score of 3 or higher.')}
           {model.sensitive.length === 0 ? (
             <Empty>No information object is at this sensitivity.</Empty>
@@ -623,7 +619,7 @@ const Donut = ({ slices, size = 176, thickness = 24, center, caption }: { slices
 };
 
 const ChartLegend = ({ items, onSelect }: { items: Array<ChartSlice & { total: number; navigable?: boolean }>; onSelect: (key: string) => void }) => (
-  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+  <div className="insights-legend">
     {items.map((item) => {
       const pct = item.total ? Math.round((item.value / item.total) * 100) : 0;
       const canOpen = item.value > 0 && item.navigable !== false;
