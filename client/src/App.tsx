@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Activity, Eye, EyeOff, Trash2, Monitor, PlusCircle, Download, Layers, Clock, LayoutDashboard, Coins, Lightbulb } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
@@ -26,6 +26,7 @@ import { TimeDashboardView } from './components/TimeDashboardView';
 import { InsightsView } from './components/InsightsView';
 import { PortfolioChatProvider } from './components/PortfolioChat';
 import { ModelMenu } from './components/ModelMenu';
+import { AspectsMenu } from './components/AspectsMenu';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 
 export { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, readStoredTimeThresholds } from './timeAssessment';
@@ -1410,16 +1411,6 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
   const infoTypeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
   
-  const scoreFields = [
-    { id: 'lc', fieldName: 'lifecycle', label: 'Lifecycle', icon: <Activity size={16} style={{ marginRight: '0.5rem' }} /> },
-    { id: 'time', fieldName: 'time', label: 'TIME Assessment', icon: <Clock size={16} style={{ marginRight: '0.5rem' }} /> },
-    { id: 'crit', fieldName: 'criticality', label: 'Business Criticality', icon: <ShieldAlert size={16} style={{ marginRight: '0.5rem' }} /> },
-    { id: 'cost', fieldName: 'cost', label: 'Cost', scaleType: 'good-bad', icon: <Coins size={16} style={{ marginRight: '0.5rem' }} /> },
-    { id: 'func', fieldName: 'functionalFit', label: 'Functional Fit', scaleType: 'bad-good', icon: <Boxes size={16} style={{ marginRight: '0.5rem' }} /> },
-    { id: 'tech', fieldName: 'technicalFit', label: 'Technical Fit', scaleType: 'bad-good', icon: <Monitor size={16} style={{ marginRight: '0.5rem' }} /> },
-  ];
-  const allRangeFields = [...scoreFields];
-
   const { filteredApps, categoricalFilteredApps } = useMemo(() => {
     if (!apps) return { filteredApps: [], categoricalFilteredApps: [] };
 
@@ -1525,23 +1516,26 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
-        <div><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
-        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
-          <div style={{ width: '280px' }}>
-            <SearchInput 
-              value={filters.search} 
-              onChange={(val) => updateFilters({ search: val })} 
-              placeholder="Search nodes and flows..." 
+      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+        <div style={{ flexShrink: 0 }}><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
+        <div role="group" aria-label="Landscape" style={{ display: 'flex', flexShrink: 0, background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center' }}>
+            <span style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Landscape</span>
+            <button type="button" aria-pressed={mode === 'landscape'} onClick={() => setMode('landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={13} style={{ marginRight: '0.35rem' }} /> Capability</button>
+            <button type="button" aria-pressed={mode === 'app-landscape'} onClick={() => setMode('app-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={13} style={{ marginRight: '0.35rem' }} /> Application</button>
+            <button type="button" aria-pressed={mode === 'network'} onClick={() => setMode('network')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={13} style={{ marginRight: '0.35rem' }} /> Integrations</button>
+          </div>
+
+          <div style={{ flex: '1 1 auto', minWidth: '10rem' }}>
+            <SearchInput
+              value={filters.search}
+              onChange={(val) => updateFilters({ search: val })}
+              placeholder="Search nodes and flows..."
               style={{ height: '2.2rem', fontSize: '0.9rem' }}
             />
           </div>
 
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
-            <button onClick={() => setMode('landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={13} style={{ marginRight: '0.35rem' }} /> Capability Landscape</button>
-            <button onClick={() => setMode('app-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={13} style={{ marginRight: '0.35rem' }} /> Application Landscape</button>
-            <button onClick={() => setMode('network')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={13} style={{ marginRight: '0.35rem' }} /> Integrations</button>
-          </div>
+          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexShrink: 0 }}>
+          <AspectsMenu mode={mode} value={activeOverlay} onChange={setActiveOverlay} />
 
           {(mode === 'landscape' || mode === 'app-landscape') && (
             <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center' }}>
@@ -1571,12 +1565,6 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
               </div>
             </div>
           )}
-
-          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
-            {allRangeFields.filter(def => (mode === 'network' || mode === 'app-landscape') || def.fieldName !== 'criticality').map(def => (
-              <button key={def.id} onClick={() => setActiveOverlay(def.fieldName)} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: activeOverlay === def.fieldName ? 'var(--background)' : 'transparent', boxShadow: activeOverlay === def.fieldName ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: activeOverlay === def.fieldName ? 'var(--primary)' : 'var(--muted-foreground)', fontWeight: activeOverlay === def.fieldName ? 600 : 400 }}>{def.icon || null}{def.label}</button>
-            ))}
-          </div>
 
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             {mode === 'landscape' && (
@@ -1628,7 +1616,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
             Filters
             {diagramFiltersActive && <FilterDot badge />}
           </button>
-        </div>
+          </div>
       </div>
       {showFilters && (
         <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>

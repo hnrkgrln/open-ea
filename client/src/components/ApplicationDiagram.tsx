@@ -1403,7 +1403,7 @@ const DiagramInner = ({
         minWidth: '220px'
       }}>
         <div style={{ fontSize: '11px', fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '2px' }}>
-          {mode === 'network' ? 'Integrations' : (mode === 'landscape' ? 'Capability Landscape' : 'Application Landscape')}
+          {mode === 'network' ? 'Landscape: Integrations' : (mode === 'landscape' ? 'Landscape: Capability' : 'Landscape: Application')}
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button 
@@ -1585,7 +1585,7 @@ const DiagramInner = ({
 
           <div>
             <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-              Application {getFieldLabel(activeOverlay!)}
+              Aspect: {getFieldLabel(activeOverlay!)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {activeOverlay === 'lifecycle' ? ( 

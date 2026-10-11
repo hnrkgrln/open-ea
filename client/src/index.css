@@ -189,9 +189,30 @@ button.model-menu-trigger.active {
   transition: transform 0.15s ease;
 }
 
-button.model-menu-trigger[data-state="open"] .model-menu-chevron {
+button.model-menu-trigger[data-state="open"] .model-menu-chevron,
+button.diagram-aspects-trigger[data-state="open"] .model-menu-chevron {
   transform: rotate(180deg);
   opacity: 1;
+}
+
+button.diagram-aspects-trigger {
+  height: 2.2rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--background);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--foreground);
+  gap: 0.4rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+button.diagram-aspects-trigger:hover,
+button.diagram-aspects-trigger[data-state="open"] {
+  background: var(--accent);
 }
 
 .model-menu-panel {
