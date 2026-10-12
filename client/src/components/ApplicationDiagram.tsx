@@ -20,7 +20,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { toPng } from 'html-to-image';
-import { Database, Boxes, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-react';
+import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-react';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -44,6 +44,7 @@ interface Application {
   name: string;
   description: string;
   owner: string;
+  ownerOrgId?: string | null;
   lifecycle: string;
   type: string;
   metadata?: string;
@@ -52,6 +53,14 @@ interface Application {
   functionalFit: string;
   technicalFit: string;
   capabilities?: { id: string; name: string; criticality: string }[];
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  type?: string | null;
+  parentId?: string | null;
+  metadata?: string;
 }
 
 interface Capability {
@@ -104,15 +113,17 @@ interface Picklist {
 interface Props {
   onNodeClick?: (app: Application) => void;
   onCapabilityClick?: (cap: Capability) => void;
+  onOrganizationClick?: (org: Organization) => void;
   onIntegrationClick?: (integration: Integration) => void;
   apps: Application[];
   filteredApps: Application[];
   categoricalFilteredApps: Application[];
   integrations: Integration[];
   capabilities: Capability[];
+  organizations?: Organization[];
   metaDefs: MetadataDefinition[];
   picklists: Picklist[];
-  mode?: 'network' | 'landscape' | 'app-landscape';
+  mode?: 'network' | 'landscape' | 'app-landscape' | 'org-landscape';
   activeOverlay?: string | null;
   activeCustomOverlays?: string[];
   showApplications?: boolean;
@@ -440,16 +451,19 @@ const NODE_TYPES = {};
 const EDGE_TYPES = {
   centered: CenteredEdge
 };
+const NO_ORGANIZATIONS: Organization[] = [];
 
 const DiagramInner = ({ 
   onNodeClick,
   onCapabilityClick,
+  onOrganizationClick,
   onIntegrationClick,
   apps, 
   filteredApps, 
   categoricalFilteredApps,
   integrations, 
-  capabilities, 
+  capabilities,
+  organizations = NO_ORGANIZATIONS, 
   metaDefs: dbMetaDefs, 
   picklists, 
   mode = 'landscape', 
@@ -682,8 +696,12 @@ const DiagramInner = ({
     } catch (e) { return []; }
   }, [activeCustomOverlays, metaDefs, picklists]);
 
+  // A fresh organizations array each render retriggers this effect and React Flow setNodes loops.
+  const organizationKey = organizations.map((org) => `${org.id}\0${org.parentId ?? ''}\0${org.name}\0${org.type ?? ''}`).join('\n');
+
   useEffect(() => {
-    if (!apps || !capabilities || !metaDefs || !picklists || apps.length === 0 || capabilities.length === 0) return;
+    if (!apps || !metaDefs || !picklists || apps.length === 0) return;
+    if (mode !== 'org-landscape' && (!capabilities || capabilities.length === 0)) return;
 
     const borderColor = 'var(--border)';
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
@@ -896,10 +914,8 @@ const DiagramInner = ({
       // ------------------------------------------
 
       setNodes(islandNodes); setEdges(islandEdges);
-    } else if (mode === 'landscape' || mode === 'app-landscape') {
+    } else if (mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape') {
       const allFinalNodes: Node[] = [];
-      const capsMap = new Map<string, Capability>();
-      capabilities.forEach(c => capsMap.set(c.id, c));
 
       const activeFilterGroups: { field: string, values: string[], entityType: string }[] = [];
       if (groupingField) {
@@ -944,25 +960,46 @@ const DiagramInner = ({
 
       const renderGroupContentNodes = (targetApps: Application[], containerId: string | undefined, baseOffsetX = 0, baseOffsetY = 0, capFilter?: (c: Capability) => boolean) => {
         const groupNodes: Node[] = [];
+        const isOrg = mode === 'org-landscape';
+        const boxId = (nodeId: string) => `${isOrg ? 'org' : 'cap'}-${containerId || 'main'}-${nodeId}`;
         const appsByCap = new Map<string, Application[]>();
         const unassignedApps: Application[] = [];
+        const orgIds = new Set(organizations.map(org => org.id));
         targetApps.forEach(app => {
-          if (!app.capabilities || app.capabilities.length === 0) unassignedApps.push(app);
-          else app.capabilities.forEach(capRef => {
-            if (!appsByCap.has(capRef.id)) appsByCap.set(capRef.id, []);
-            appsByCap.get(capRef.id)!.push(app);
-          });
+          if (isOrg) {
+            if (app.ownerOrgId && orgIds.has(app.ownerOrgId)) {
+              if (!appsByCap.has(app.ownerOrgId)) appsByCap.set(app.ownerOrgId, []);
+              appsByCap.get(app.ownerOrgId)!.push(app);
+            } else {
+              unassignedApps.push(app);
+            }
+          } else if (!app.capabilities || app.capabilities.length === 0) {
+            unassignedApps.push(app);
+          } else {
+            app.capabilities.forEach(capRef => {
+              if (!appsByCap.has(capRef.id)) appsByCap.set(capRef.id, []);
+              appsByCap.get(capRef.id)!.push(app);
+            });
+          }
         });
+        const structure = isOrg
+          ? [
+              ...organizations,
+              ...(unassignedApps.length > 0 ? [{ id: 'unassigned', name: 'Unassigned', parentId: null }] : []),
+            ]
+          : capabilities;
+        if (isOrg && unassignedApps.length > 0) appsByCap.set('unassigned', unassignedApps);
+        const structureMap = new Map(structure.map(node => [node.id, node]));
 
         const memoRelevant = new Map<string, boolean>();
         const isRelevant = (capId: string): boolean => {
           if (memoRelevant.has(capId)) return memoRelevant.get(capId)!;
           const hasApps = appsByCap.has(capId) && appsByCap.get(capId)!.length > 0;
-          const children = capabilities.filter(c => c.parentId === capId);
+          const children = structure.filter(c => c.parentId === capId);
           
-          const cap = capsMap.get(capId);
+          const cap = structureMap.get(capId);
           if (!cap) return false;
-          const matchesFilter = !capFilter || (cap && capFilter(cap));
+          const matchesFilter = !capFilter || (!isOrg && capFilter(cap as Capability));
           
           // Match if capability name matches search query
           const nameMatches = relationSearch && cap.name.toLowerCase().includes(relationSearch.toLowerCase());
@@ -980,7 +1017,7 @@ const DiagramInner = ({
                                  filters.capabilityId?.length > 0 ||
                                  (filters.custom && Object.values(filters.custom).some(v => (v as any[]).length > 0));
 
-          if (mode === 'landscape' && !relationSearch && !capFilter && !hasAnyAppFilter) {
+          if ((mode === 'landscape' || mode === 'org-landscape') && !relationSearch && !capFilter && !hasAnyAppFilter) {
             res = true;
           }
 
@@ -988,10 +1025,10 @@ const DiagramInner = ({
         };
 
         const renderCap = (capId: string, parentNodeId: string | undefined, depth = 0, rootX = 0, rootY = 0, targetWidth?: number): { width: number; height: number } => {
-          const cap = capsMap.get(capId);
+          const cap = structureMap.get(capId);
           if (!cap || !isRelevant(capId)) return { width: 0, height: 0 };
 
-          const children = capabilities.filter(c => c.parentId === capId && isRelevant(c.id));
+          const children = structure.filter(c => c.parentId === capId && isRelevant(c.id));
           const associatedApps = showApplications ? (appsByCap.get(capId) || []) : [];
 
           const padding = 8;
@@ -1007,7 +1044,7 @@ const DiagramInner = ({
           // Render children recursively — pass inner width so they fill the parent
           const childLayouts = children.map(child => ({
             id: child.id,
-            ...renderCap(child.id, `cap-${containerId || 'main'}-${capId}`, depth + 1, 0, 0, innerW)
+            ...renderCap(child.id, boxId(capId), depth + 1, 0, 0, innerW)
           }));
 
           // Effective inner width: the widest of desired innerW, any wider child, or the apps grid
@@ -1021,7 +1058,7 @@ const DiagramInner = ({
           // Stack children vertically (capCols = 1 — prevents width doubling at each depth)
           let childY = titleHeight;
           childLayouts.forEach((l, i) => {
-            const nIdx = groupNodes.findIndex(n => n.id === `cap-${containerId || 'main'}-${children[i].id}`);
+            const nIdx = groupNodes.findIndex(n => n.id === boxId(children[i].id));
             if (nIdx !== -1) {
               groupNodes[nIdx].position = { x: padding, y: childY };
               // Stretch child to fill the effective inner width; never let it exceed parent bounds
@@ -1042,7 +1079,7 @@ const DiagramInner = ({
             else if (appOverlayDef) colors = getOverlayColor(getAppScore(app, activeOverlay!, appOverlayDef), appOverlayDef, picklists);
 
             groupNodes.push({
-              id: `app-${containerId || 'main'}-${capId}-${app.id}`, parentNode: `cap-${containerId || 'main'}-${capId}`,
+              id: `app-${containerId || 'main'}-${capId}-${app.id}`, parentNode: boxId(capId),
               data: { label: (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '100%', overflow: 'hidden' }}>
                   <Database size={9} style={{ flexShrink: 0, opacity: 0.7 }} />
@@ -1060,22 +1097,25 @@ const DiagramInner = ({
           const finalHeight = appsStartY + appsH + padding + 1;
           const finalWidth = effectiveInnerW + padding * 2;
 
-          const capColors = (showCriticality && critDef)
+          const capColors = (!isOrg && showCriticality && critDef)
             ? getOverlayColor(getCapScore(capId), critDef, picklists)
             : {
                 bg: depth === 0 ? groupBg : (isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.025)'),
                 text: 'var(--foreground)'
               };
+          const NodeIcon = isOrg ? Layers : Boxes;
+          const orgType = isOrg ? (cap as Organization).type : undefined;
 
           groupNodes.unshift({
-            id: `cap-${containerId || 'main'}-${capId}`, parentNode: parentNodeId,
+            id: boxId(capId), parentNode: parentNodeId,
             data: { label: (
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px', width: '100%', overflow: 'hidden', padding: '0 2px' }}>
-                <Boxes size={depth === 0 ? 14 : 11} style={{ flexShrink: 0 }} />
+                <NodeIcon size={depth === 0 ? 14 : 11} style={{ flexShrink: 0 }} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: depth === 0 ? '12px' : '11px' }}>{cap.name}</span>
-                {getCustomLabels(cap, 'Capability').length > 0 && <div style={{ display: 'flex', gap: '1.5px', marginLeft: 'auto', flexShrink: 0 }}>{getCustomLabels(cap, 'Capability')}</div>}
+                {orgType && <span style={{ flexShrink: 0, opacity: 0.65, fontWeight: 600, fontSize: '10px' }}>{orgType}</span>}
+                {getCustomLabels(cap, isOrg ? 'Organization' : 'Capability').length > 0 && <div style={{ display: 'flex', gap: '1.5px', marginLeft: 'auto', flexShrink: 0 }}>{getCustomLabels(cap, isOrg ? 'Organization' : 'Capability')}</div>}
               </div>
-            ), type: 'capability', originalId: capId, original: cap },
+            ), type: isOrg ? 'organization' : 'capability', originalId: capId, original: cap },
             position: { x: rootX, y: rootY },
             style: {
               background: capColors.bg,
@@ -1144,8 +1184,8 @@ const DiagramInner = ({
           return { width: nodeW, height: nodeH };
         };
 
-        if (mode === 'landscape') {
-          const roots = capabilities.filter(c => !c.parentId);
+        if (mode === 'landscape' || mode === 'org-landscape') {
+          const roots = structure.filter(c => !c.parentId);
           const relevantRoots = roots.filter(r => isRelevant(r.id));
           
           // Dynamic columns based on width and count
@@ -1182,7 +1222,7 @@ const DiagramInner = ({
           let maxRight = 0;
           let maxBottom = 0;
           nodeAssignments.forEach(asgn => {
-            const nIdx = groupNodes.findIndex(n => n.id === `cap-${containerId || 'main'}-${asgn.root.id}`);
+            const nIdx = groupNodes.findIndex(n => n.id === boxId(asgn.root.id));
             const xPos = colWidths.slice(0, asgn.cIdx).reduce((sum, w) => sum + w + colGap, 0);
             const nodeX = xPos + baseOffsetX + 20;
             const nodeY = asgn.currentY + baseOffsetY + 50;
@@ -1332,7 +1372,7 @@ const DiagramInner = ({
         }
       }
 
-      if (activeCategoricalFilters.length > 0 && (mode === 'landscape' || mode === 'app-landscape')) {
+      if (activeCategoricalFilters.length > 0 && (mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape')) {
         // Find bounding box of current nodes
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         allFinalNodes.forEach(n => {
@@ -1347,7 +1387,7 @@ const DiagramInner = ({
 
       setNodes(allFinalNodes); setEdges([]);
     }
-  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, windowWidth, timeThresholds]);
+  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, windowWidth, timeThresholds]);
   useEffect(() => {
     const fitKey = `${nodes.length}-${visible}-${viewportWidth}-${mode}-${relationSearch}`;
     if (nodes.length > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== fitKey) {
@@ -1371,6 +1411,7 @@ const DiagramInner = ({
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app') onNodeClick?.(node.data.original);
     else if (node.data.type === 'capability' && node.data.originalId !== 'unassigned') onCapabilityClick?.(node.data.original);
+    else if (node.data.type === 'organization' && node.data.originalId !== 'unassigned') onOrganizationClick?.(node.data.original);
   };
 
   const onEdgeInternalClick = (_: any, edge: Edge) => {
@@ -1385,7 +1426,7 @@ const DiagramInner = ({
       nodeTypes={nodeTypes} edgeTypes={edgeTypes}
       style={{ width: '100%', height: '100%' }}
     >
-      {(mode === 'landscape' || mode === 'app-landscape') && <LandscapeArt isDark={isDark} />}
+      {(mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape') && <LandscapeArt isDark={isDark} />}
       {mode === 'network' && <NetworkArt isDark={isDark} />}
       <Background color="transparent" />
       <Controls showInteractive={false} />
@@ -1403,7 +1444,7 @@ const DiagramInner = ({
         minWidth: '220px'
       }}>
         <div style={{ fontSize: '11px', fontWeight: 700, borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '2px' }}>
-          {mode === 'network' ? 'Landscape: Integrations' : (mode === 'landscape' ? 'Landscape: Capability' : 'Landscape: Application')}
+          {mode === 'network' ? 'Landscape: Integrations' : mode === 'app-landscape' ? 'Landscape: Application' : mode === 'org-landscape' ? 'Landscape: Organization' : 'Landscape: Capability'}
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button 
@@ -1522,7 +1563,7 @@ const DiagramInner = ({
 
         {isLegendExpanded && (
           <>
-          <div>
+          {mode !== 'org-landscape' && <div>
             <div style={{ fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {mode === 'landscape' && !showCriticality ? ( 
@@ -1536,7 +1577,7 @@ const DiagramInner = ({
                 )) 
               )}
             </div>
-          </div>
+          </div>}
 
           {groupingField && (
             <div>

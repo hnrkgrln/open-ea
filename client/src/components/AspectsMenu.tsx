@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-export type DiagramMode = 'network' | 'landscape' | 'app-landscape';
+export type DiagramMode = 'network' | 'landscape' | 'app-landscape' | 'org-landscape';
 
 interface Aspect {
   fieldName: string;
@@ -25,7 +25,7 @@ interface Aspect {
 const ASPECTS: Aspect[] = [
   { fieldName: 'lifecycle', label: 'Lifecycle', description: 'Stage in the application life', icon: Activity },
   { fieldName: 'time', label: 'TIME Assessment', description: 'Invest, migrate, tolerate, or eliminate', icon: Clock },
-  { fieldName: 'criticality', label: 'Business Criticality', description: 'How severe a disruption would be', icon: ShieldAlert, modes: ['network', 'app-landscape'] },
+  { fieldName: 'criticality', label: 'Business Criticality', description: 'How severe a disruption would be', icon: ShieldAlert, modes: ['network', 'app-landscape', 'org-landscape'] },
   { fieldName: 'cost', label: 'Cost', description: 'Relative cost of the application', icon: Coins },
   { fieldName: 'functionalFit', label: 'Functional Fit', description: 'How well it meets the business need', icon: Boxes },
   { fieldName: 'technicalFit', label: 'Technical Fit', description: 'How sound the technology is', icon: Monitor },

@@ -423,6 +423,7 @@ const AppContent = () => {
           <DiagramsView 
             apps={apps || []} 
             capabilities={capabilities || []}
+            organizations={organizations || []}
             integrations={integrations || []}
             isVisible={true}
             timeThresholds={timeThresholds}
@@ -1290,7 +1291,9 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   );
 };
 
-const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], integrations: any[], isVisible: boolean, timeThresholds?: TimeThresholds }) => {
+const EMPTY_ORGANIZATIONS: Organization[] = [];
+
+const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS, integrations, isVisible, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations?: Organization[], integrations: any[], isVisible: boolean, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -1480,6 +1483,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
         app.lifecycle?.toLowerCase().includes(query) ||
         app.type?.toLowerCase().includes(query) ||
         app.capabilities?.some(c => c.name.toLowerCase().includes(query)) ||
+        app.ownerOrg?.name?.toLowerCase().includes(query) ||
         app.metadata?.toLowerCase().includes(query);
       
       // Also match if any of the app's integrations match the query 
@@ -1522,6 +1526,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
             <span style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Landscape</span>
             <button type="button" aria-pressed={mode === 'landscape'} onClick={() => setMode('landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={13} style={{ marginRight: '0.35rem' }} /> Capability</button>
             <button type="button" aria-pressed={mode === 'app-landscape'} onClick={() => setMode('app-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={13} style={{ marginRight: '0.35rem' }} /> Application</button>
+            <button type="button" aria-pressed={mode === 'org-landscape'} onClick={() => setMode('org-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'org-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'org-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Layers size={13} style={{ marginRight: '0.35rem' }} /> Organization</button>
             <button type="button" aria-pressed={mode === 'network'} onClick={() => setMode('network')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={13} style={{ marginRight: '0.35rem' }} /> Integrations</button>
           </div>
 
@@ -1537,7 +1542,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
           <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexShrink: 0 }}>
           <AspectsMenu mode={mode} value={activeOverlay} onChange={setActiveOverlay} />
 
-          {(mode === 'landscape' || mode === 'app-landscape') && (
+          {(mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape') && (
             <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center' }}>
               <span style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Group By</span>
               <div style={{ minWidth: '140px' }}>
@@ -1575,7 +1580,7 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
                 Criticality
               </button>
             )}
-            {mode === 'landscape' && (
+            {(mode === 'landscape' || mode === 'org-landscape') && (
               <button 
                 onClick={() => setShowApplications(!showApplications)} 
                 style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', background: showApplications ? 'var(--background)' : 'transparent', boxShadow: showApplications ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', color: showApplications ? 'var(--primary)' : 'var(--muted-foreground)', fontSize: '0.75rem' }}
@@ -1691,12 +1696,14 @@ const DiagramsView = ({ apps, capabilities, integrations, isVisible, timeThresho
         <ApplicationDiagram
           onNodeClick={(app) => navigate(`/apps/${app.id}`, { state: { from: 'diagram' } })}
           onCapabilityClick={(cap) => navigate(`/capabilities/${cap.id}`, { state: { from: 'diagram' } })}
+          onOrganizationClick={(org) => navigate(`/organizations/${org.id}`, { state: { from: 'diagram' } })}
           onIntegrationClick={(integration) => navigate(`/integrations/${integration.id}`, { state: { from: 'diagram' } })}
           apps={apps || []}
           filteredApps={filteredApps}
           categoricalFilteredApps={categoricalFilteredApps}
           integrations={integrations || []}
           capabilities={capabilities || []}
+          organizations={organizations}
           metaDefs={metaDefs || []}
           picklists={picklists || []}
 
