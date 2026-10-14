@@ -1187,6 +1187,30 @@ server.delete('/metadata-definitions/:id', {
   });
 });
 
+const DEFAULT_BRAND_NAME = 'OpenEA';
+const WORKSPACE_SETTINGS_ID = 'default';
+
+server.get('/workspace', async () => {
+  const row = await prisma.workspaceSettings.findUnique({ where: { id: WORKSPACE_SETTINGS_ID } });
+  return { brandName: row?.brandName?.trim() || DEFAULT_BRAND_NAME };
+});
+
+server.put('/workspace', {
+  schema: {
+    body: z.object({
+      brandName: z.string().trim().min(1).max(80),
+    }),
+  },
+}, async (request) => {
+  const brandName = request.body.brandName.trim();
+  const row = await prisma.workspaceSettings.upsert({
+    where: { id: WORKSPACE_SETTINGS_ID },
+    create: { id: WORKSPACE_SETTINGS_ID, brandName },
+    update: { brandName },
+  });
+  return { brandName: row.brandName };
+});
+
 // LLM providers. API keys stay in the database and are never returned.
 const llmProviderFields = {
   name: z.string().trim().min(1).max(120),

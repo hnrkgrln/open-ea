@@ -186,14 +186,14 @@ export const UnifiedSearch = ({}: Props) => {
     <>
       <button 
         onClick={openSearch}
-        className="secondary"
-        style={{ height: '2.1rem', display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0 0.85rem', width: '280px', justifyContent: 'space-between' }}
+        className="secondary header-search-button"
+        style={{ height: '2.1rem', display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0 0.85rem', justifyContent: 'space-between' }}
       >
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+        <div className="header-search-query">
           <Search size={14} />
           <span style={{ fontSize: '0.9rem' }}>Search everything...</span>
         </div>
-        <kbd style={{ fontSize: '0.8rem', background: 'var(--muted)', padding: '0.15rem 0.4rem', borderRadius: '4px', opacity: 0.7 }}>{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
+        <kbd style={{ fontSize: '0.8rem', background: 'var(--muted)', padding: '0.15rem 0.4rem', borderRadius: '4px', opacity: 0.7, flexShrink: 0 }}>{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
       </button>
 
       <Dialog.Root open={open} onOpenChange={(next) => { if (next) openSearch(); else setOpen(false); }}>

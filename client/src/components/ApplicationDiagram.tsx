@@ -20,7 +20,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { toPng } from 'html-to-image';
-import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2 } from 'lucide-react';
+import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2, FilterX } from 'lucide-react';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -37,6 +37,80 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
       return fallback;
     }
   }
+};
+
+const listSelected = (selected: string[] | undefined, value: string | null | undefined) => {
+  if (!selected || selected.length === 0) return true;
+  const raw = value ?? '';
+  const lower = raw.toLowerCase();
+  return selected.some((item) => item === raw || item.toLowerCase() === lower);
+};
+
+const crudSelected = (selected: string[] | undefined, crud: string | null | undefined) => {
+  if (!selected || selected.length === 0) return true;
+  const ops = (crud || '').split(',').map((part) => part.trim()).filter(Boolean);
+  return selected.some((item) => ops.some((op) => op === item || op.toLowerCase() === item.toLowerCase()));
+};
+
+const integrationMatchesFilters = (integration: { payload?: InformationObject; pattern?: string | null; frequency?: string | null; crud?: string | null }, filters: any) => {
+  const payload = integration.payload;
+  return listSelected(filters?.infoType, payload?.type)
+    && listSelected(filters?.pii, payload?.piiCategory)
+    && listSelected(filters?.confidentiality, payload?.confidentiality)
+    && listSelected(filters?.integrity, payload?.integrity)
+    && listSelected(filters?.availability, payload?.availability)
+    && listSelected(filters?.pattern, integration.pattern)
+    && listSelected(filters?.frequency, integration.frequency)
+    && crudSelected(filters?.crud, integration.crud);
+};
+
+const hasActiveDiagramFilter = (filters: any) => {
+  if (String(filters?.search || '').trim()) return true;
+  const keys = ['ownerOrgId', 'orgType', 'owner', 'lifecycle', 'type', 'capabilityId', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'time', 'infoType', 'pii', 'confidentiality', 'integrity', 'availability', 'pattern', 'frequency', 'crud'];
+  if (keys.some((key) => Array.isArray(filters?.[key]) && filters[key].length > 0)) return true;
+  const custom = filters?.custom;
+  return !!custom && Object.values(custom).some((vals) => Array.isArray(vals) && vals.length > 0);
+};
+
+const describeCategoricalFilters = (filters: any, organizations: Organization[], capabilities: Capability[], metaDefs: MetadataDefinition[]) => {
+  const labels: string[] = [];
+  const add = (title: string, values?: string[]) => {
+    if (values && values.length > 0) labels.push(`${title}: ${values.join(', ')}`);
+  };
+  if (filters.ownerOrgId?.length > 0) {
+    const names = filters.ownerOrgId.map((id: string) => organizations.find((org) => org.id === id)?.name || id);
+    labels.push(`Owning Organization: ${names.join(', ')}`);
+  }
+  add('Organization Type', filters.orgType);
+  add('Owner', filters.owner);
+  add('Type', filters.type);
+  if (filters.capabilityId?.length > 0) {
+    const capNames = filters.capabilityId.map((id: string) => capabilities.find((cap) => cap.id === id)?.name).filter(Boolean);
+    labels.push(`Capabilities: ${capNames.join(', ')}`);
+  }
+  add('Lifecycle', filters.lifecycle);
+  add('TIME', filters.time);
+  add('Criticality', filters.criticality);
+  add('Cost', filters.cost);
+  add('Functional Fit', filters.functionalFit);
+  add('Technical Fit', filters.technicalFit);
+  add('Info Type', filters.infoType);
+  add('PII Category', filters.pii);
+  add('Confidentiality', filters.confidentiality);
+  add('Integrity', filters.integrity);
+  add('Availability', filters.availability);
+  add('Pattern', filters.pattern);
+  add('Frequency', filters.frequency);
+  add('CRUD', filters.crud);
+  if (filters.custom) {
+    Object.entries(filters.custom).forEach(([field, vals]) => {
+      if (vals && (vals as any[]).length > 0) {
+        const def = metaDefs.find((item) => item.fieldName === field);
+        labels.push(`${def?.label || field}: ${(vals as any[]).join(', ')}`);
+      }
+    });
+  }
+  return labels;
 };
 
 interface Application {
@@ -487,6 +561,7 @@ const DiagramInner = ({
   const nodesInitialized = useNodesInitialized();
   const lastFitKey = useRef<string>('');
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const [filterMiss, setFilterMiss] = useState(false);
   const [lockNodes, setLockNodes] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -703,6 +778,13 @@ const DiagramInner = ({
     if (!apps || !metaDefs || !picklists || apps.length === 0) return;
     if (mode !== 'org-landscape' && (!capabilities || capabilities.length === 0)) return;
 
+    const publishDiagram = (nextNodes: Node[], nextEdges: Edge[]) => {
+      const hasContent = nextNodes.some((node) => node.id !== 'filter-container');
+      setFilterMiss(!hasContent && hasActiveDiagramFilter(filters));
+      setNodes(hasContent ? nextNodes : []);
+      setEdges(hasContent ? nextEdges : []);
+    };
+
     const borderColor = 'var(--border)';
     const groupBg = isDark ? 'rgba(37, 38, 43, 0.6)' : 'rgba(255, 255, 255, 0.6)';
 
@@ -773,10 +855,7 @@ const DiagramInner = ({
         const targetApp = apps.find(a => a.id === i.targetAppId);
         if (!sourceApp || !targetApp) return false;
 
-        // Apply Information Type filter if present
-        if (filters.infoType && filters.infoType.length > 0) {
-          if (!i.payload || !i.payload.type || !filters.infoType.includes(i.payload.type)) return false;
-        }
+        if (!integrationMatchesFilters(i, filters)) return false;
 
         if (search) {
           const iMatches = i.payload?.name?.toLowerCase().includes(search) || 
@@ -878,28 +957,7 @@ const DiagramInner = ({
       });
 
       // --- ADD FILTER FEEDBACK TO NETWORK VIEW ---
-      const activeCategoricalFilters: string[] = [];
-      if (!groupingField) {
-        if (filters.lifecycle?.length > 0) activeCategoricalFilters.push(`Lifecycle: ${filters.lifecycle.join(', ')}`);
-        if (filters.owner?.length > 0) activeCategoricalFilters.push(`Owner: ${filters.owner.join(', ')}`);
-        if (filters.type?.length > 0) activeCategoricalFilters.push(`Type: ${filters.type.join(', ')}`);
-        if (filters.capabilityId?.length > 0) {
-          const capNames = filters.capabilityId.map((id: string) => capabilities.find(c => c.id === id)?.name).filter(Boolean);
-          activeCategoricalFilters.push(`Capabilities: ${capNames.join(', ')}`);
-        }
-        if (filters.criticality?.length > 0) activeCategoricalFilters.push(`Criticality: ${filters.criticality.join(', ')}`);
-        if (filters.functionalFit?.length > 0) activeCategoricalFilters.push(`Functional Fit: ${filters.functionalFit.join(', ')}`);
-        if (filters.technicalFit?.length > 0) activeCategoricalFilters.push(`Technical Fit: ${filters.technicalFit.join(', ')}`);
-        if (filters.infoType?.length > 0) activeCategoricalFilters.push(`Info Type: ${filters.infoType.join(', ')}`);
-        if (filters.custom) {
-          Object.entries(filters.custom).forEach(([field, vals]) => {
-            if (vals && (vals as any[]).length > 0) {
-              const def = metaDefs.find(d => d.fieldName === field);
-              activeCategoricalFilters.push(`${def?.label || field}: ${(vals as any[]).join(', ')}`);
-            }
-          });
-        }
-      }
+      const activeCategoricalFilters = groupingField ? [] : describeCategoricalFilters(filters, organizations, capabilities, metaDefs);
 
       if (activeCategoricalFilters.length > 0 && islandNodes.length > 0) {
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -913,7 +971,7 @@ const DiagramInner = ({
       }
       // ------------------------------------------
 
-      setNodes(islandNodes); setEdges(islandEdges);
+      publishDiagram(islandNodes, islandEdges);
     } else if (mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape') {
       const allFinalNodes: Node[] = [];
 
@@ -991,6 +1049,33 @@ const DiagramInner = ({
         if (isOrg && unassignedApps.length > 0) appsByCap.set('unassigned', unassignedApps);
         const structureMap = new Map(structure.map(node => [node.id, node]));
 
+        const hasFilterList = (values?: string[]) => Array.isArray(values) && values.length > 0;
+        const hasCustomFilter = !!(filters.custom && Object.values(filters.custom).some((values: any) => Array.isArray(values) && values.length > 0));
+        const hasStructuralFilter = hasFilterList(filters.ownerOrgId) || hasFilterList(filters.orgType);
+        const hasOtherAppFilter = hasFilterList(filters.owner) ||
+          hasFilterList(filters.lifecycle) ||
+          hasFilterList(filters.type) ||
+          hasFilterList(filters.criticality) ||
+          hasFilterList(filters.cost) ||
+          hasFilterList(filters.functionalFit) ||
+          hasFilterList(filters.technicalFit) ||
+          hasFilterList(filters.time) ||
+          hasFilterList(filters.capabilityId) ||
+          hasFilterList(filters.infoType) ||
+          hasFilterList(filters.pii) ||
+          hasFilterList(filters.confidentiality) ||
+          hasFilterList(filters.integrity) ||
+          hasFilterList(filters.availability) ||
+          hasFilterList(filters.pattern) ||
+          hasFilterList(filters.frequency) ||
+          hasFilterList(filters.crud) ||
+          hasCustomFilter;
+        const hasAnyAppFilter = hasStructuralFilter || hasOtherAppFilter;
+        // Organization Type and Owning Organization name the boxes. With no other
+        // application filter, a matching organization stays visible without apps,
+        // and its ancestors stay so the tree still connects.
+        const structuralOnly = isOrg && !groupingField && !relationSearch && !capFilter && hasStructuralFilter && !hasOtherAppFilter;
+
         const memoRelevant = new Map<string, boolean>();
         const isRelevant = (capId: string): boolean => {
           if (memoRelevant.has(capId)) return memoRelevant.get(capId)!;
@@ -1003,22 +1088,18 @@ const DiagramInner = ({
           
           // Match if capability name matches search query
           const nameMatches = relationSearch && cap.name.toLowerCase().includes(relationSearch.toLowerCase());
-          
-          let res = (matchesFilter && (hasApps || nameMatches)) || children.some(c => isRelevant(c.id));
-          
-          // In capability landscape mode, if no active search or categorical filter is present,
-          // we should show the full capability hierarchy even if some nodes have no apps.
-          const hasAnyAppFilter = filters.owner?.length > 0 || 
-                                 filters.lifecycle?.length > 0 || 
-                                 filters.type?.length > 0 || 
-                                 filters.criticality?.length > 0 ||
-                                 filters.functionalFit?.length > 0 ||
-                                 filters.technicalFit?.length > 0 ||
-                                 filters.capabilityId?.length > 0 ||
-                                 (filters.custom && Object.values(filters.custom).some(v => (v as any[]).length > 0));
 
+          let res: boolean;
           if ((mode === 'landscape' || mode === 'org-landscape') && !relationSearch && !capFilter && !hasAnyAppFilter) {
+            // Show the full hierarchy when nothing is narrowing the inventory.
             res = true;
+          } else if (structuralOnly) {
+            const direct = capId !== 'unassigned'
+              && listSelected(filters.orgType, (cap as Organization).type)
+              && listSelected(filters.ownerOrgId, capId);
+            res = direct || children.some(c => isRelevant(c.id));
+          } else {
+            res = (matchesFilter && (hasApps || nameMatches)) || children.some(c => isRelevant(c.id));
           }
 
           memoRelevant.set(capId, res); return res;
@@ -1348,31 +1429,9 @@ const DiagramInner = ({
         allFinalNodes.push(...renderGroupContentNodes(filteredApps, undefined, 0, 0).nodes);
       }
 
-      // Restore activeCategoricalFilters calculation
-      const activeCategoricalFilters: string[] = [];
-      if (!groupingField) {
-        if (filters.lifecycle?.length > 0) activeCategoricalFilters.push(`Lifecycle: ${filters.lifecycle.join(', ')}`);
-        if (filters.owner?.length > 0) activeCategoricalFilters.push(`Owner: ${filters.owner.join(', ')}`);
-        if (filters.type?.length > 0) activeCategoricalFilters.push(`Type: ${filters.type.join(', ')}`);
-        if (filters.capabilityId?.length > 0) {
-          const capNames = filters.capabilityId.map((id: string) => capabilities.find(c => c.id === id)?.name).filter(Boolean);
-          activeCategoricalFilters.push(`Capabilities: ${capNames.join(', ')}`);
-        }
-        if (filters.criticality?.length > 0) activeCategoricalFilters.push(`Criticality: ${filters.criticality.join(', ')}`);
-        if (filters.functionalFit?.length > 0) activeCategoricalFilters.push(`Functional Fit: ${filters.functionalFit.join(', ')}`);
-        if (filters.technicalFit?.length > 0) activeCategoricalFilters.push(`Technical Fit: ${filters.technicalFit.join(', ')}`);
-        if (filters.infoType?.length > 0) activeCategoricalFilters.push(`Info Type: ${filters.infoType.join(', ')}`);
-        if (filters.custom) {
-          Object.entries(filters.custom).forEach(([field, vals]) => {
-            if (vals && (vals as any[]).length > 0) {
-              const def = metaDefs.find(d => d.fieldName === field);
-              activeCategoricalFilters.push(`${def?.label || field}: ${(vals as any[]).join(', ')}`);
-            }
-          });
-        }
-      }
+      const activeCategoricalFilters = groupingField ? [] : describeCategoricalFilters(filters, organizations, capabilities, metaDefs);
 
-      if (activeCategoricalFilters.length > 0 && (mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape')) {
+      if (activeCategoricalFilters.length > 0 && allFinalNodes.length > 0 && (mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape')) {
         // Find bounding box of current nodes
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         allFinalNodes.forEach(n => {
@@ -1385,7 +1444,7 @@ const DiagramInner = ({
         allFinalNodes.unshift({ id: 'filter-container', data: { label: 'Filtered Inventory' }, position: { x: minX - p, y: minY - p - 40 }, style: { width: (maxX - minX) + p * 2, height: (maxY - minY) + p * 2 + 40, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } });
       }
 
-      setNodes(allFinalNodes); setEdges([]);
+      publishDiagram(allFinalNodes, []);
     }
   }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, windowWidth, timeThresholds]);
   useEffect(() => {
@@ -1420,6 +1479,7 @@ const DiagramInner = ({
   };
 
   return (
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
     <ReactFlow
       nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick} onEdgeClick={onEdgeInternalClick}
       nodesDraggable={!lockNodes} nodesConnectable={false} elementsSelectable={!lockNodes} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
@@ -1665,6 +1725,13 @@ const DiagramInner = ({
         )}
       </Panel>
       </ReactFlow>
+      {filterMiss && (
+        <div className="diagram-filter-empty" role="status">
+          <FilterX size={28} aria-hidden="true" />
+          <p>Nothing matches this filter.</p>
+        </div>
+      )}
+    </div>
   );
 };
 

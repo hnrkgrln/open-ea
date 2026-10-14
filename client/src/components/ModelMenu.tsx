@@ -75,7 +75,7 @@ export const ModelMenu = () => {
         }}
       >
         <Shapes size={16} />
-        Model
+        <span className="header-label">Model</span>
         <ChevronDown size={14} className="model-menu-chevron" />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>

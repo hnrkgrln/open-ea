@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useTransition } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb } from 'lucide-react';
@@ -49,6 +49,28 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
       return fallback;
     }
   }
+};
+
+const selectedValue = (selected: string[] | undefined, value: string | null | undefined) => {
+  if (!selected || selected.length === 0) return true;
+  const raw = value ?? '';
+  const lower = raw.toLowerCase();
+  return selected.some((item) => item === raw || item.toLowerCase() === lower);
+};
+
+const selectedCrud = (selected: string[] | undefined, crud: string | null | undefined) => {
+  if (!selected || selected.length === 0) return true;
+  const ops = (crud || '').split(',').map((part) => part.trim()).filter(Boolean);
+  return selected.some((item) => ops.some((op) => op === item || op.toLowerCase() === item.toLowerCase()));
+};
+
+const matchesAnyValue = (selected: string[] | undefined, values: Array<string | null | undefined>) => {
+  if (!selected || selected.length === 0) return true;
+  return values.some((value) => {
+    const raw = value ?? '';
+    const lower = raw.toLowerCase();
+    return selected.some((item) => item === raw || item.toLowerCase() === lower);
+  });
 };
 
 // Custom hook for persisted state
@@ -146,6 +168,7 @@ interface Application {
   timeRationale?: string;
   metadata?: string;
   capabilities?: Capability[];
+  processedInformationObjects?: InformationObject[];
   createdAt: string;
   updatedAt: string;
 }
@@ -208,25 +231,87 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const navigate = useNavigate();
   const location = useLocation();
   const isFullWidth = location.pathname.startsWith('/diagrams');
+  const headerRef = useRef<HTMLElement>(null);
+
+  // The search stays a fixed 280px control centered on the header when that fits.
+  // A narrower window, or a long brand name, would otherwise cover Diagrams, so
+  // place it in the gap between the nav and Settings, narrow it if that gap is
+  // tight, and only then collapse the labels to icons.
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const start = header.querySelector<HTMLElement>('.header-start');
+    const search = header.querySelector<HTMLElement>('.header-search');
+    const end = header.querySelector<HTMLElement>('.header-end');
+    if (!start || !search || !end) return;
+
+    const GAP = 12;
+    const MAX_WIDTH = 280;
+    const MIN_WIDTH = 168;
+
+    const place = () => {
+      delete header.dataset.headerFit;
+      search.style.left = '';
+      search.style.width = '';
+      search.style.transform = '';
+
+      const limits = () => {
+        const headerBox = header.getBoundingClientRect();
+        const leftLimit = start.getBoundingClientRect().right + GAP;
+        const rightLimit = end.getBoundingClientRect().left - GAP;
+        return { headerBox, leftLimit, rightLimit, available: rightLimit - leftLimit };
+      };
+
+      let box = limits();
+      if (box.available < MIN_WIDTH) {
+        header.dataset.headerFit = 'compact';
+        box = limits();
+      }
+
+      const width = Math.min(MAX_WIDTH, Math.max(0, box.available));
+      const naturalLeft = box.headerBox.left + (box.headerBox.width - width) / 2;
+      const fitsCenter = naturalLeft >= box.leftLimit - 0.5 && naturalLeft + width <= box.rightLimit + 0.5;
+      if (fitsCenter && width >= MAX_WIDTH - 0.5) return;
+
+      const leftEdge = fitsCenter
+        ? naturalLeft
+        : box.leftLimit + Math.max(0, (box.available - width) / 2);
+      search.style.width = `${width}px`;
+      search.style.left = `${leftEdge - box.headerBox.left}px`;
+      search.style.transform = 'translateY(-50%)';
+    };
+
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(header);
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) place();
+    });
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [brandName]);
 
   return (
     <PortfolioChatProvider>
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <header className="header" style={{ flexShrink: 0, position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexShrink: 0 }}>
-          <Link to="/insights" className="logo" style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
-          <nav className="nav" style={{ gap: '1.25rem' }}>
-            <NavLink to="/insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /> Insights</NavLink>
-            <NavLink to="/apps" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Database size={16} /> Applications</NavLink>
+      <header ref={headerRef} className="header" style={{ flexShrink: 0, position: 'relative' }}>
+        <div className="header-start">
+          <Link to="/insights" className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
+          <nav className="nav">
+            <NavLink to="/insights" title="Insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /><span className="header-label">Insights</span></NavLink>
+            <NavLink to="/apps" title="Applications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Database size={16} /><span className="header-label">Applications</span></NavLink>
             <ModelMenu />
-            <NavLink to="/diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><MapIcon size={16} /> Diagrams</NavLink>
+            <NavLink to="/diagrams" title="Diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><MapIcon size={16} /><span className="header-label">Diagrams</span></NavLink>
           </nav>
         </div>
-        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
+        <div className="header-search">
           <UnifiedSearch />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexShrink: 0, marginLeft: 'auto' }}>
-          <NavLink to="/settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /> Settings</NavLink>
+        <div className="header-end">
+          <NavLink to="/settings" title="Settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /><span className="header-label">Settings</span></NavLink>
           <ThemeToggle />
         </div>
       </header>
@@ -281,10 +366,101 @@ const IntegrationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   return <IntegrationDetailsView integrationId={id || ''} onBack={useSmartBack('/integrations')} onRefresh={onRefresh} />;
 };
 
+const DEFAULT_BRAND_NAME = 'OpenEA';
+const LEGACY_BRAND_KEY = 'openea_brand_name';
+
+function readLegacyBrandName(): string | null {
+  try {
+    const raw = window.localStorage.getItem(LEGACY_BRAND_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'string') return null;
+    const name = parsed.trim();
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
 const AppContent = () => {
   const navigate = useNavigate();
-  const [brandName, setBrandName] = useLocalStorage<string>('openea_brand_name', 'OpenEA');
   const queryClient = useQueryClient();
+  const { data: workspace, isLoading: isWorkspaceLoading, isError: isWorkspaceError } = useQuery<{ brandName: string }>({
+    queryKey: ['workspace'],
+    queryFn: async () => {
+      const res = await fetch('/api/workspace');
+      if (!res.ok) throw new Error('Could not load workspace settings');
+      return res.json();
+    },
+  });
+  const [brandName, setBrandNameState] = useState(DEFAULT_BRAND_NAME);
+  const [brandError, setBrandError] = useState('');
+  const brandDirty = useRef(false);
+  const brandWrite = useRef(0);
+  const brandSaveTimer = useRef<number | null>(null);
+  const brandMigrated = useRef(false);
+
+  const saveBrandName = useCallback(async (name: string, writeId: number) => {
+    const res = await fetch('/api/workspace', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ brandName: name }),
+    });
+    if (writeId !== brandWrite.current) return;
+    if (!res.ok) {
+      setBrandError('Could not save the brand name.');
+      return;
+    }
+    const saved = await res.json() as { brandName: string };
+    queryClient.setQueryData(['workspace'], saved);
+    brandDirty.current = false;
+    setBrandError('');
+    setBrandNameState(saved.brandName);
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (!workspace || brandDirty.current) return;
+    setBrandNameState(workspace.brandName || DEFAULT_BRAND_NAME);
+  }, [workspace]);
+
+  useEffect(() => {
+    document.title = brandName.trim() || DEFAULT_BRAND_NAME;
+  }, [brandName]);
+
+  useEffect(() => {
+    if (!workspace || brandMigrated.current) return;
+    brandMigrated.current = true;
+    const legacy = readLegacyBrandName();
+    window.localStorage.removeItem(LEGACY_BRAND_KEY);
+    if (!legacy || legacy === workspace.brandName || workspace.brandName !== DEFAULT_BRAND_NAME) return;
+    brandDirty.current = true;
+    brandWrite.current += 1;
+    setBrandNameState(legacy);
+    void saveBrandName(legacy, brandWrite.current);
+  }, [workspace, saveBrandName]);
+
+  useEffect(() => () => {
+    if (brandSaveTimer.current) window.clearTimeout(brandSaveTimer.current);
+  }, []);
+
+  const setBrandName = useCallback((value: string) => {
+    brandDirty.current = true;
+    setBrandError('');
+    setBrandNameState(value);
+    const writeId = ++brandWrite.current;
+    if (brandSaveTimer.current) window.clearTimeout(brandSaveTimer.current);
+    brandSaveTimer.current = window.setTimeout(() => {
+      if (writeId !== brandWrite.current) return;
+      const trimmed = value.trim();
+      if (!trimmed) {
+        brandDirty.current = false;
+        const current = queryClient.getQueryData<{ brandName: string }>(['workspace']);
+        setBrandNameState(current?.brandName || DEFAULT_BRAND_NAME);
+        return;
+      }
+      void saveBrandName(trimmed, writeId);
+    }, 400);
+  }, [queryClient, saveBrandName]);
 
   const [timeThresholds, setTimeThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
 
@@ -345,7 +521,7 @@ const AppContent = () => {
     }
   });
 
-  const isInitialLoading = !apps || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading;
+  const isInitialLoading = !apps || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading || (isWorkspaceLoading && !isWorkspaceError);
 
   if (isInitialLoading) {
     return (
@@ -424,6 +600,7 @@ const AppContent = () => {
             apps={apps || []} 
             capabilities={capabilities || []}
             organizations={organizations || []}
+            informationObjects={informationObjects || []}
             integrations={integrations || []}
             isVisible={true}
             timeThresholds={timeThresholds}
@@ -432,7 +609,8 @@ const AppContent = () => {
         <Route path="/settings" element={
           <PicklistsView 
             brandName={brandName} 
-            onUpdateBrand={setBrandName} 
+            onUpdateBrand={setBrandName}
+            brandError={brandError} 
             apps={apps || []} 
             capabilities={capabilities || []} 
             organizations={organizations || []} 
@@ -1292,8 +1470,9 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
 };
 
 const EMPTY_ORGANIZATIONS: Organization[] = [];
+const EMPTY_INFORMATION: InformationObject[] = [];
 
-const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS, integrations, isVisible, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations?: Organization[], integrations: any[], isVisible: boolean, timeThresholds?: TimeThresholds }) => {
+const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS, informationObjects = EMPTY_INFORMATION, integrations, isVisible, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations?: Organization[], informationObjects?: InformationObject[], integrations: any[], isVisible: boolean, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -1316,6 +1495,8 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
 
   const filters = useMemo(() => ({
     search: searchParams.get('q') || '',
+    ownerOrgId: getParamArray('ownerOrg'),
+    orgType: getParamArray('orgType'),
     owner: getParamArray('owner'),
     lifecycle: getParamArray('lifecycle'),
     type: getParamArray('type'),
@@ -1326,6 +1507,13 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     technicalFit: getParamArray('tech'),
     time: getParamArray('time'),
     infoType: getParamArray('info'),
+    pii: getParamArray('pii'),
+    confidentiality: getParamArray('confidentiality'),
+    integrity: getParamArray('integrity'),
+    availability: getParamArray('availability'),
+    pattern: getParamArray('pattern'),
+    frequency: getParamArray('frequency'),
+    crud: getParamArray('crud'),
     custom: getCustomParams()
   }), [searchParams]);
 
@@ -1338,6 +1526,8 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     };
 
     if (newFilters.search !== undefined) setOrRemove('q', newFilters.search);
+    if (newFilters.ownerOrgId !== undefined) setOrRemove('ownerOrg', newFilters.ownerOrgId);
+    if (newFilters.orgType !== undefined) setOrRemove('orgType', newFilters.orgType);
     if (newFilters.owner !== undefined) setOrRemove('owner', newFilters.owner);
     if (newFilters.lifecycle !== undefined) setOrRemove('lifecycle', newFilters.lifecycle);
     if (newFilters.type !== undefined) setOrRemove('type', newFilters.type);
@@ -1348,6 +1538,13 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     if (newFilters.technicalFit !== undefined) setOrRemove('tech', newFilters.technicalFit);
     if (newFilters.time !== undefined) setOrRemove('time', newFilters.time);
     if (newFilters.infoType !== undefined) setOrRemove('info', newFilters.infoType);
+    if (newFilters.pii !== undefined) setOrRemove('pii', newFilters.pii);
+    if (newFilters.confidentiality !== undefined) setOrRemove('confidentiality', newFilters.confidentiality);
+    if (newFilters.integrity !== undefined) setOrRemove('integrity', newFilters.integrity);
+    if (newFilters.availability !== undefined) setOrRemove('availability', newFilters.availability);
+    if (newFilters.pattern !== undefined) setOrRemove('pattern', newFilters.pattern);
+    if (newFilters.frequency !== undefined) setOrRemove('frequency', newFilters.frequency);
+    if (newFilters.crud !== undefined) setOrRemove('crud', newFilters.crud);
     
     if (newFilters.custom !== undefined) {
       // Clear existing custom meta params
@@ -1372,11 +1569,6 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
   };
 
   const activeCustomOverlays = getParamArray('overlays_custom');
-  const setActiveCustomOverlays = (vals: string[]) => {
-    const p = new URLSearchParams(searchParams);
-    if (vals.length > 0) p.set('overlays_custom', vals.join(',')); else p.delete('overlays_custom');
-    setSearchParams(p, { replace: true });
-  };
 
   const groupingField = searchParams.get('group') || null;
   const setGroupingField = (g: string | null) => {
@@ -1394,14 +1586,13 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
 
   // Auto-show filters if any are active from URL on mount
   useEffect(() => {
-    const hasAny = Array.from(searchParams.keys()).some(k => !['mode', 'overlay', 'group'].includes(k));
+    const hasAny = Array.from(searchParams.keys()).some(k => !['mode', 'overlay', 'group', 'overlays_custom'].includes(k));
     if (hasAny) setShowFilters(true);
   }, []);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
 
-  const overlayMetaDefs = useMemo(() => metaDefs?.filter(d => d.fieldType !== 'range' && !['criticality', 'cost', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [], [metaDefs]);
   const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
@@ -1412,10 +1603,63 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
   const costOptions = picklists?.find(p => p.name === 'application_cost')?.options || [];
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
-  const infoTypeOptions = picklists?.find(p => p.name === 'information_type')?.options || [];
+
+  const picklistWithExtras = (name: string, used: Array<string | null | undefined>) => {
+    const fromPicklist = ((picklists?.find((p: any) => p.name === name)?.options || []) as { value: string; label?: string }[])
+      .map((option) => ({ value: String(option.value), label: option.label || String(option.value) }));
+    const known = new Set(fromPicklist.map((option) => option.value));
+    const extras = new Set<string>();
+    for (const value of used) {
+      if (value && !known.has(String(value))) extras.add(String(value));
+    }
+    return [
+      ...fromPicklist,
+      ...[...extras].sort((a, b) => a.localeCompare(b)).map((value) => ({ value, label: value })),
+    ];
+  };
+
+  const ownerOrgOptions = [...organizations]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((org) => ({ value: org.id, label: org.name }));
+  const orgTypeOptions = picklistWithExtras('organization_type', organizations.map((org) => org.type));
+  const infoTypeOptions = picklistWithExtras('information_type', informationObjects.map((info) => info.type));
+  const piiOptions = picklistWithExtras('pii_category', informationObjects.map((info) => info.piiCategory));
+  const ciaOptions = picklistWithExtras('cia_scale', informationObjects.flatMap((info) => [info.confidentiality, info.integrity, info.availability]));
+  const patternOptions = picklistWithExtras('integration_pattern', integrations.map((integration) => integration.pattern));
+  const frequencyOptions = picklistWithExtras('integration_frequency', integrations.map((integration) => integration.frequency));
+  const crudOptions = picklistWithExtras('integration_crud', integrations.flatMap((integration) => String(integration.crud || '').split(',').map((part) => part.trim())));
   
   const { filteredApps, categoricalFilteredApps } = useMemo(() => {
     if (!apps) return { filteredApps: [], categoricalFilteredApps: [] };
+
+    const orgById = new Map(organizations.map((org) => [org.id, org]));
+    const infoByApp = new Map<string, InformationObject[]>();
+    const rememberInfo = (appId: string | null | undefined, info: InformationObject | null | undefined) => {
+      if (!appId || !info?.id) return;
+      const list = infoByApp.get(appId);
+      if (!list) {
+        infoByApp.set(appId, [info]);
+        return;
+      }
+      if (!list.some((item) => item.id === info.id)) list.push(info);
+    };
+    for (const app of apps) {
+      for (const info of app.processedInformationObjects || []) rememberInfo(app.id, info);
+    }
+    for (const info of informationObjects) rememberInfo(info.appOwnerId, info);
+    const flowsByApp = new Map<string, any[]>();
+    const rememberFlow = (appId: string | null | undefined, flow: any) => {
+      if (!appId) return;
+      const list = flowsByApp.get(appId);
+      if (list) list.push(flow);
+      else flowsByApp.set(appId, [flow]);
+    };
+    for (const flow of integrations || []) {
+      rememberFlow(flow.sourceAppId, flow);
+      rememberFlow(flow.targetAppId, flow);
+      rememberInfo(flow.sourceAppId, flow.payload);
+      rememberInfo(flow.targetAppId, flow.payload);
+    }
 
     // 1. Categorical Filtering (Owner, Type, Lifecycle, etc.)
     const catFiltered = apps.filter(app => {
@@ -1465,7 +1709,23 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
         matchCap = app.capabilities?.some(c => allTargetIds.includes(c.id)) || false;
       }
 
-      return matchOwner && matchLifecycle && matchType && matchCap && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom;
+      const matchOwnerOrg = selectedValue(filters.ownerOrgId, app.ownerOrgId);
+      const orgType = app.ownerOrg?.type || orgById.get(app.ownerOrgId || '')?.type;
+      const matchOrgType = selectedValue(filters.orgType, orgType);
+      const relatedInfo = infoByApp.get(app.id) || [];
+      const flows = flowsByApp.get(app.id) || [];
+      const matchInfoType = matchesAnyValue(filters.infoType, relatedInfo.map((info) => info.type));
+      const matchPii = matchesAnyValue(filters.pii, relatedInfo.map((info) => info.piiCategory));
+      const matchConfidentiality = matchesAnyValue(filters.confidentiality, relatedInfo.map((info) => info.confidentiality));
+      const matchIntegrity = matchesAnyValue(filters.integrity, relatedInfo.map((info) => info.integrity));
+      const matchAvailability = matchesAnyValue(filters.availability, relatedInfo.map((info) => info.availability));
+      const matchPattern = matchesAnyValue(filters.pattern, flows.map((flow) => flow.pattern));
+      const matchFrequency = matchesAnyValue(filters.frequency, flows.map((flow) => flow.frequency));
+      const matchCrud = !filters.crud?.length || flows.some((flow) => selectedCrud(filters.crud, flow.crud));
+
+      return matchOwner && matchLifecycle && matchType && matchCap && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom
+        && matchOwnerOrg && matchOrgType && matchInfoType && matchPii && matchConfidentiality && matchIntegrity && matchAvailability
+        && matchPattern && matchFrequency && matchCrud;
     });
 
     // 2. Search Filtering (Applied on top of categorical)
@@ -1505,10 +1765,14 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, capabilities, integrations, timeThresholds]);
+  }, [apps, filters, capabilities, integrations, organizations, informationObjects, timeThresholds]);
 
   const diagramFiltersActive = useMemo(() => {
-    const lists = [filters.owner, filters.lifecycle, filters.type, filters.capabilityId, filters.criticality, filters.cost, filters.functionalFit, filters.technicalFit, filters.time, filters.infoType];
+    const lists = [
+      filters.ownerOrgId, filters.orgType, filters.owner, filters.lifecycle, filters.type, filters.capabilityId,
+      filters.criticality, filters.cost, filters.functionalFit, filters.technicalFit, filters.time, filters.infoType,
+      filters.pii, filters.confidentiality, filters.integrity, filters.availability, filters.pattern, filters.frequency, filters.crud,
+    ];
     const custom = Object.values(filters.custom || {}).some((vals) => vals.length > 0);
     return filters.search !== '' || lists.some((vals) => vals.length > 0) || custom;
   }, [filters]);
@@ -1520,17 +1784,17 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
-        <div style={{ flexShrink: 0 }}><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
-        <div role="group" aria-label="Landscape" style={{ display: 'flex', flexShrink: 0, background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center' }}>
-            <span style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Landscape</span>
+      <div className="diagram-toolbar" style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+        <div className="diagram-title"><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
+        <div role="group" aria-label="Landscape" className="diagram-landscape" style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center', position: 'relative' }}>
+            <span className="diagram-landscape-label" style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Landscape</span>
             <button type="button" aria-pressed={mode === 'landscape'} onClick={() => setMode('landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Boxes size={13} style={{ marginRight: '0.35rem' }} /> Capability</button>
             <button type="button" aria-pressed={mode === 'app-landscape'} onClick={() => setMode('app-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'app-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'app-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Database size={13} style={{ marginRight: '0.35rem' }} /> Application</button>
             <button type="button" aria-pressed={mode === 'org-landscape'} onClick={() => setMode('org-landscape')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'org-landscape' ? 'var(--background)' : 'transparent', boxShadow: mode === 'org-landscape' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Layers size={13} style={{ marginRight: '0.35rem' }} /> Organization</button>
             <button type="button" aria-pressed={mode === 'network'} onClick={() => setMode('network')} style={{ height: '1.65rem', padding: '0 0.5rem', border: 'none', fontSize: '0.75rem', background: mode === 'network' ? 'var(--background)' : 'transparent', boxShadow: mode === 'network' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><Network size={13} style={{ marginRight: '0.35rem' }} /> Integrations</button>
           </div>
 
-          <div style={{ flex: '1 1 auto', minWidth: '10rem' }}>
+          <div className="diagram-search">
             <SearchInput
               value={filters.search}
               onChange={(val) => updateFilters({ search: val })}
@@ -1539,12 +1803,12 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
             />
           </div>
 
-          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexShrink: 0 }}>
+          <div className="diagram-tools" style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
           <AspectsMenu mode={mode} value={activeOverlay} onChange={setActiveOverlay} />
 
           {(mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape') && (
-            <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Group By</span>
+            <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center', position: 'relative' }}>
+              <span className="diagram-groupby-label" style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Group By</span>
               <div style={{ minWidth: '140px' }}>
                 <ColoredSelect
                   value={groupingField || ''}
@@ -1627,6 +1891,8 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
         <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
             {[
+              { label: 'Owning Organization', options: ownerOrgOptions, key: 'ownerOrgId' },
+              { label: 'Organization Type', options: orgTypeOptions, key: 'orgType' },
               { label: 'Owner', options: ownerOptions, key: 'owner' },
               { label: 'Application Type', options: appTypeOptions, key: 'type' },
               { label: 'Capability Area', options: capabilities?.map((c: any) => ({ value: c.id, label: c.name })) || [], key: 'capabilityId' },
@@ -1636,7 +1902,14 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
               { label: 'Cost', options: costOptions, key: 'cost' },
               { label: 'Functional Fit', options: funcFitOptions, key: 'functionalFit' },
               { label: 'Technical Fit', options: techFitOptions, key: 'technicalFit' },
-              { label: 'Information Type', options: infoTypeOptions, key: 'infoType' }
+              { label: 'Information Type', options: infoTypeOptions, key: 'infoType' },
+              { label: 'PII Category', options: piiOptions, key: 'pii' },
+              { label: 'Confidentiality', options: ciaOptions, key: 'confidentiality' },
+              { label: 'Integrity', options: ciaOptions, key: 'integrity' },
+              { label: 'Availability', options: ciaOptions, key: 'availability' },
+              { label: 'Integration Pattern', options: patternOptions, key: 'pattern' },
+              { label: 'Integration Frequency', options: frequencyOptions, key: 'frequency' },
+              { label: 'CRUD', options: crudOptions, key: 'crud' },
             ].map(item => (
               <MultiSelect 
                 key={item.key}
@@ -1648,17 +1921,6 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
                 style={{ height: '2.2rem', fontSize: '0.9rem' }}
               />
             ))}
-
-            {overlayMetaDefs.length > 0 && (
-              <MultiSelect 
-                label="Diagram Labels"
-                options={overlayMetaDefs.map(d => ({ value: d.fieldName, label: `${d.label}` }))}
-                selectedValues={activeCustomOverlays}
-                onChange={setActiveCustomOverlays}
-                placeholder="None"
-                style={{ height: '2.2rem', fontSize: '0.9rem' }}
-              />
-            )}
 
             {appMetaDefs.filter(d => d.fieldType !== 'range').map(def => (
               <MultiSelect 
@@ -1684,7 +1946,29 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
             ))}
 
             <button 
-              onClick={() => { updateFilters({ search: '', owner: [], lifecycle: [], type: [], capabilityId: [], criticality: [], cost: [], functionalFit: [], technicalFit: [], infoType: [], custom: {} }); setActiveCustomOverlays([]); }} 
+              onClick={() => updateFilters({
+                search: '',
+                ownerOrgId: [],
+                orgType: [],
+                owner: [],
+                lifecycle: [],
+                type: [],
+                capabilityId: [],
+                criticality: [],
+                cost: [],
+                functionalFit: [],
+                technicalFit: [],
+                time: [],
+                infoType: [],
+                pii: [],
+                confidentiality: [],
+                integrity: [],
+                availability: [],
+                pattern: [],
+                frequency: [],
+                crud: [],
+                custom: {},
+              })} 
               style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
             >
               <X size={16} style={{ marginRight: '0.5rem' }} /> Clear All

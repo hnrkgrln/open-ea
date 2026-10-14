@@ -171,6 +171,7 @@ function ArtifactPicklistCard({ picklist, onChanged }: { picklist: Picklist; onC
 interface Props {
   brandName: string;
   onUpdateBrand: (val: string) => void;
+  brandError?: string;
   apps: any[];
   capabilities: any[];
   organizations: any[];
@@ -183,7 +184,8 @@ interface Props {
 
 export const PicklistsView = ({ 
   brandName, 
-  onUpdateBrand, 
+  onUpdateBrand,
+  brandError = '', 
   apps, 
   capabilities, 
   organizations, 
@@ -777,8 +779,11 @@ export const PicklistsView = ({
                     </button>
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', margin: 0 }}>
-                    This brand name appears in the top navigation header and browser titles.
+                    Saved for this workspace. The name appears in the header and the browser title on every computer.
                   </p>
+                  {brandError && (
+                    <p style={{ fontSize: '0.72rem', color: 'var(--destructive, #c92a2a)', marginTop: '0.45rem', marginBottom: 0 }}>{brandError}</p>
+                  )}
                 </div>
               </div>
             </div>

@@ -150,3 +150,9 @@ model LlmSettings {
   systemPrompt String
   updatedAt    DateTime @updatedAt
 }
+
+model WorkspaceSettings {
+  id        String   @id
+  brandName String
+  updatedAt DateTime @updatedAt
+}
