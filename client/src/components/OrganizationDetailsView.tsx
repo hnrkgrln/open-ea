@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Edit2, Layers, ChevronLeft, FileText, Calendar, Info, Database } from 'lucide-react';
+import { Boxes, Edit2, Layers, ChevronLeft, FileText, Calendar, Info, Database } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
@@ -215,6 +215,24 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                     </div>
                   )) : (
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No applications currently owned by this organization.</div>
+                  )}
+                </div>
+              </section>
+
+              <section>
+                <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Boxes size={16} /> Supported Capabilities
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+                  {(org.supportedCapabilities || []).length > 0 ? [...org.supportedCapabilities].sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true })).map((capability: any) => (
+                    <div key={capability.id} onClick={() => navigate(`/capabilities/${capability.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
+                      <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
+                        <Boxes size={16} />
+                      </div>
+                      <span style={{ fontWeight: 700 }}>{capability.name}</span>
+                    </div>
+                  )) : (
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No capabilities supported by this organization.</div>
                   )}
                 </div>
               </section>

@@ -1,79 +1,12 @@
 import React, { useRef, useState } from 'react';
 import { Download, Upload, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
-
-interface Application {
-  id: string;
-  name: string;
-  capabilities?: { id: string }[];
-  metadata?: string;
-  lifecycle: string;
-  [key: string]: any;
-}
-
-interface Capability {
-  id: string;
-  name: string;
-  applications?: { id: string }[];
-  metadata?: string;
-  [key: string]: any;
-}
-
-interface Organization {
-  id: string;
-  name: string;
-  [key: string]: any;
-}
-
-interface InformationObject {
-  id: string;
-  name: string;
-  [key: string]: any;
-}
-
-interface Integration {
-  id: string;
-  sourceAppId: string;
-  targetAppId: string;
-  infoObjectId?: string | null;
-  pattern?: string;
-  frequency?: string;
-  crud?: string;
-  [key: string]: any;
-}
-
-type ArtifactType = 'applications' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
+import { orderByParent, prepareImportPayload, toCsv, type ArtifactType } from '../portableRecords';
 
 interface ImportExportProps {
   type: ArtifactType;
   onImportSuccess: () => void;
 }
-
-const CSV_HEADERS: Record<ArtifactType, string[]> = {
-  applications: ['id', 'name', 'description', 'owner', 'lifecycle', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails', 'vendorName', 'vendorUrl', 'vendorSummary', 'type', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'timeRationale', 'metadata', 'capabilityIds'],
-  capabilities: ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'applicationIds'],
-  organizations: ['id', 'name', 'description', 'type', 'parentId'],
-  'information-objects': ['id', 'name', 'aliases', 'description', 'confidentiality', 'integrity', 'availability', 'piiCategory', 'type', 'businessOwnerId', 'appOwnerId', 'metadata'],
-  integrations: ['id', 'name', 'sourceAppId', 'targetAppId', 'infoObjectId', 'pattern', 'frequency', 'crud'],
-};
-
-const csvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-
-const toCsv = (type: ArtifactType, data: any[]) => {
-  const headers = CSV_HEADERS[type];
-  const rows = (data || []).map((item) => headers.map((header) => {
-    let value = item[header];
-    if (header === 'capabilityIds' && type === 'applications') {
-      value = ((item as Application).capabilities || []).map((capability) => capability.id).join(';');
-    } else if (header === 'applicationIds' && type === 'capabilities') {
-      value = ((item as Capability).applications || []).map((app) => app.id).join(';');
-    } else if (value && ['lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate'].includes(header)) {
-      value = String(value).split('T')[0];
-    }
-    return csvCell(value);
-  }).join(','));
-  return [headers.join(','), ...rows].join('\n');
-};
 
 const CRC_TABLE = new Uint32Array(256).map((_, index) => {
   let crc = index;
@@ -232,7 +165,7 @@ export const ImportExport = ({ type, onImportSuccess }: ImportExportProps) => {
       const headers = rows[0].map(h => h.replace(/^"|"$/g, ''));
       const dataRows = rows.slice(1);
 
-      const importedData = dataRows.map(values => {
+      let importedData = dataRows.map(values => {
         const obj: any = {};
         headers.forEach((header, index) => {
           let val = values[index];
@@ -243,6 +176,7 @@ export const ImportExport = ({ type, onImportSuccess }: ImportExportProps) => {
         });
         return obj;
       });
+      if (type === 'organizations' || type === 'capabilities') importedData = orderByParent(importedData);
 
       // Initialize status
       setStatus({
@@ -261,27 +195,7 @@ export const ImportExport = ({ type, onImportSuccess }: ImportExportProps) => {
       for (let i = 0; i < importedData.length; i++) {
         const item = importedData[i];
         try {
-          const { id, ...payload } = item;
-          
-          // Handle specific transformations
-          if (type === 'applications') {
-            payload.capabilityIds = payload.capabilityIds ? payload.capabilityIds.split(';').filter((id: string) => id !== '') : [];
-            if (payload.lifecycleStartDate) payload.lifecycleStartDate = new Date(payload.lifecycleStartDate).toISOString();
-            if (payload.lifecycleEndDate) payload.lifecycleEndDate = new Date(payload.lifecycleEndDate).toISOString();
-            if (payload.contractStartDate) payload.contractStartDate = new Date(payload.contractStartDate).toISOString();
-            if (payload.contractEndDate) payload.contractEndDate = new Date(payload.contractEndDate).toISOString();
-            if (!payload.contractDetails) payload.contractDetails = payload.contractDetails || null;
-          } else if (type === 'capabilities') {
-            payload.applicationIds = payload.applicationIds ? payload.applicationIds.split(';').filter((id: string) => id !== '') : [];
-            if (payload.parentId === '') payload.parentId = null;
-          } else if (type === 'organizations') {
-            if (payload.parentId === '') payload.parentId = null;
-          } else if (type === 'information-objects') {
-             if (payload.businessOwnerId === '') payload.businessOwnerId = null;
-             if (payload.appOwnerId === '') payload.appOwnerId = null;
-          } else if (type === 'integrations') {
-             if (payload.infoObjectId === '') payload.infoObjectId = null;
-          }
+          const { id, payload } = prepareImportPayload(type, item);
 
           // Decide method and handle potentially missing records
           let res;
@@ -437,20 +351,20 @@ export const ImportExport = ({ type, onImportSuccess }: ImportExportProps) => {
 
 const IMPORT_STEPS = [
   {
-    title: 'Organizations',
-    reason: 'Owner references',
-    description: 'Import accountability structures first. Later files point at these owners.',
-    type: 'organizations' as const,
-    dataKey: 'organizations' as const,
-    file: '01-organizations.csv',
-  },
-  {
     title: 'Capabilities',
     reason: 'Initial hierarchy',
-    description: 'Import the business capability map before applications link to it.',
+    description: 'Import the business capability map first. Organizations and applications link to it.',
     type: 'capabilities' as const,
     dataKey: 'capabilities' as const,
-    file: '02-capabilities.csv',
+    file: '01-capabilities.csv',
+  },
+  {
+    title: 'Organizations',
+    reason: 'Owner references',
+    description: 'Import accountability structures next, including the capabilities each one supports. Later files point at these owners.',
+    type: 'organizations' as const,
+    dataKey: 'organizations' as const,
+    file: '02-organizations.csv',
   },
   {
     title: 'Information Model',
@@ -544,7 +458,7 @@ export const ImportExportSettings = ({ onRefresh, apps, capabilities, organizati
 
       <div style={{ padding: '0.75rem 0.9rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--muted)' }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', margin: 0 }}>
-          <strong style={{ color: 'var(--foreground)' }}>Updating records.</strong> Include the <code>id</code> column to update existing rows. Leave <code>id</code> empty to create new ones.
+          <strong style={{ color: 'var(--foreground)' }}>Updating records.</strong> Include the <code>id</code> column to update existing rows. Leave <code>id</code> empty to create new ones. Relation columns such as <code>ownerOrgId</code>, <code>parentId</code>, and <code>capabilityIds</code> use ids from an earlier step. A blank nullable field clears that value.
         </p>
       </div>
     </div>

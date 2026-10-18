@@ -167,6 +167,7 @@ interface Application {
   technicalFit: string;
   timeRationale?: string;
   metadata?: string;
+  references?: string;
   capabilities?: Capability[];
   processedInformationObjects?: InformationObject[];
   createdAt: string;
@@ -179,6 +180,7 @@ interface Capability {
   description?: string;
   criticality: string;
   parentId?: string | null;
+  references?: string;
   children?: Capability[];
   applications?: { id: string; name: string }[];
 }
@@ -786,7 +788,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     if (filteredApps.length === 0) return;
     
     // Define headers
-    const headers = ['Name', 'Owner', 'Type', 'Lifecycle', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities'];
+    const headers = ['Name', 'Description', 'Owner', 'Owning Organization', 'Type', 'Lifecycle', 'Lifecycle Start', 'Lifecycle End', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities', 'Processed Information', 'References'];
     const customHeaders = appMetaDefs.map(d => d.label);
     const allHeaders = [...headers, ...customHeaders];
 
@@ -795,24 +797,32 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
       ...filteredApps.map(app => {
         const meta = safeJsonParse(app.metadata);
         const caps = (app.capabilities || []).map(c => c.name).join('; ');
+        const processed = (app.processedInformationObjects || []).map(io => io.name).join('; ');
+        const cell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
         
         const row = [
-          `"${app.name || ''}"`,
-          `"${ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || ''}"`,
-          `"${appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || ''}"`,
-          `"${app.lifecycle || ''}"`,
-          `"${app.contractStartDate ? app.contractStartDate.split('T')[0] : ''}"`,
-          `"${app.contractEndDate ? app.contractEndDate.split('T')[0] : ''}"`,
-          `"${(app.contractDetails || '').replace(/"/g, '""')}"`,
-          `"${(app.vendorName || '').replace(/"/g, '""')}"`,
-          `"${(app.vendorUrl || '').replace(/"/g, '""')}"`,
-          `"${(app.vendorSummary || '').replace(/"/g, '""')}"`,
-          `"${app.criticality || ''}"`,
-          `"${app.cost || ''}"`,
-          `"${app.functionalFit || ''}"`,
-          `"${app.technicalFit || ''}"`,
-          `"${(app.timeRationale || '').replace(/"/g, '""')}"`,
-          `"${caps}"`
+          cell(app.name),
+          cell(app.description),
+          cell(ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner),
+          cell(app.ownerOrg?.name),
+          cell(appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type),
+          cell(app.lifecycle),
+          cell(app.lifecycleStartDate ? app.lifecycleStartDate.split('T')[0] : ''),
+          cell(app.lifecycleEndDate ? app.lifecycleEndDate.split('T')[0] : ''),
+          cell(app.contractStartDate ? app.contractStartDate.split('T')[0] : ''),
+          cell(app.contractEndDate ? app.contractEndDate.split('T')[0] : ''),
+          cell(app.contractDetails),
+          cell(app.vendorName),
+          cell(app.vendorUrl),
+          cell(app.vendorSummary),
+          cell(app.criticality),
+          cell(app.cost),
+          cell(app.functionalFit),
+          cell(app.technicalFit),
+          cell(app.timeRationale),
+          cell(caps),
+          cell(processed),
+          cell(app.references)
         ];
 
         // Add custom fields
@@ -1322,18 +1332,20 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   const exportToCSV = () => {
     if (!capabilities || capabilities.length === 0) return;
 
-    const headers = ['Name', 'Parent ID', 'Criticality', 'Description', 'Applications'];
+    const headers = ['Name', 'Parent ID', 'Criticality', 'Description', 'References', 'Applications'];
     
     const csvContent = [
       headers.join(','),
       ...capabilities.map(cap => {
         const apps = (cap.applications || []).map(a => a.name).join('; ');
+        const cell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
         const row = [
-          `"${cap.name || ''}"`,
-          `"${cap.parentId || ''}"`,
-          `"${criticalityOptions.find((o: any) => o.value === cap.criticality)?.label || cap.criticality || ''}"`,
-          `"${(cap.description || '').replace(/"/g, '""')}"`,
-          `"${apps}"`
+          cell(cap.name),
+          cell(cap.parentId),
+          cell(criticalityOptions.find((o: any) => o.value === cap.criticality)?.label || cap.criticality),
+          cell(cap.description),
+          cell(cap.references),
+          cell(apps)
         ];
         return row.join(',');
       })

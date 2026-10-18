@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { BoxLabel, useDiagramReveal } from '../diagramLabel';
 import ReactFlow, {
   Background,
   Controls,
@@ -92,7 +93,7 @@ const getTypeOption = (picklists: Picklist[], type?: string): PicklistOption | u
   return picklists.find(p => p.name === 'organization_type')?.options.find(o => o.value === String(type));
 };
 
-const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[]; subtreeColor: string; isRoot: boolean; isStacked: boolean }>) => {
+const OrgNode = ({ id, data }: NodeProps<{ org: Organization; picklists: Picklist[]; subtreeColor: string; isRoot: boolean; isStacked: boolean }>) => {
   const { org, picklists, subtreeColor, isRoot, isStacked } = data;
   const typeOpt = getTypeOption(picklists, org.type);
   const useColored = typeOpt?.color && typeOpt.color !== 'var(--secondary)';
@@ -100,7 +101,8 @@ const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[];
   return (
     <div
       style={{
-        width: isRoot ? ROOT_NODE_W : NODE_W,
+        width: '100%',
+        height: '100%',
         padding: isRoot ? '0.75rem 0.9rem' : '0.5rem 0.65rem',
         background: isRoot ? `${subtreeColor}1F` : 'var(--card)',
         color: 'var(--foreground)',
@@ -119,11 +121,13 @@ const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[];
       <Handle type="target" position={isStacked ? Position.Left : Position.Top} style={{ opacity: 0 }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0 }} />
       <div
+        data-box-row=""
         style={{
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'flex-start',
           gap: isRoot ? 8 : 6,
-          fontWeight: isRoot ? 800 : 700,
+          fontWeight: isRoot ? 600 : 520,
           fontSize: isRoot ? 16 : 13,
           letterSpacing: isRoot ? '-0.01em' : 0,
           overflow: 'hidden',
@@ -132,7 +136,7 @@ const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[];
         }}
       >
         <Layers size={isRoot ? 18 : 13} style={{ color: subtreeColor, flexShrink: 0 }} />
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{org.name}</span>
+        <BoxLabel id={id} name={org.name} style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} />
       </div>
       {typeOpt && (
         <span
@@ -140,7 +144,7 @@ const OrgNode = ({ data }: NodeProps<{ org: Organization; picklists: Picklist[];
             marginTop: isRoot ? 8 : 6,
             display: 'inline-block',
             fontSize: isRoot ? '0.65rem' : '0.6rem',
-            fontWeight: 800,
+            fontWeight: 560,
             textTransform: 'uppercase',
             padding: isRoot ? '0.15rem 0.6rem' : '0.1rem 0.5rem',
             borderRadius: 4,
@@ -265,7 +269,8 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
     finalNodes.push({
       id: o.id, type: 'org',
       position: { x: pos.x - w/2, y: pos.y - h/2 },
-      data: { org: o, picklists, subtreeColor: colorByNode.get(o.id)!, isRoot, isStacked: false }
+      data: { org: o, picklists, subtreeColor: colorByNode.get(o.id)!, isRoot, isStacked: false },
+      style: { width: w, height: h },
     });
   });
 
@@ -279,7 +284,8 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
       finalNodes.push({
         id: leaf.id, type: 'org',
         position: { x: indentX, y: currentY },
-        data: { org: leaf, picklists, subtreeColor: colorByNode.get(leaf.id)!, isRoot: false, isStacked: true }
+        data: { org: leaf, picklists, subtreeColor: colorByNode.get(leaf.id)!, isRoot: false, isStacked: true },
+        style: { width: NODE_W, height: NODE_H },
       });
       
       finalEdges.push({
@@ -310,10 +316,14 @@ const DiagramInner = ({ organizations, picklists }: { organizations: Organizatio
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => layoutOrgs(organizations, picklists), [organizations, picklists]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  useDiagramReveal(setNodes);
   const { fitView, getNodes } = useReactFlow();
   const graphKey = organizations.map((org) => org.id).join('\0');
 
-  useEffect(() => { setNodes(initialNodes); setEdges(initialEdges); }, [initialNodes, initialEdges, setNodes, setEdges]);
+  useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   // Fit after the filtered nodes have been measured. A fit that runs before
   // measurement leaves the previous viewport in place, so the chart looks unchanged.
@@ -357,7 +367,7 @@ const DiagramInner = ({ organizations, picklists }: { organizations: Organizatio
 
 export const OrganizationDiagram = ({ organizations, picklists }: { organizations: Organization[]; picklists: Picklist[] }) => {
   return (
-    <div style={{ width: '100%', height: '100%', minHeight: 0, background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+    <div className="diagram-surface" style={{ width: '100%', height: '100%', minHeight: 0, background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
       <ReactFlowProvider>
         <DiagramInner organizations={organizations} picklists={picklists} />
       </ReactFlowProvider>

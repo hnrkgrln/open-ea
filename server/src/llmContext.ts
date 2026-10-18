@@ -70,6 +70,7 @@ export type PortfolioSnapshot = {
     type: string | null;
     references: string | null;
     parent: Named | null;
+    supportedCapabilities: Named[];
   }>;
   informationObjects: Array<{
     name: string;
@@ -275,6 +276,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
   const organizationLines = organizations.map((organization) => line(organization.name, [
     field('type', organization.type),
     field('parent', organization.parent?.name ?? 'none'),
+    field('supports', sortedNames(organization.supportedCapabilities)),
     field('description', note(organization.description)),
     includeNotes ? referenceField(organization.references) : null,
   ]));
@@ -372,6 +374,7 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
         type: true,
         references: true,
         parent: { select: { name: true } },
+        supportedCapabilities: { select: { name: true } },
       },
     }),
     prisma.informationObject.findMany({

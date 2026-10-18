@@ -53,6 +53,7 @@ model Capability {
   parent       Capability?   @relation("CapabilityToCapability", fields: [parentId], references: [id], onDelete: Cascade)
   children     Capability[]  @relation("CapabilityToCapability")
   applications Application[] @relation("ApplicationToCapability")
+  supportingOrganizations Organization[] @relation("OrgSupportsCapability")
 }
 
 model Organization {
@@ -68,6 +69,7 @@ model Organization {
   children          Organization[]      @relation("OrgToOrg")
   informationObjects InformationObject[]
   ownedApplications Application[]       @relation("OrgOwnedApps")
+  supportedCapabilities Capability[]    @relation("OrgSupportsCapability")
 }
 
 model InformationObject {

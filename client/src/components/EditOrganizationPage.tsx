@@ -1,8 +1,9 @@
-import React, { useState, useLayoutEffect } from 'react';
+import React, { useMemo, useState, useLayoutEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronLeft, Info, Layers, Trash2, Edit2 } from 'lucide-react';
+import { Boxes, CheckCircle2, ChevronLeft, Edit2, Info, Layers, Plus, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
+import { InlineFilter } from './FilterControls';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 
 export const EditOrganizationPage = () => {
@@ -21,6 +22,8 @@ export const EditOrganizationPage = () => {
     parentId: (isNew ? searchParams.get('parentId') : '') as string | null
   });
   const [references, setReferences] = useState<Reference[]>([]);
+  const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
+  const [capSearch, setCapSearch] = useState('');
 
   const { data: org, isLoading: isOrgLoading } = useQuery({
     queryKey: ['organization', id],
@@ -38,7 +41,18 @@ export const EditOrganizationPage = () => {
     queryFn: () => fetch('/api/picklists').then(res => res.json()) 
   });
 
+  const { data: capabilities } = useQuery<any[]>({
+    queryKey: ['capabilities'],
+    queryFn: () => fetch('/api/capabilities').then(res => res.json())
+  });
+
   const orgTypeOptions = picklists?.find(p => p.name === 'organization_type')?.options || [];
+  const filteredCaps = useMemo(() => {
+    if (!capabilities) return [];
+    const query = capSearch.trim().toLowerCase();
+    if (!query) return capabilities;
+    return capabilities.filter(capability => capability.name.toLowerCase().includes(query));
+  }, [capabilities, capSearch]);
 
   // Populate formData from the DB before the form mounts. We gate rendering on
   // `hydrated` below so Radix Select instances never see stale default values —
@@ -53,6 +67,7 @@ export const EditOrganizationPage = () => {
         parentId: org.parentId || ''
       });
       setReferences(parseReferences(org.references));
+      setSelectedCapIds((org.supportedCapabilities || []).map((capability: { id: string }) => capability.id));
       setHydrated(true);
     }
   }, [org, isNew, hydrated]);
@@ -70,7 +85,12 @@ export const EditOrganizationPage = () => {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, parentId: formData.parentId === '' ? null : formData.parentId, references: serializeReferences(references) }),
+        body: JSON.stringify({
+          ...formData,
+          parentId: formData.parentId === '' ? null : formData.parentId,
+          references: serializeReferences(references),
+          capabilityIds: selectedCapIds,
+        }),
       });
 
       if (res.ok) {
@@ -81,6 +101,7 @@ export const EditOrganizationPage = () => {
           queryClient.invalidateQueries({ queryKey: ['organizations'] }),
           queryClient.invalidateQueries({ queryKey: ['applications'] }),
           queryClient.invalidateQueries({ queryKey: ['information-objects'] }),
+          queryClient.invalidateQueries({ queryKey: ['capabilities'] }),
           queryClient.invalidateQueries({ queryKey: ['search'] }),
         ]);
         navigate(`/organizations/${finalId}`);
@@ -113,7 +134,7 @@ export const EditOrganizationPage = () => {
   // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
   // default values that then get committed back, overwriting real DB values.
   if (!isNew && (isOrgLoading || !org)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
-  if (!picklists || !allOrgs) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
+  if (!picklists || !allOrgs || !capabilities) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
   const filteredOrgs = Array.isArray(allOrgs) ? allOrgs.filter(o => o.id !== id) : [];
@@ -186,6 +207,27 @@ export const EditOrganizationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+              </div>
+            </section>
+
+            <section>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <Boxes size={16} /> Supported Capabilities
+                </h3>
+                <InlineFilter value={capSearch} onChange={setCapSearch} placeholder="Search capabilities..." width="250px" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', padding: '1rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)' }}>
+                {filteredCaps.length === 0 ? (
+                  <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>
+                    {capabilities.length === 0 ? 'No capabilities defined yet.' : 'No matches.'}
+                  </div>
+                ) : filteredCaps.map(capability => (
+                  <button key={capability.id} type="button" onClick={() => setSelectedCapIds(prev => prev.includes(capability.id) ? prev.filter(id => id !== capability.id) : [...prev, capability.id])} style={{ height: 'auto', padding: '0.75rem', justifyContent: 'flex-start', background: selectedCapIds.includes(capability.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(capability.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem' }}>
+                    {selectedCapIds.includes(capability.id) ? <CheckCircle2 size={14} style={{ marginRight: '0.4rem' }} /> : <Plus size={14} style={{ marginRight: '0.4rem', opacity: 0.3 }} />}
+                    {capability.name}
+                  </button>
+                ))}
               </div>
             </section>
 

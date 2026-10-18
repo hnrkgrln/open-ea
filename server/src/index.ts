@@ -690,6 +690,7 @@ server.get('/organizations', async (request, reply) => {
         children: true,
         ownedApplications: true,
         informationObjects: true,
+        supportedCapabilities: { select: { id: true, name: true, criticality: true } },
         _count: {
           select: {
             ownedApplications: true,
@@ -717,6 +718,7 @@ server.get('/organizations/:id', {
         parent: true, 
         children: true, 
         ownedApplications: true,
+        supportedCapabilities: { select: { id: true, name: true, criticality: true } },
         informationObjects: { 
           include: { 
             integrations: { include: { sourceApp: true, targetApp: true } } 
@@ -734,15 +736,32 @@ server.get('/organizations/:id', {
 server.post('/organizations', {
   schema: {
     body: z.object({
+      id: z.string().optional(),
       name: z.string(),
       description: z.string().optional(),
       type: z.string().optional(),
       parentId: z.string().optional().nullable(),
       references: z.string().optional().nullable(),
+      capabilityIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request) => {
-  return prisma.organization.create({ data: request.body });
+  const { capabilityIds, ...data } = request.body;
+  if (data.parentId === '') data.parentId = null;
+  let validIds: string[] = [];
+  if (capabilityIds && capabilityIds.length > 0) {
+    const existing = await prisma.capability.findMany({
+      where: { id: { in: capabilityIds } },
+      select: { id: true }
+    });
+    validIds = existing.map(capability => capability.id);
+  }
+  return prisma.organization.create({
+    data: {
+      ...data,
+      supportedCapabilities: validIds.length > 0 ? { connect: validIds.map(id => ({ id })) } : undefined,
+    },
+  });
 });
 
 server.put('/organizations/:id', {
@@ -754,13 +773,27 @@ server.put('/organizations/:id', {
       type: z.string().optional(),
       parentId: z.string().optional().nullable(),
       references: z.string().optional().nullable(),
+      capabilityIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request, reply) => {
+  const { capabilityIds, ...data } = request.body;
+  if (data.parentId === '') data.parentId = null;
+  let validIds: string[] = [];
+  if (capabilityIds && capabilityIds.length > 0) {
+    const existing = await prisma.capability.findMany({
+      where: { id: { in: capabilityIds } },
+      select: { id: true }
+    });
+    validIds = existing.map(capability => capability.id);
+  }
   try {
     return await prisma.organization.update({
       where: { id: request.params.id },
-      data: request.body
+      data: {
+        ...data,
+        supportedCapabilities: capabilityIds ? { set: validIds.map(id => ({ id })) } : undefined,
+      }
     });
   } catch (err: any) {
     if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Organization not found' });
@@ -818,6 +851,7 @@ server.get('/information-objects/:id', {
 server.post('/information-objects', {
   schema: {
     body: z.object({
+      id: z.string().optional(),
       name: z.string(),
       aliases: z.string().optional(),
       description: z.string().optional(),
@@ -1487,6 +1521,7 @@ server.get('/search', {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
           { description: { contains: q, mode: 'insensitive' } },
+          { supportedCapabilities: { some: { name: { contains: q, mode: 'insensitive' } } } },
         ],
       },
       take: 10,

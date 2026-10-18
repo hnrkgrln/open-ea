@@ -15,6 +15,7 @@ interface Organization {
   children?: Organization[];
   ownedApplications?: any[];
   informationObjects?: any[];
+  supportedCapabilities?: { id: string; name: string }[];
   _count?: {
     ownedApplications: number;
     informationObjects: number;
@@ -199,6 +200,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
       typeLabel(org.type),
       ...(org.ownedApplications || []).map((app: any) => app?.name),
       ...(org.informationObjects || []).map((item: any) => item?.name),
+      ...(org.supportedCapabilities || []).map((capability) => capability?.name),
     ].filter(Boolean).join(' ').toLowerCase();
 
     const direct = new Set<string>();
