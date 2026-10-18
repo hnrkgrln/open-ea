@@ -113,6 +113,8 @@ export const InventoryChat = () => {
         onBlur={(event) => {
           const next = event.relatedTarget;
           if (next instanceof Node && event.currentTarget.contains(next)) return;
+          // A click in the conversation blurs the field without moving focus. Closing here would make the answer impossible to select.
+          if (next == null) return;
           if (pendingRef.current) return;
           setOpen(false);
         }}
@@ -121,7 +123,7 @@ export const InventoryChat = () => {
         }}
         onMouseDown={(event) => {
           const target = event.target;
-          if (!(target instanceof Element) || target.closest('textarea, button, a, input, label')) return;
+          if (!(target instanceof Element) || target.closest('textarea, button, a, input, label, .chat-thread')) return;
           event.preventDefault();
           document.getElementById('inventory-question')?.focus();
         }}
@@ -132,7 +134,7 @@ export const InventoryChat = () => {
               <div className="ask-portfolio-heading">
                 <h2 className="ask-portfolio-title">
                   <Sparkles size={20} aria-hidden="true" />
-                  Ask the portfolio
+                  Ask the Landscape
                 </h2>
                 <p className="ask-portfolio-lead">
                   Questions are answered from the current inventory. The provider in Settings is used, and the portfolio is included with the question.
@@ -143,7 +145,7 @@ export const InventoryChat = () => {
               </button>
             </div>
             {messages.length > 0 && (
-              <ChatTranscript ref={threadRef} messages={messages} pendingLabel={pending ? `Asking ${active.name}...` : undefined} />
+              <ChatTranscript ref={threadRef} messages={messages} pending={pending} />
             )}
             {messages.length === 0 && (
               <div className="ask-portfolio-suggestions">
@@ -170,11 +172,11 @@ export const InventoryChat = () => {
             <textarea
               ref={questionRef}
               id="inventory-question"
-              aria-label="Ask the portfolio"
+              aria-label="Ask the Landscape"
               rows={2}
               maxLength={4000}
               value={draft}
-              placeholder={open ? 'Ask about owners, TIME, contracts, capabilities...' : 'Ask the portfolio'}
+              placeholder={open ? 'Ask about owners, TIME, contracts, capabilities...' : 'Ask the Landscape'}
               disabled={pending}
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {

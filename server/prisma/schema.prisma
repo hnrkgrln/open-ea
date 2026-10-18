@@ -163,7 +163,8 @@ model LlmSettings {
 }
 
 model WorkspaceSettings {
-  id        String   @id
-  brandName String
-  updatedAt DateTime @updatedAt
+  id                   String   @id
+  brandName            String
+  disabledNativeFields String   @default("[]")
+  updatedAt            DateTime @updatedAt
 }

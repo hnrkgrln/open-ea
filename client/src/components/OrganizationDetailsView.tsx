@@ -3,6 +3,8 @@ import { Boxes, Edit2, Layers, ChevronLeft, FileText, Calendar, Info, Database }
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 interface Props {
   orgId: string | null;
@@ -25,6 +27,8 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
   });
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
   const parent = useMemo(() => allOrgs?.find(o => o.id === org?.parentId), [allOrgs, org]);
   const children = useMemo(() => allOrgs?.filter(o => o.parentId === orgId) || [], [allOrgs, orgId]);
@@ -173,10 +177,12 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                   </span>
                 )}
               </div>
+              {showField('organization.description') && (
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {org.description || 'No description provided for this organization artifact.'}
               </p>
-              {parent && (
+              )}
+              {showField('organization.parent') && parent && (
                 <div style={{ marginTop: '1.5rem' }}>
                   <span 
                     onClick={() => navigate(`/organizations/${parent.id}`)}
@@ -219,7 +225,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                 </div>
               </section>
 
-              <section>
+              {showField('organization.capabilities') && <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Boxes size={16} /> Supported Capabilities
                 </h3>
@@ -235,7 +241,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No capabilities supported by this organization.</div>
                   )}
                 </div>
-              </section>
+              </section>}
 
               <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -321,7 +327,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
             </div>
           </div>
 
-          <ReferencesList raw={org.references} />
+          {showField('organization.references') && <ReferencesList raw={org.references} />}
         </div>
       </div>
     </div>

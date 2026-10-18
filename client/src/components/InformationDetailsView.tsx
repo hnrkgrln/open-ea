@@ -4,6 +4,8 @@ import { InlineFilter } from './FilterControls';
 import { ReferencesList } from './References';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -37,6 +39,8 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
   if (isLoading || !item) {
     return (
@@ -90,10 +94,12 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                   );
                 })()}
               </div>
+              {showField('information.description') && (
               <p style={{ fontSize: '1rem', color: 'var(--foreground)', lineHeight: 1.5, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {item.description || 'No description provided for this data concept.'}
               </p>
-              {item.aliases && (
+              )}
+              {showField('information.aliases') && item.aliases && (
                 <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.75rem' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>ALSO KNOWN AS:</span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--foreground)' }}>{item.aliases}</span>
@@ -205,9 +211,11 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              {(showField('information.businessOwner') || showField('information.sourceOfTruth')) && (
               <section>
                 <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Accountability</h3>
                 <div style={{ background: 'var(--card)', padding: '1.25rem', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {showField('information.businessOwner') && (
                   <div onClick={() => item.businessOwnerId && navigate(`/organizations/${item.businessOwnerId}`)} style={{ cursor: item.businessOwnerId ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className={item.businessOwnerId ? "row-hover" : ""}>
                     <div style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.4rem', borderRadius: '8px' }}><ShieldCheck size={16} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -215,6 +223,8 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                       <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.businessOwner?.name || 'Unassigned'}</span>
                     </div>
                   </div>
+                  )}
+                  {showField('information.sourceOfTruth') && (
                   <div onClick={() => item.appOwnerId && navigate(`/apps/${item.appOwnerId}`)} style={{ cursor: item.appOwnerId ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className={item.appOwnerId ? "row-hover" : ""}>
                     <div style={{ background: 'var(--secondary)', color: 'var(--secondary-foreground)', padding: '0.4rem', borderRadius: '8px' }}><Database size={16} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -222,8 +232,10 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                       <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{item.appOwner?.name || 'Unknown'}</span>
                     </div>
                   </div>
+                  )}
                 </div>
               </section>
+              )}
 
               {/* Dynamic Metadata Section */}
               {Object.keys(meta).length > 0 && (
@@ -260,7 +272,7 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
             </div>
           </div>
 
-          <ReferencesList raw={item.references} />
+          {showField('information.references') && <ReferencesList raw={item.references} />}
         </div>
       </div>
     </div>

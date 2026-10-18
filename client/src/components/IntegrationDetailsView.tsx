@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getContrastColor } from '../utils/colors';
 import { ReferencesList } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 interface Props {
   integrationId: string | null;
@@ -91,6 +93,8 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
   }, [i]);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
   const getPicklistInfo = (picklistName: string, value: string | undefined) => {
     if (!value) return null;
@@ -138,9 +142,11 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                   {i.sourceApp?.name} <ArrowRight size={24} style={{ opacity: 0.3, margin: '0 0.5rem' }} /> {i.targetApp?.name}
                 </h1>
               </div>
+              {showField('integration.description') && (
               <p style={{ fontSize: '1.125rem', color: 'var(--foreground)', lineHeight: 1.6, margin: 0, maxWidth: '900px', opacity: 0.8, whiteSpace: 'pre-wrap' }}>
                 {i.description || `System-to-system data exchange via ${getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || 'standard interface'}.`}
               </p>
+              )}
             </div>
             <button onClick={() => navigate(`/integrations/${i.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
               <Edit2 size={18} /> Edit Integration
@@ -259,9 +265,13 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
             </div>
 
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem', position: 'relative' }}>
-              <div ref={payloadCardRef} onClick={() => i.infoObjectId && navigate(`/information/${i.infoObjectId}`)} style={{ cursor: i.infoObjectId ? 'pointer' : 'default', zIndex: 1, background: 'var(--card)', padding: '1.125rem 2rem', borderRadius: '16px', border: '2px solid var(--primary)', textAlign: 'center', minWidth: '200px' }} className={i.infoObjectId ? "glow-hover" : ""}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.25rem' }}>Data Payload</div>
-                <div style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '1rem' }}>{i.payload?.name || 'Undefined Information Object'}</div>
+              <div ref={payloadCardRef} onClick={() => showField('integration.payload') && i.infoObjectId && navigate(`/information/${i.infoObjectId}`)} style={{ cursor: showField('integration.payload') && i.infoObjectId ? 'pointer' : 'default', zIndex: 1, background: 'var(--card)', padding: '1.125rem 2rem', borderRadius: '16px', border: '2px solid var(--primary)', textAlign: 'center', minWidth: '200px' }} className={showField('integration.payload') && i.infoObjectId ? "glow-hover" : ""}>
+                {showField('integration.payload') && (
+                  <>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 800, marginBottom: '0.25rem' }}>Data Payload</div>
+                    <div style={{ fontWeight: 800, color: 'var(--foreground)', fontSize: '1rem' }}>{i.payload?.name || 'Undefined Information Object'}</div>
+                  </>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
                   {(() => {
                     const patternInfo = getPicklistInfo('integration_pattern', i.pattern);
@@ -350,7 +360,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
               </div>
             </section>
 
-            <ReferencesList raw={i.references} />
+            {showField('integration.references') && <ReferencesList raw={i.references} />}
           </div>
         </div>
       </div>

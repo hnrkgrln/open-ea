@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 export const EditOrganizationPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,6 +47,7 @@ export const EditOrganizationPage = () => {
     queryKey: ['capabilities'],
     queryFn: () => fetch('/api/capabilities').then(res => res.json())
   });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   const orgTypeOptions = picklists?.find(p => p.name === 'organization_type')?.options || [];
   const filteredCaps = useMemo(() => {
@@ -137,6 +140,8 @@ export const EditOrganizationPage = () => {
   if (!picklists || !allOrgs || !capabilities) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+
   const filteredOrgs = Array.isArray(allOrgs) ? allOrgs.filter(o => o.id !== id) : [];
 
   return (
@@ -185,10 +190,12 @@ export const EditOrganizationPage = () => {
                   <label className="label">Name</label>
                   <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. VP of HR or Finance Dept" />
                 </div>
+                {showField('organization.description') && (
                 <div className="field">
                   <label className="label">Description</label>
                   <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Accountabilities and scope..." />
                 </div>
+                )}
                 <div className="field">
                   <label className="label">Type</label>
                   <ColoredSelect
@@ -198,6 +205,7 @@ export const EditOrganizationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                {showField('organization.parent') && (
                 <div className="field">
                   <label className="label">Parent Organization / Manager</label>
                   <ColoredSelect
@@ -207,10 +215,11 @@ export const EditOrganizationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                )}
               </div>
             </section>
 
-            <section>
+            {showField('organization.capabilities') && <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Boxes size={16} /> Supported Capabilities
@@ -229,9 +238,9 @@ export const EditOrganizationPage = () => {
                   </button>
                 ))}
               </div>
-            </section>
+            </section>}
 
-            <ReferencesEditor value={references} onChange={setReferences} />
+            {showField('organization.references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

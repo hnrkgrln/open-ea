@@ -28,6 +28,7 @@ import { PortfolioChatProvider } from './components/PortfolioChat';
 import { ModelMenu } from './components/ModelMenu';
 import { AspectsMenu } from './components/AspectsMenu';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
+import { fetchWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
 
 export { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, readStoredTimeThresholds } from './timeAssessment';
 export type { TimeThresholds } from './timeAssessment';
@@ -387,13 +388,9 @@ function readLegacyBrandName(): string | null {
 const AppContent = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { data: workspace, isLoading: isWorkspaceLoading, isError: isWorkspaceError } = useQuery<{ brandName: string }>({
+  const { data: workspace, isLoading: isWorkspaceLoading, isError: isWorkspaceError } = useQuery<WorkspaceSettings>({
     queryKey: ['workspace'],
-    queryFn: async () => {
-      const res = await fetch('/api/workspace');
-      if (!res.ok) throw new Error('Could not load workspace settings');
-      return res.json();
-    },
+    queryFn: fetchWorkspaceSettings,
   });
   const [brandName, setBrandNameState] = useState(DEFAULT_BRAND_NAME);
   const [brandError, setBrandError] = useState('');
@@ -413,8 +410,11 @@ const AppContent = () => {
       setBrandError('Could not save the brand name.');
       return;
     }
-    const saved = await res.json() as { brandName: string };
-    queryClient.setQueryData(['workspace'], saved);
+    const saved = await res.json() as WorkspaceSettings;
+    queryClient.setQueryData(['workspace'], (current: WorkspaceSettings | undefined) => ({
+      brandName: saved.brandName,
+      disabledNativeFields: saved.disabledNativeFields ?? current?.disabledNativeFields ?? [],
+    }));
     brandDirty.current = false;
     setBrandError('');
     setBrandNameState(saved.brandName);

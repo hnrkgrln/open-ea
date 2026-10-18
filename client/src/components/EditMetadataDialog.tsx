@@ -16,9 +16,10 @@ interface MetadataDefinition {
 interface Props {
   definition: MetadataDefinition;
   onSuccess: () => void;
+  buttonLabel?: string;
 }
 
-export const EditMetadataDialog = ({ definition, onSuccess }: Props) => {
+export const EditMetadataDialog = ({ definition, onSuccess, buttonLabel }: Props) => {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState(definition.fieldType);
@@ -58,9 +59,15 @@ export const EditMetadataDialog = ({ definition, onSuccess }: Props) => {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <button style={{ border: 'none', background: 'transparent', padding: '0.25rem' }} title="Edit Field">
-          <Edit2 size={16} />
-        </button>
+        {buttonLabel ? (
+          <button className="secondary" style={{ height: '2rem', padding: '0 0.75rem', fontSize: '0.75rem' }}>
+            <Edit2 size={14} style={{ marginRight: '0.5rem' }} /> {buttonLabel}
+          </button>
+        ) : (
+          <button style={{ border: 'none', background: 'transparent', padding: '0.25rem' }} title="Edit Field">
+            <Edit2 size={16} />
+          </button>
+        )}
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }} />

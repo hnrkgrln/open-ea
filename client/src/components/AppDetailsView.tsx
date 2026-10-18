@@ -9,6 +9,8 @@ import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '.
 import { getAppTimeAssessment } from '../timeAssessment';
 import { TimeMatrix } from './TimeMatrix';
 import { applicationVendor } from './ApplicationSuggestions';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -40,6 +42,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   // Effective Criticality Logic
   const { effectiveCriticality, isInherited } = useMemo(() => {
@@ -135,6 +138,8 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
     };
   }, [app, effectiveCriticality, thresholds]);
 
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+
   if (isLoading || !app) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
@@ -185,9 +190,11 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{app.name}</h1>
                 <LifecycleBadge lifecycle={app.lifecycle} color={getPicklistInfo('lifecycle', app.lifecycle).color} />
               </div>
+              {showField('description') && (
               <p style={{ fontSize: '1rem', color: 'var(--foreground)', lineHeight: 1.5, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {app.description || 'No description provided for this application.'}
               </p>
+              )}
             </div>
             <button onClick={() => navigate(`/apps/${app.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
               <Edit2 size={16} /> Edit Application
@@ -269,7 +276,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                         {timeAssessment.description}
                       </p>
 
-                      {typeof app.timeRationale === 'string' && app.timeRationale.trim() && (
+                      {showField('timeRationale') && typeof app.timeRationale === 'string' && app.timeRationale.trim() && (
                         <div>
                           <div style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '0.3rem' }}>
                             Rationale
@@ -425,7 +432,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
               </section>
 
               {/* Capabilities Table */}
-              <section>
+              {showField('capabilities') && <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Boxes size={14} /> Supported Capabilities
                 </h3>
@@ -441,10 +448,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic' }}>No capabilities linked to this application.</div>
                   )}
                 </div>
-              </section>
+              </section>}
 
               {/* Processed Information Objects */}
-              <section>
+              {showField('processedInformation') && <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <FileText size={14} /> Processed Information
                 </h3>
@@ -483,10 +490,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic' }}>No information objects linked to this application.</div>
                   )}
                 </div>
-              </section>
+              </section>}
 
               {/* Integrations Section */}
-              <section>
+              {showField('integrations') && <section>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1rem' }}>
                   <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                     <Network size={14} /> Integrations & Data Flows
@@ -542,7 +549,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     );
                   })()}
                 </div>
-              </section>
+              </section>}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -557,7 +564,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     </div>
                   </div>
 
-                  {app.ownerOrg && (
+                  {showField('ownerOrg') && app.ownerOrg && (
                     <div className="card row-hover" onClick={() => navigate(`/organizations/${app.ownerOrgId}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.25rem', cursor: 'pointer' }}>
                       <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><Layers size={16} /></div>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -569,18 +576,20 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                 </div>
               </section>
 
-              {vendor && (
+              {vendor && (showField('vendorName') || showField('vendorUrl') || showField('vendorSummary')) && (
                 <section>
                   <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Vendor</h3>
                   <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '1.25rem' }}>
+                    {(showField('vendorName') || showField('vendorUrl')) && (
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                       <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><Building2 size={16} /></div>
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{vendor.name}</span>
-                        <a href={vendor.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.2rem', wordBreak: 'break-all' }}>{vendor.url}</a>
+                        {showField('vendorName') && <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{vendor.name}</span>}
+                        {showField('vendorUrl') && <a href={vendor.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--primary)', marginTop: '0.2rem', wordBreak: 'break-all' }}>{vendor.url}</a>}
                       </div>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.45 }}>{vendor.summary}</p>
+                    )}
+                    {showField('vendorSummary') && <p style={{ margin: 0, fontSize: '0.85rem', lineHeight: 1.45 }}>{vendor.summary}</p>}
                   </div>
                 </section>
               )}
@@ -600,35 +609,38 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Lifecycle</span>
                       <span style={{ fontWeight: 700, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>{getPicklistInfo('lifecycle', app.lifecycle).color !== 'var(--muted-foreground)' && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: getPicklistInfo('lifecycle', app.lifecycle).color }} />} {getPicklistInfo('lifecycle', app.lifecycle).label || app.lifecycle || 'Discovery'}</span>
-                      {(app.lifecycleStartDate || app.lifecycleEndDate) && (
+                      {((showField('lifecycleStart') && app.lifecycleStartDate) || (showField('lifecycleEnd') && app.lifecycleEndDate)) && (
                         <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                          {app.lifecycleStartDate && <span>Starts: {app.lifecycleStartDate.split('T')[0]}</span>}
-                          {app.lifecycleStartDate && app.lifecycleEndDate && <span> • </span>}
-                          {app.lifecycleEndDate && <span>Ends: {app.lifecycleEndDate.split('T')[0]}</span>}
+                          {showField('lifecycleStart') && app.lifecycleStartDate && <span>Starts: {app.lifecycleStartDate.split('T')[0]}</span>}
+                          {showField('lifecycleStart') && app.lifecycleStartDate && showField('lifecycleEnd') && app.lifecycleEndDate && <span> • </span>}
+                          {showField('lifecycleEnd') && app.lifecycleEndDate && <span>Ends: {app.lifecycleEndDate.split('T')[0]}</span>}
                         </div>
                       )}
                     </div>
                   </div>
+                  {(showField('contractStart') || showField('contractEnd') || (showField('contractDetails') && app.contractDetails)) && (
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
                     <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px' }}><FileSignature size={16} /></div>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Contract</span>
-                      {app.contractStartDate || app.contractEndDate ? (
+                      {(showField('contractStart') || showField('contractEnd')) && (
+                        (showField('contractStart') && app.contractStartDate) || (showField('contractEnd') && app.contractEndDate) ? (
                         <div style={{ fontSize: '0.85rem', fontWeight: 700 }}>
-                          {app.contractStartDate && <span>{app.contractStartDate.split('T')[0]}</span>}
-                          {app.contractStartDate && app.contractEndDate && <span> to </span>}
-                          {app.contractEndDate && <span>{app.contractEndDate.split('T')[0]}</span>}
+                          {showField('contractStart') && app.contractStartDate && <span>{app.contractStartDate.split('T')[0]}</span>}
+                          {showField('contractStart') && app.contractStartDate && showField('contractEnd') && app.contractEndDate && <span> to </span>}
+                          {showField('contractEnd') && app.contractEndDate && <span>{app.contractEndDate.split('T')[0]}</span>}
                         </div>
                       ) : (
                         <span style={{ fontSize: '0.85rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>No active contract dates</span>
-                      )}
-                      {app.contractDetails && (
+                      ))}
+                      {showField('contractDetails') && app.contractDetails && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
                           {app.contractDetails}
                         </div>
                       )}
                     </div>
                   </div>
+                  )}
                 </div>
               </section>
 
@@ -667,7 +679,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
             </div>
           </div>
 
-          <ReferencesList raw={app.references} />
+          {showField('references') && <ReferencesList raw={app.references} />}
         </div>
       </div>
     </div>

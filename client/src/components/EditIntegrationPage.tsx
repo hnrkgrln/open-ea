@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MultiSelect } from './FilterControls';
 import { ColoredSelect } from './ColoredSelect';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 export const EditIntegrationPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -35,6 +37,7 @@ export const EditIntegrationPage = () => {
   const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
   const { data: infoObjects } = useQuery<any[]>({ queryKey: ['information-objects'], queryFn: () => fetch('/api/information-objects').then(res => res.json()) });
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   const patternOptions = picklists?.find(p => p.name === 'integration_pattern')?.options || [];
   const freqOptions = picklists?.find(p => p.name === 'integration_frequency')?.options || [];
@@ -151,6 +154,8 @@ export const EditIntegrationPage = () => {
   if (!picklists || !apps || !infoObjects) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading flow...</div>;
 
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
       <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
@@ -194,10 +199,12 @@ export const EditIntegrationPage = () => {
                 <Info size={16} /> Source & Payload
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                {showField('integration.description') && (
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Description</label>
                   <textarea rows={2} value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} style={{ padding: '0.75rem' }} placeholder="Purpose of this data flow..." />
                 </div>
+                )}
                 <div className="field">
                   <label className="label">Source Application</label>
                   <ColoredSelect
@@ -208,6 +215,7 @@ export const EditIntegrationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                {showField('integration.payload') && (
                 <div className="field">
                   <label className="label">Information Object Payload</label>
                   <ColoredSelect
@@ -218,6 +226,7 @@ export const EditIntegrationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                )}
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Target Application</label>
                   <ColoredSelect
@@ -270,7 +279,7 @@ export const EditIntegrationPage = () => {
               </div>
             </section>
 
-            <ReferencesEditor value={references} onChange={setReferences} />
+            {showField('integration.references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

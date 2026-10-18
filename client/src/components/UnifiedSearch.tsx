@@ -265,7 +265,7 @@ export const UnifiedSearch = ({}: Props) => {
                   {messages.length > 0 && (
                     <ChatTranscript
                       messages={messages}
-                      pendingLabel={pending ? 'Asking...' : undefined}
+                      pending={pending}
                       style={answerFillsDialog
                         ? { flex: 1, minHeight: 0, maxHeight: 'none', margin: '0.75rem 1rem 0.35rem', overflowY: 'auto' }
                         : { maxHeight: '14rem', margin: '0.75rem 1rem 0.35rem' }}
@@ -295,7 +295,7 @@ export const UnifiedSearch = ({}: Props) => {
                     >
                       <Sparkles size={16} />
                       <span style={{ minWidth: 0 }}>
-                        <span style={{ display: 'block', fontWeight: 800, fontSize: '0.95rem' }}>Ask the portfolio</span>
+                        <span style={{ display: 'block', fontWeight: 800, fontSize: '0.95rem' }}>Ask the Landscape</span>
                         <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--muted-foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {pending ? 'Asking...' : messages.length > 0 ? `Continue with “${question}”` : `Ask “${question}” about the inventory`}
                         </span>

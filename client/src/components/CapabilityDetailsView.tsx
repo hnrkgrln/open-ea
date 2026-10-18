@@ -3,6 +3,8 @@ import { Edit2, Database, Boxes, ShieldCheck, ChevronLeft, Calendar, Info, Share
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -36,6 +38,8 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
     queryFn: () => fetch(`/api/capabilities/${capabilityId}`).then(res => res.json()),
     enabled: !!capabilityId && capabilityId !== 'undefined'
   });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
   const parent = useMemo(() => allCapabilities?.find(c => c.id === capability?.parentId), [allCapabilities, capability]);
   const children = useMemo(() => allCapabilities?.filter(c => c.parentId === capabilityId) || [], [allCapabilities, capabilityId]);
@@ -143,10 +147,12 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{capability.name}</h1>
               </div>
+              {showField('capability.description') && (
               <p style={{ fontSize: '1rem', color: 'var(--foreground)', lineHeight: 1.5, margin: 0, maxWidth: '900px', opacity: 0.8 }}>
                 {capability.description || 'No description provided for this business capability.'}
               </p>
-              {parent && (
+              )}
+              {showField('capability.parent') && parent && (
                 <div style={{ marginTop: '1rem' }}>
                   <span 
                     onClick={() => navigate(`/capabilities/${parent.id}`)}
@@ -194,7 +200,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
               </section>
 
               {/* Supported Applications Section */}
-              <section>
+              {showField('capability.applications') && <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Database size={14} /> Supporting Applications
                   <span style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--muted-foreground)', textTransform: 'none', letterSpacing: 0, marginLeft: '0.5rem' }}>
@@ -231,7 +237,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                     <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>No applications currently mapped to this capability.</div>
                   )}
                 </div>
-              </section>
+              </section>}
 
               {/* Sub-Capabilities Section */}
               {children.length > 0 && (
@@ -333,7 +339,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
             </div>
           </div>
 
-          <ReferencesList raw={capability.references} />
+          {showField('capability.references') && <ReferencesList raw={capability.references} />}
         </div>
       </div>
     </div>

@@ -12,6 +12,8 @@ import { ReferencesEditor, parseReferences, serializeReferences, type Reference 
 import { TimeMatrix } from './TimeMatrix';
 import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '../App';
 import { getAppTimeAssessment } from '../timeAssessment';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 function vendorUrlForSave(value: string): string | null {
   const trimmed = value.trim();
@@ -112,6 +114,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
   const { data: allIntegrations } = useQuery<any[]>({ queryKey: ['integrations'], queryFn: () => fetch('/api/integrations').then(res => res.json()) });
   const { data: informationObjects } = useQuery<any[]>({ queryKey: ['information-objects'], queryFn: () => fetch('/api/information-objects').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   // Populate formData from the DB before the form mounts. We gate rendering on
   // `hydrated` below so Radix Select instances never see stale default values —
@@ -397,7 +400,11 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     setFormData((current) => ({ ...current, ...patch }));
   };
   const vendorSuggested = !vendorEdited && Boolean(formData.vendorName.trim() || formData.vendorUrl.trim() || formData.vendorSummary.trim());
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+  const showVendor = showField('vendorName') || showField('vendorUrl') || showField('vendorSummary');
+  const showContract = showField('contractStart') || showField('contractEnd') || showField('contractDetails');
   const suggestVendor = Boolean(activeProvider)
+    && showVendor
     && !vendorEdited
     && vendorDismissedKey !== `${formData.name.trim()}\n${formData.description.trim()}`
     && formData.name.trim().length >= 2
@@ -460,10 +467,12 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   <label className="label">Application Name</label>
                   <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. Core Banking System" />
                 </div>
+                {showField('description') && (
                 <div className="field" style={{ marginBottom: 0 }}>
                   <label className="label">Description</label>
                   <textarea rows={3} value={formData.description} className={aiSuggested.description ? 'app-ai-suggested' : undefined} onChange={e => { setAiSuggested((current) => current.description ? { ...current, description: false } : current); setFormData({...formData, description: e.target.value}); }} style={{ padding: '0.75rem' }} placeholder="Purpose and primary functions..." />
                 </div>
+                )}
                 {activeProvider && (
                   <ApplicationSuggestions
                     name={formData.name}
@@ -502,7 +511,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   />
                 )}
 
-                <section className={vendorSuggested ? 'app-vendor app-ai-suggested' : 'app-vendor'} aria-label="Vendor">
+                {showVendor && <section className={vendorSuggested ? 'app-vendor app-ai-suggested' : 'app-vendor'} aria-label="Vendor">
                   <div className="app-vendor-heading">
                     <span>Vendor</span>
                     {activeProvider && (
@@ -535,6 +544,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       </div>
                     )}
                   </div>
+                  {showField('vendorName') && (
                   <div className="field">
                     <label className="label" htmlFor="vendor-name">Vendor name</label>
                     <input
@@ -545,6 +555,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem', height: '2rem' }}
                     />
                   </div>
+                  )}
+                  {showField('vendorUrl') && (
                   <div className="field">
                     <label className="label" htmlFor="vendor-url">Home page</label>
                     <input
@@ -555,6 +567,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem', height: '2rem' }}
                     />
                   </div>
+                  )}
+                  {showField('vendorSummary') && (
                   <div className="field">
                     <label className="label" htmlFor="vendor-summary">Vendor description</label>
                     <textarea
@@ -567,15 +581,17 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
                     />
                   </div>
+                  )}
                   {researching && !formData.vendorName && <p className="app-vendor-note">Looking up the vendor…</p>}
                   {vendorNote && <p className="app-vendor-note">{vendorNote}</p>}
-                </section>
+                </section>}
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                   <div className="field" style={{ marginBottom: 0 }}>
                     <label className="label">Business Owner (Individual)</label>
                     <input value={formData.owner} onChange={e => setFormData({...formData, owner: e.target.value})} style={{ padding: '0.6rem 0.8rem', fontSize: '0.9rem', height: '2rem' }} placeholder="e.g. John Doe" />
                   </div>
+                  {showField('ownerOrg') && (
                   <div className="field" style={{ marginBottom: 0 }}>
                     <label className="label">Owning Organization</label>
                     <ColoredSelect
@@ -588,6 +604,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
+                  )}
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
@@ -616,6 +633,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       style={{ height: '2rem', fontSize: '0.85rem' }}
                     />
                   </div>
+                  {showField('lifecycleStart') && (
                   <div style={{ marginBottom: 0 }}>
                     <DatePicker 
                       label="Lifecycle Start Date" 
@@ -623,6 +641,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       onChange={val => setFormData({...formData, lifecycleStartDate: val})} 
                     />
                   </div>
+                  )}
+                  {showField('lifecycleEnd') && (
                   <div style={{ marginBottom: 0 }}>
                     <DatePicker 
                       label="Lifecycle End Date" 
@@ -630,14 +650,17 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       onChange={val => setFormData({...formData, lifecycleEndDate: val})} 
                     />
                   </div>
+                  )}
                 </div>
 
                 {/* CONTRACT INFORMATION */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                {showContract && <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', background: 'rgba(0,0,0,0.02)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', fontWeight: 700, color: 'var(--foreground)' }}>
                     <FileSignature size={15} style={{ color: 'var(--primary)' }} /> Contract
                   </div>
+                  {(showField('contractStart') || showField('contractEnd')) && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    {showField('contractStart') && (
                     <div style={{ marginBottom: 0 }}>
                       <DatePicker 
                         label="Contract Start Date" 
@@ -645,6 +668,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                         onChange={val => setFormData({...formData, contractStartDate: val})} 
                       />
                     </div>
+                    )}
+                    {showField('contractEnd') && (
                     <div style={{ marginBottom: 0 }}>
                       <DatePicker 
                         label="Contract End Date" 
@@ -652,7 +677,10 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                         onChange={val => setFormData({...formData, contractEndDate: val})} 
                       />
                     </div>
+                    )}
                   </div>
+                  )}
+                  {showField('contractDetails') && (
                   <div className="field" style={{ marginBottom: 0 }}>
                     <label className="label">Contract Details / Notes (Optional)</label>
                     <textarea 
@@ -663,7 +691,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
                     />
                   </div>
-                </div>
+                  )}
+                </div>}
               </div>
             </section>
 
@@ -833,6 +862,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                 </div>
               </div>
 
+              {showField('timeRationale') && (
               <div className="field" style={{ marginTop: '1.5rem', marginBottom: 0 }}>
                 <label className="label" htmlFor="time-rationale">TIME rationale</label>
                 <textarea
@@ -845,10 +875,11 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   style={{ padding: '0.6rem 0.8rem', fontSize: '0.85rem' }}
                 />
               </div>
+              )}
             </section>
 
             {/* CAPABILITIES */}
-            <section>
+            {showField('capabilities') && <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Boxes size={16} /> Business Capabilities
@@ -863,10 +894,10 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   </button>
                 ))}
               </div>
-            </section>
+            </section>}
 
             {/* PROCESSED INFORMATION OBJECTS */}
-            <section>
+            {showField('processedInformation') && <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <FileText size={16} /> Processed Information
@@ -902,10 +933,10 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   </button>
                 ))}
               </div>
-            </section>
+            </section>}
 
             {/* INTEGRATIONS */}
-            <section>
+            {showField('integrations') && <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Network size={16} /> Integrations & Data Flows
@@ -967,7 +998,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                   </div>
                 )}
               </div>
-            </section>
+            </section>}
 
             {/* CUSTOM META */}
             {otherMetaDefs.length > 0 && (
@@ -1002,7 +1033,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
               </section>
             )}
 
-            <ReferencesEditor value={references} onChange={setReferences} />
+            {showField('references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

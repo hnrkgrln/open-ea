@@ -6,6 +6,8 @@ import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
 import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -59,6 +61,7 @@ export const EditCapabilityPage = () => {
   const { data: allApps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   // Populate formData from the DB before the form mounts. We gate rendering on
   // `hydrated` below so Radix Select instances never see stale default values —
@@ -179,6 +182,8 @@ export const EditCapabilityPage = () => {
   if (!picklists || !allCapabilities) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Retrieving capability...</div>;
 
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+
   const filteredApps = (allApps || []).filter(app => 
     app.name.toLowerCase().includes(appSearch.toLowerCase()) || 
     selectedAppIds.includes(app.id)
@@ -238,10 +243,13 @@ export const EditCapabilityPage = () => {
                   <label className="label">Capability Name</label>
                   <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. Talent Management" />
                 </div>
+                {showField('capability.description') && (
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Purpose & Outcome</label>
                   <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem', lineHeight: 1.5 }} placeholder="Describe the business outcomes..." />
                 </div>
+                )}
+                {showField('capability.parent') && (
                 <div className="field" style={{ gridColumn: 'span 2' }}>
                   <label className="label">Parent Capability</label>
                   <ColoredSelect
@@ -251,6 +259,7 @@ export const EditCapabilityPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                )}
               </div>
             </section>
 
@@ -287,7 +296,7 @@ export const EditCapabilityPage = () => {
             </section>
 
             {/* SUPPORTING APPLICATIONS */}
-            <section>
+            {showField('capability.applications') && <section>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Database size={16} /> Supporting Applications
@@ -302,7 +311,7 @@ export const EditCapabilityPage = () => {
                   </button>
                 ))}
               </div>
-            </section>
+            </section>}
 
             {/* CUSTOM META */}
             {otherMetaDefs.length > 0 && (
@@ -345,7 +354,7 @@ export const EditCapabilityPage = () => {
               </section>
             )}
 
-            <ReferencesEditor value={references} onChange={setReferences} />
+            {showField('capability.references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

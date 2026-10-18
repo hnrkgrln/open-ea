@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import { MarkdownAnswer } from './MarkdownAnswer';
 import { activeLlmProvider, useLlmProviders } from './useLlmProviders';
 import { readStoredTimeThresholds } from '../timeAssessment';
@@ -153,16 +154,55 @@ export function useSearchPortfolioChat() {
   return useChatSession(SearchChatContext);
 }
 
+function conversationText(messages: ChatTurn[]) {
+  return messages.map((message) => {
+    const who = message.role === 'user' ? 'You' : 'Landscape';
+    return `${who}\n${message.content.trim()}`;
+  }).join('\n\n');
+}
+
+async function copyText(value: string) {
+  const text = value.replace(/\r\n/g, '\n');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.left = '-9999px';
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    if (!ok) throw new Error('copy failed');
+  }
+}
+
 export const ChatTranscript = React.forwardRef<HTMLDivElement, {
   messages: ChatTurn[];
-  pendingLabel?: string;
+  pending?: boolean;
   style?: React.CSSProperties;
-}>(({ messages, pendingLabel, style }, ref) => {
+}>(({ messages, pending, style }, ref) => {
   const nodeRef = useRef<HTMLDivElement | null>(null);
+  const [copied, setCopied] = useState<number | 'all' | null>(null);
   useEffect(() => {
     const thread = nodeRef.current;
     if (thread) thread.scrollTop = thread.scrollHeight;
-  }, [messages, pendingLabel]);
+  }, [messages, pending]);
+  useEffect(() => {
+    if (copied == null) return;
+    const timer = window.setTimeout(() => setCopied(null), 1600);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
+  const copy = async (value: string, mark: number | 'all') => {
+    try {
+      await copyText(value);
+      setCopied(mark);
+    } catch {
+      setCopied(null);
+    }
+  };
   return (
   <div
     ref={(node) => {
@@ -173,15 +213,40 @@ export const ChatTranscript = React.forwardRef<HTMLDivElement, {
     className="chat-thread"
     style={style}
   >
+    {messages.length > 0 && (
+      <div className="chat-thread-bar">
+        <button
+          type="button"
+          className="chat-copy"
+          onClick={() => copy(conversationText(messages), 'all')}
+        >
+          {copied === 'all' ? <Check size={13} /> : <Copy size={13} />}
+          {copied === 'all' ? 'Copied' : 'Copy conversation'}
+        </button>
+      </div>
+    )}
     {messages.map((message, index) => (
-      <div key={`${message.role}-${index}`} style={{ display: 'flex', justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start' }}>
+      <div key={`${message.role}-${index}`} className={message.role === 'user' ? 'chat-turn chat-turn-user' : 'chat-turn chat-turn-assistant'}>
         <div className={message.role === 'user' ? 'chat-bubble chat-bubble-user' : 'chat-bubble chat-bubble-assistant'}>
           {message.role === 'assistant' ? <MarkdownAnswer text={message.content} /> : message.content}
         </div>
+        <button
+          type="button"
+          className="chat-copy"
+          aria-label={copied === index ? 'Copied' : message.role === 'user' ? 'Copy question' : 'Copy answer'}
+          onClick={() => copy(message.content, index)}
+        >
+          {copied === index ? <Check size={13} /> : <Copy size={13} />}
+          {copied === index ? 'Copied' : 'Copy'}
+        </button>
       </div>
     ))}
-    {pendingLabel && (
-      <p className="chat-pending">{pendingLabel}</p>
+    {pending && (
+      <div className="chat-turn chat-turn-assistant">
+        <div className="chat-bubble chat-bubble-assistant chat-typing" role="status" aria-label="Writing an answer">
+          <span className="chat-ellipsis" aria-hidden="true"><span /><span /><span /></span>
+        </div>
+      </div>
     )}
   </div>
   );

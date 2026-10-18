@@ -5,6 +5,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
 import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
+import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -59,6 +61,7 @@ export const EditInformationPage = () => {
   const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   const ciaOptions = picklists?.find(p => p.name === 'cia_scale')?.options || [];
   const piiOptions = picklists?.find(p => p.name === 'pii_category')?.options || [];
@@ -156,6 +159,7 @@ export const EditInformationPage = () => {
   if (!picklists || !organizations || !apps) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
+  const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
   const infoMetaDefs = metaDefs?.filter(d => d.entityType === 'InformationObject') || [];
 
   return (
@@ -205,14 +209,18 @@ export const EditInformationPage = () => {
                   <label className="label">Governed Name</label>
                   <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} style={{ padding: '0.75rem', fontSize: '1.1rem', fontWeight: 600, height: 'auto' }} placeholder="e.g. Employee Record" />
                 </div>
+                {showField('information.aliases') && (
                 <div className="field">
                   <label className="label">Aliases (Comma separated)</label>
                   <input value={formData.aliases} onChange={e => setFormData({...formData, aliases: e.target.value})} style={{ padding: '0.6rem' }} placeholder="e.g. Staff Data, Worker Profile" />
                 </div>
+                )}
+                {showField('information.description') && (
                 <div className="field">
                   <label className="label">Business Definition</label>
                   <textarea rows={3} value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} style={{ padding: '0.75rem' }} placeholder="Clear definition of what this concept represents..." />
                 </div>
+                )}
                 <div className="field">
                   <label className="label">Information Type</label>
                   <ColoredSelect
@@ -293,11 +301,13 @@ export const EditInformationPage = () => {
             </section>
 
             {/* ACCOUNTABILITY */}
+            {(showField('information.businessOwner') || showField('information.sourceOfTruth')) && (
             <section>
               <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                 <Share2 size={16} /> Accountability
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                {showField('information.businessOwner') && (
                 <div className="field">
                   <label className="label">Business Owner</label>
                   <ColoredSelect
@@ -307,6 +317,8 @@ export const EditInformationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                )}
+                {showField('information.sourceOfTruth') && (
                 <div className="field">
                   <label className="label">Source of Truth</label>
                   <ColoredSelect
@@ -316,8 +328,10 @@ export const EditInformationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
+                )}
               </div>
             </section>
+            )}
 
             {/* CUSTOM META */}
             {infoMetaDefs.length > 0 && (
@@ -360,7 +374,7 @@ export const EditInformationPage = () => {
               </section>
             )}
 
-            <ReferencesEditor value={references} onChange={setReferences} />
+            {showField('information.references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

@@ -1223,26 +1223,88 @@ server.delete('/metadata-definitions/:id', {
 
 const DEFAULT_BRAND_NAME = 'OpenEA';
 const WORKSPACE_SETTINGS_ID = 'default';
+const NATIVE_FIELD_IDS = [
+  'description',
+  'vendorName',
+  'vendorUrl',
+  'vendorSummary',
+  'ownerOrg',
+  'lifecycleStart',
+  'lifecycleEnd',
+  'contractStart',
+  'contractEnd',
+  'contractDetails',
+  'timeRationale',
+  'capabilities',
+  'processedInformation',
+  'integrations',
+  'references',
+  'capability.description',
+  'capability.parent',
+  'capability.applications',
+  'capability.references',
+  'organization.description',
+  'organization.parent',
+  'organization.capabilities',
+  'organization.references',
+  'information.aliases',
+  'information.description',
+  'information.businessOwner',
+  'information.sourceOfTruth',
+  'information.references',
+  'integration.description',
+  'integration.payload',
+  'integration.references',
+] as const;
+
+function parseDisabledNativeFields(raw: unknown): string[] {
+  const values = typeof raw === 'string'
+    ? (() => { try { return JSON.parse(raw); } catch { return []; } })()
+    : raw;
+  if (!Array.isArray(values)) return [];
+  const allowed = new Set<string>(NATIVE_FIELD_IDS);
+  return [...new Set(values.filter((id): id is string => typeof id === 'string' && allowed.has(id)))];
+}
+
+function workspaceResponse(row: { brandName: string; disabledNativeFields?: string | null } | null) {
+  return {
+    brandName: row?.brandName?.trim() || DEFAULT_BRAND_NAME,
+    disabledNativeFields: parseDisabledNativeFields(row?.disabledNativeFields),
+  };
+}
 
 server.get('/workspace', async () => {
   const row = await prisma.workspaceSettings.findUnique({ where: { id: WORKSPACE_SETTINGS_ID } });
-  return { brandName: row?.brandName?.trim() || DEFAULT_BRAND_NAME };
+  return workspaceResponse(row);
 });
 
 server.put('/workspace', {
   schema: {
     body: z.object({
-      brandName: z.string().trim().min(1).max(80),
+      brandName: z.string().trim().min(1).max(80).optional(),
+      disabledNativeFields: z.array(z.string()).max(64).optional(),
+    }).refine((body) => body.brandName !== undefined || body.disabledNativeFields !== undefined, {
+      message: 'Nothing to update',
     }),
   },
 }, async (request) => {
-  const brandName = request.body.brandName.trim();
+  const brandName = request.body.brandName?.trim();
+  const disabledNativeFields = request.body.disabledNativeFields === undefined
+    ? undefined
+    : JSON.stringify(parseDisabledNativeFields(request.body.disabledNativeFields));
   const row = await prisma.workspaceSettings.upsert({
     where: { id: WORKSPACE_SETTINGS_ID },
-    create: { id: WORKSPACE_SETTINGS_ID, brandName },
-    update: { brandName },
+    create: {
+      id: WORKSPACE_SETTINGS_ID,
+      brandName: brandName || DEFAULT_BRAND_NAME,
+      ...(disabledNativeFields !== undefined ? { disabledNativeFields } : {}),
+    },
+    update: {
+      ...(brandName ? { brandName } : {}),
+      ...(disabledNativeFields !== undefined ? { disabledNativeFields } : {}),
+    },
   });
-  return { brandName: row.brandName };
+  return workspaceResponse(row);
 });
 
 // LLM providers. API keys stay in the database and are never returned.
