@@ -15,6 +15,9 @@ export type SuggestionInput = {
   context: string;
   description: string;
   contractDetails: string;
+  vendorName: string;
+  vendorUrl: string;
+  vendorSummary: string;
 };
 
 export type VendorProfile = { name: string; url: string; summary: string };
@@ -34,17 +37,18 @@ const INSTRUCTIONS = `You propose fields for one application record in OpenEA.
 Use the user's text first. Use the web results only to identify the product and its vendor.
 Rewrite the description in two to four formal sentences: the business activity it supports, who uses it, and the records or outcome it handles.
 Do not copy the web results. Do not use promotional language.
-Set vendor only when the user's text or a web result names the publisher or provider. Otherwise use an empty string.
-Set vendorHomePage to the vendor's own website from the web results, not an article about the product. Otherwise use an empty string.
+Set vendor only when the user's text, the current vendor name, or a web result names the publisher or provider. Otherwise use an empty string.
+Set vendorHomePage to the vendor's own website from the current home page or the web results, not an article about the product. Otherwise use an empty string.
 Set vendorDescription to one or two short formal sentences about the vendor. Do not repeat the application description. Otherwise use an empty string.
+When a current vendor name, home page, or description is present, keep it unless the user's text or a web result shows it is wrong. Use those values to identify the product and the vendor.
 Set type only to a value or label from the application type list. Otherwise use an empty string.
 Do not invent an owner, organization, dates, scores, or relationships.
 Reply with one JSON object and nothing else:
 {"description":"","vendor":"","vendorHomePage":"","vendorDescription":"","type":"","note":""}
 note is one short sentence when the web results are missing or do not match the application. Otherwise note is an empty string.`;
 
-export function buildSearchQuery(name: string, context: string): string {
-  const extra = context.trim().replace(/\s+/g, ' ').slice(0, 120);
+export function buildSearchQuery(name: string, context: string, vendorName = ''): string {
+  const extra = [vendorName.trim(), context.trim()].filter(Boolean).join(' ').replace(/\s+/g, ' ').slice(0, 160);
   return [name.trim(), 'software', extra].filter(Boolean).join(' ').slice(0, 400);
 }
 
@@ -67,10 +71,11 @@ export function parseBraveResults(payload: unknown): SearchHit[] {
   return hits;
 }
 
-export async function searchProduct(name: string, context: string, apiKey: string, fetchImpl: typeof fetch = fetch): Promise<SearchHit[]> {
+export async function searchProduct(name: string, context: string, apiKey: string, fetchImpl: typeof fetch = fetch, vendorName = ''): Promise<SearchHit[]> {
+  const homepageSubject = vendorName.trim() || name.trim();
   const [official, general] = await Promise.all([
-    searchBrave(`${name.trim()} official homepage`.slice(0, 400), apiKey, fetchImpl),
-    searchBrave(buildSearchQuery(name, context), apiKey, fetchImpl),
+    searchBrave(`${homepageSubject} official homepage`.slice(0, 400), apiKey, fetchImpl),
+    searchBrave(buildSearchQuery(name, context, vendorName), apiKey, fetchImpl),
   ]);
   const seen = new Set<string>();
   const hits: SearchHit[] = [];
@@ -160,7 +165,7 @@ export function sanitizeSuggestion(
   input: SuggestionInput,
   searchConfigured: boolean,
 ): ApplicationSuggestion {
-  const userText = [input.context, input.description, input.contractDetails].join('\n');
+  const userText = [input.context, input.description, input.contractDetails, input.vendorName, input.vendorUrl, input.vendorSummary].join('\n');
   const supportBlob = [input.name, userText, ...hits.flatMap((hit) => [hit.title, hit.url, hit.description])].join('\n');
   const nothingToUse = !userText.trim() && hits.length === 0;
   const vendor = nothingToUse || !vendorSupported(raw.vendor, supportBlob) ? '' : raw.vendor;
@@ -191,7 +196,7 @@ export async function suggestApplicationFields(
 ): Promise<ApplicationSuggestion> {
   const [types, fields] = await Promise.all([loadTypes(prisma), loadFields(prisma)]);
   const searchConfigured = braveApiKey.trim().length > 0;
-  const hits = await searchProduct(input.name, input.context, braveApiKey);
+  const hits = await searchProduct(input.name, input.context, braveApiKey, fetch, input.vendorName);
   const text = await completeConversation(
     provider,
     [{ role: 'user', content: suggestionRequest(input, hits, types) }],
@@ -228,6 +233,9 @@ function suggestionRequest(input: SuggestionInput, hits: SearchHit[], types: Cat
     input.context.trim() ? `Context: ${input.context.trim()}` : 'Context: none',
     input.description.trim() ? `Current description: ${input.description.trim()}` : 'Current description: none',
     input.contractDetails.trim() ? `Current contract details: ${input.contractDetails.trim()}` : 'Current contract details: none',
+    input.vendorName.trim() ? `Current vendor name: ${input.vendorName.trim()}` : 'Current vendor name: none',
+    input.vendorUrl.trim() ? `Current vendor home page: ${input.vendorUrl.trim()}` : 'Current vendor home page: none',
+    input.vendorSummary.trim() ? `Current vendor description: ${input.vendorSummary.trim()}` : 'Current vendor description: none',
     `Web results:\n${results}`,
     `Application types (value | label):\n${typeList}`,
   ].join('\n\n');

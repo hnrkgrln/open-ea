@@ -777,6 +777,30 @@ button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   background: var(--card);
 }
 
+.app-suggest.is-collapsed {
+  gap: 0;
+}
+
+button.app-suggest-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+button.app-suggest-toggle:hover {
+  background: transparent;
+}
+
 .app-suggest-heading {
   display: inline-flex;
   align-items: center;
@@ -786,6 +810,33 @@ button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--brand-focus);
+}
+
+.app-suggest-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.app-cap-map {
+  margin-bottom: 1.25rem;
+}
+
+.app-cap-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.75rem;
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 1rem;
+  background: var(--card);
+  border-radius: 16px;
+  border: 1px solid var(--border);
+}
+
+.app-cap-picker.app-ai-suggested {
+  background: color-mix(in srgb, var(--brand-focus) 6%, var(--card));
+  border-color: color-mix(in srgb, var(--brand-focus) 45%, var(--border));
 }
 
 .app-suggest-help,
@@ -888,6 +939,37 @@ textarea.app-ai-suggested {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.45rem;
+}
+
+.app-vendor-suggest {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "heading actions"
+    "guide actions";
+  align-items: center;
+  gap: 0.3rem 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.app-vendor-suggest .app-suggest-heading {
+  grid-area: heading;
+}
+
+.app-vendor-suggest .app-vendor-actions {
+  grid-area: actions;
+  align-self: center;
+}
+
+.app-vendor-suggest .app-vendor-guide {
+  grid-area: guide;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--foreground);
 }
 
 .app-vendor a {

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChevronDown, ChevronRight, Sparkles } from 'lucide-react';
 
 export type VendorProfile = { name: string; url: string; summary: string };
 
@@ -57,10 +57,72 @@ export type FieldSuggestion = {
   sources: { title: string; url: string }[];
 };
 
+export function SuggestionCard({
+  open,
+  onToggle,
+  bodyId,
+  suggested,
+  title = 'Suggestions',
+  className,
+  children,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  bodyId: string;
+  suggested: boolean;
+  title?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={['app-suggest', className, open ? '' : 'is-collapsed', suggested ? 'app-ai-suggested' : ''].filter(Boolean).join(' ')}>
+      <button
+        type="button"
+        className="app-suggest-toggle"
+        aria-expanded={open}
+        aria-controls={bodyId}
+        onClick={onToggle}
+      >
+        <span className="app-suggest-heading">
+          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          <Sparkles size={14} />
+          <span>{title}</span>
+        </span>
+      </button>
+      {open && <div id={bodyId} className="app-suggest-body">{children}</div>}
+    </div>
+  );
+}
+
+export function SuggestionProposal({
+  label,
+  children,
+  actionLabel,
+  onAction,
+}: {
+  label: string;
+  children?: ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="app-suggest-proposal">
+      <span className="label">{label}</span>
+      {children}
+      {actionLabel && onAction && (
+        <button type="button" className="secondary" onClick={onAction}>{actionLabel}</button>
+      )}
+    </div>
+  );
+}
+
 export function ApplicationSuggestions({
   name,
   description,
   contractDetails,
+  vendorName,
+  vendorUrl,
+  vendorSummary,
   applicationType,
   researchGeneration,
   suggestVendor,
@@ -72,6 +134,9 @@ export function ApplicationSuggestions({
   name: string;
   description: string;
   contractDetails: string;
+  vendorName: string;
+  vendorUrl: string;
+  vendorSummary: string;
   applicationType: string;
   researchGeneration: number;
   suggestVendor: boolean;
@@ -84,14 +149,24 @@ export function ApplicationSuggestions({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [suggestion, setSuggestion] = useState<FieldSuggestion | null>(null);
+  const described = description.trim().length > 0;
+  const [open, setOpen] = useState(false);
+  const describedRef = useRef(described);
   const canAsk = name.trim().length >= 2 && !pending;
   const askRef = useRef<(reason?: 'manual' | 'auto') => Promise<void>>(async () => {});
   const requestId = useRef(0);
   const lastAutoKey = useRef('');
+  const storedDescriptionKey = useRef(description.trim().length >= 10 ? `${name.trim()}\n${description.trim()}` : '');
 
   useEffect(() => {
     onResearching(pending);
   }, [onResearching, pending]);
+
+  useEffect(() => {
+    if (describedRef.current === described) return;
+    describedRef.current = described;
+    if (!described) setOpen(false);
+  }, [described]);
 
   useEffect(() => {
     if (researchGeneration === 0) return;
@@ -101,6 +176,11 @@ export function ApplicationSuggestions({
   useEffect(() => {
     if (!suggestVendor) return;
     const key = `${name.trim()}\n${description.trim()}`;
+    if (storedDescriptionKey.current) {
+      lastAutoKey.current = storedDescriptionKey.current;
+      storedDescriptionKey.current = '';
+      return;
+    }
     if (name.trim().length < 2 || description.trim().length < 10) return;
     if (lastAutoKey.current === key) return;
     const timer = window.setTimeout(() => {
@@ -128,6 +208,9 @@ export function ApplicationSuggestions({
           context: context.trim(),
           description,
           contractDetails,
+          vendorName: vendorName.trim(),
+          vendorUrl: vendorUrl.trim(),
+          vendorSummary: vendorSummary.trim(),
         }),
       });
       const body = await res.json().catch(() => ({}));
@@ -164,12 +247,13 @@ export function ApplicationSuggestions({
   askRef.current = ask;
 
   return (
-    <div className={suggestion ? 'app-suggest app-ai-suggested' : 'app-suggest'}>
-      <div className="app-suggest-heading">
-        <Sparkles size={14} />
-        <span>Suggestions</span>
-      </div>
-      <p className="app-suggest-help">Vendor fields are filled in automatically from the name and description. Apply a description or type only if you want to use it.</p>
+    <SuggestionCard
+      open={open}
+      suggested={Boolean(suggestion)}
+      bodyId="application-suggestions-body"
+      onToggle={() => setOpen((current) => !current)}
+    >
+      <p className="app-suggest-help">Vendor fields are filled in automatically. A vendor name, home page, or description already entered is included. Apply a description or type only if you want to use it.</p>
       <label className="label" htmlFor="application-suggestion-context">Context</label>
       <textarea
         id="application-suggestion-context"
@@ -190,26 +274,25 @@ export function ApplicationSuggestions({
         <div className="app-suggest-results">
           {suggestion.note && <p className="app-suggest-note">{suggestion.note}</p>}
           {suggestion.description && (
-            <div className="app-suggest-proposal">
-              <span className="label">Description</span>
+            <SuggestionProposal
+              label="Description"
+              actionLabel={description.trim() ? 'Replace description' : 'Use description'}
+              onAction={() => onApplyDescription(suggestion.description)}
+            >
               <p>{suggestion.description}</p>
-              <button type="button" className="secondary" onClick={() => onApplyDescription(suggestion.description)}>
-                {description.trim() ? 'Replace description' : 'Use description'}
-              </button>
-            </div>
+            </SuggestionProposal>
           )}
           {suggestion.type && (
-            <div className="app-suggest-proposal">
-              <span className="label">Application type</span>
+            <SuggestionProposal
+              label="Application type"
+              actionLabel={applicationType.trim() ? 'Replace type' : 'Use type'}
+              onAction={() => onApplyType(suggestion.type)}
+            >
               <p>{suggestion.type}</p>
-              <button type="button" className="secondary" onClick={() => onApplyType(suggestion.type)}>
-                {applicationType.trim() ? 'Replace type' : 'Use type'}
-              </button>
-            </div>
+            </SuggestionProposal>
           )}
           {suggestion.sources.length > 0 && (
-            <div className="app-suggest-proposal">
-              <span className="label">Sources</span>
+            <SuggestionProposal label="Sources">
               <ul className="app-suggest-sources">
                 {suggestion.sources.map((source) => (
                   <li key={source.url}>
@@ -217,10 +300,10 @@ export function ApplicationSuggestions({
                   </li>
                 ))}
               </ul>
-            </div>
+            </SuggestionProposal>
           )}
         </div>
       )}
-    </div>
+    </SuggestionCard>
   );
 }

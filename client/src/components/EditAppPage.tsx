@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText, FileSignature } from 'lucide-react';
+import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText, FileSignature, Sparkles } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatePicker } from './DatePicker';
 import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
 import { CustomCheckbox } from './CustomCheckbox';
 import { ApplicationSuggestions, applicationVendor, withVendorProfile } from './ApplicationSuggestions';
+import { CapabilityMappingSuggestions } from './CapabilityMappingSuggestions';
 import { activeLlmProvider, useLlmProviders } from './useLlmProviders';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { TimeMatrix } from './TimeMatrix';
@@ -14,6 +15,17 @@ import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '.
 import { getAppTimeAssessment } from '../timeAssessment';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+
+function vendorGuide(name: string, url: string, summary: string): string {
+  const clip = (value: string, max: number) => {
+    const trimmed = value.trim().replace(/\s+/g, ' ');
+    if (!trimmed) return '';
+    return trimmed.length > max ? `${trimmed.slice(0, max - 1)}…` : trimmed;
+  };
+  const parts = [clip(name, 80), clip(url, 90), clip(summary, 160)].filter(Boolean);
+  if (parts.length === 0) return 'Uses the vendor name, home page, and description when they are filled in.';
+  return parts.join(' · ');
+}
 
 function vendorUrlForSave(value: string): string | null {
   const trimmed = value.trim();
@@ -98,6 +110,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   const [researchGeneration, setResearchGeneration] = useState(0);
   const [researching, setResearching] = useState(false);
   const [aiSuggested, setAiSuggested] = useState({ description: false, type: false });
+  const [capsSuggested, setCapsSuggested] = useState(false);
   const llmProviders = useLlmProviders();
   const activeProvider = activeLlmProvider(llmProviders.data);
 
@@ -478,6 +491,9 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     name={formData.name}
                     description={formData.description}
                     contractDetails={formData.contractDetails}
+                    vendorName={formData.vendorName}
+                    vendorUrl={formData.vendorUrl}
+                    vendorSummary={formData.vendorSummary}
                     applicationType={formData.type}
                     researchGeneration={researchGeneration}
                     suggestVendor={suggestVendor}
@@ -514,7 +530,16 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                 {showVendor && <section className={vendorSuggested ? 'app-vendor app-ai-suggested' : 'app-vendor'} aria-label="Vendor">
                   <div className="app-vendor-heading">
                     <span>Vendor</span>
-                    {activeProvider && (
+                  </div>
+                  {activeProvider && (
+                    <div className="app-vendor-suggest app-ai-suggested" aria-label="AI suggestion">
+                      <span className="app-suggest-heading">
+                        <Sparkles size={14} />
+                        AI suggestion
+                      </span>
+                      <p className="app-vendor-guide">
+                        {vendorGuide(formData.vendorName, formData.vendorUrl, formData.vendorSummary)}
+                      </p>
                       <div className="app-vendor-actions">
                         <button
                           type="button"
@@ -542,13 +567,14 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                           Clear
                         </button>
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                   {showField('vendorName') && (
                   <div className="field">
                     <label className="label" htmlFor="vendor-name">Vendor name</label>
                     <input
                       id="vendor-name"
+                      className={vendorSuggested ? 'app-ai-suggested' : undefined}
                       value={formData.vendorName}
                       onChange={(event) => editVendor({ vendorName: event.target.value })}
                       placeholder="e.g. Microsoft"
@@ -561,6 +587,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     <label className="label" htmlFor="vendor-url">Home page</label>
                     <input
                       id="vendor-url"
+                      className={vendorSuggested ? 'app-ai-suggested' : undefined}
                       value={formData.vendorUrl}
                       onChange={(event) => editVendor({ vendorUrl: event.target.value })}
                       placeholder="https://"
@@ -573,6 +600,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     <label className="label" htmlFor="vendor-summary">Vendor description</label>
                     <textarea
                       id="vendor-summary"
+                      className={vendorSuggested ? 'app-ai-suggested' : undefined}
                       rows={2}
                       maxLength={1000}
                       value={formData.vendorSummary}
@@ -886,9 +914,22 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                 </h3>
                 <InlineFilter value={capSearch} onChange={setCapSearch} placeholder="Search capabilities..." width="250px" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem', maxHeight: '350px', overflowY: 'auto', padding: '1rem', background: 'var(--card)', borderRadius: '16px', border: '1px solid var(--border)' }}>
+              {activeProvider && (capabilities?.length ?? 0) > 0 && (
+                <CapabilityMappingSuggestions
+                  name={formData.name}
+                  description={formData.description}
+                  vendorName={formData.vendorName}
+                  applicationType={formData.type}
+                  mapped={selectedCapIds.length > 0}
+                  onApply={(ids) => {
+                    setCapsSuggested(true);
+                    setSelectedCapIds((current) => current.length > 0 ? [...new Set([...current, ...ids])] : ids);
+                  }}
+                />
+              )}
+              <div className={capsSuggested ? 'app-cap-picker app-ai-suggested' : 'app-cap-picker'}>
                 {filteredCaps.map(cap => (
-                  <button key={cap.id} type="button" onClick={() => setSelectedCapIds(prev => prev.includes(cap.id) ? prev.filter(c => c !== cap.id) : [...prev, cap.id])} style={{ height: 'auto', padding: '0.75rem', justifyContent: 'flex-start', background: selectedCapIds.includes(cap.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(cap.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem' }}>
+                  <button key={cap.id} type="button" onClick={() => { setCapsSuggested(false); setSelectedCapIds(prev => prev.includes(cap.id) ? prev.filter(c => c !== cap.id) : [...prev, cap.id]); }} style={{ height: 'auto', padding: '0.75rem', justifyContent: 'flex-start', background: selectedCapIds.includes(cap.id) ? 'var(--primary)' : 'var(--background)', color: selectedCapIds.includes(cap.id) ? 'var(--primary-foreground)' : 'var(--foreground)', border: '1px solid var(--border)', textAlign: 'left', fontSize: '0.8rem' }}>
                     {selectedCapIds.includes(cap.id) ? <CheckCircle2 size={14} style={{ marginRight: '0.4rem' }} /> : <Plus size={14} style={{ marginRight: '0.4rem', opacity: 0.3 }} />}
                     {cap.name}
                   </button>

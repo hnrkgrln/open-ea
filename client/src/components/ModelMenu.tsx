@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Boxes, ChevronDown, FileText, Layers, Network, Shapes, Target, type LucideIcon } from 'lucide-react';
+import { Boxes, ChevronDown, Database, FileText, Layers, Network, Shapes, Target, type LucideIcon } from 'lucide-react';
 
 interface ModelLink {
   to: string;
@@ -11,6 +11,7 @@ interface ModelLink {
 }
 
 const MODEL_LINKS: ModelLink[] = [
+  { to: '/apps', label: 'Applications', description: 'Systems in the portfolio', icon: Database },
   { to: '/strategic-goals', label: 'Strategic Goals', description: 'Outcomes the business is aiming for', icon: Target },
   { to: '/capabilities', label: 'Capabilities', description: 'What the business is able to do', icon: Boxes },
   { to: '/organizations', label: 'Organizations', description: 'Teams and accountability', icon: Layers },

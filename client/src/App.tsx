@@ -308,7 +308,6 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
           <Link to="/insights" className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav">
             <NavLink to="/insights" title="Insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /><span className="header-label">Insights</span></NavLink>
-            <NavLink to="/apps" title="Applications" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Database size={16} /><span className="header-label">Applications</span></NavLink>
             <ModelMenu />
             <NavLink to="/diagrams" title="Diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><MapIcon size={16} /><span className="header-label">Diagrams</span></NavLink>
           </nav>

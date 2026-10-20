@@ -5,6 +5,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { suggestApplicationFields } from './applicationSuggestions.js';
+import { suggestApplicationCapabilities } from './capabilityMapping.js';
 import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
@@ -1628,6 +1629,9 @@ server.post('/llm/application-suggestions', {
       context: z.string().trim().max(2000).optional(),
       description: z.string().max(4000).optional(),
       contractDetails: z.string().max(4000).optional(),
+      vendorName: z.string().max(200).optional(),
+      vendorUrl: z.string().max(500).optional(),
+      vendorSummary: z.string().max(1000).optional(),
     }),
   },
 }, async (request, reply) => {
@@ -1640,7 +1644,36 @@ server.post('/llm/application-suggestions', {
       context: request.body.context ?? '',
       description: request.body.description ?? '',
       contractDetails: request.body.contractDetails ?? '',
+      vendorName: request.body.vendorName ?? '',
+      vendorUrl: request.body.vendorUrl ?? '',
+      vendorSummary: request.body.vendorSummary ?? '',
     }, process.env.BRAVE_SEARCH_API_KEY ?? '');
+    return { ...result, providerName: provider.name, model: provider.model };
+  } catch (err) {
+    return sendLlmError(reply, err);
+  }
+});
+
+server.post('/llm/application-capability-suggestions', {
+  schema: {
+    body: z.object({
+      name: z.string().trim().min(2).max(200),
+      description: z.string().max(4000).optional(),
+      vendorName: z.string().max(200).optional(),
+      type: z.string().max(200).optional(),
+    }),
+  },
+}, async (request, reply) => {
+  const provider = await prisma.llmProvider.findFirst({ where: { isActive: true }, orderBy: { updatedAt: 'desc' } });
+  if (!provider) return reply.status(400).send({ error: 'No AI provider is active. Add one in Settings.' });
+  if (!provider.apiKey) return reply.status(400).send({ error: 'The active AI provider has no API key.' });
+  try {
+    const result = await suggestApplicationCapabilities(prisma, provider, {
+      name: request.body.name,
+      description: request.body.description ?? '',
+      vendorName: request.body.vendorName ?? '',
+      type: request.body.type ?? '',
+    });
     return { ...result, providerName: provider.name, model: provider.model };
   } catch (err) {
     return sendLlmError(reply, err);
