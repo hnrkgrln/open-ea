@@ -32,6 +32,7 @@ interface Props {
   onEditApp: (app: any) => void;
   activeTimeFilters: string[];
   onToggleTimeFilter: (timeVal: string) => void;
+  onQuadrantChange?: (quadrant: string | null) => void;
   thresholds?: TimeThresholds;
 }
 
@@ -89,11 +90,18 @@ export const TimeDashboardView: React.FC<Props> = ({
   onEditApp,
   activeTimeFilters,
   onToggleTimeFilter,
+  onQuadrantChange,
   thresholds = DEFAULT_TIME_THRESHOLDS
 }) => {
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [hoveredAppId, setHoveredAppId] = useState<string | null>(null);
   const [selectedQuadrant, setSelectedQuadrant] = useState<string | null>(null);
+
+  useEffect(() => {
+    onQuadrantChange?.(selectedQuadrant);
+  }, [selectedQuadrant, onQuadrantChange]);
+
+  useEffect(() => () => onQuadrantChange?.(null), [onQuadrantChange]);
   const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const leftColRef = useRef<HTMLDivElement>(null);
   const [leftColHeight, setLeftColHeight] = useState<number | null>(null);

@@ -1,7 +1,7 @@
 // Built-in fields that have no picklist or custom-attribute editor.
 // Application ids stay unprefixed so saved workspace settings keep working.
 // A record's required identity stays on: application, capability, organization,
-// and information names, plus an integration's source and target applications.
+// and information names, a strategic goal name, plus an integration's source and target applications.
 
 export const NATIVE_FIELD_IDS = [
   'name',
@@ -41,6 +41,11 @@ export const NATIVE_FIELD_IDS = [
   'integration.payload',
   'integration.target',
   'integration.references',
+  'strategicGoal.name',
+  'strategicGoal.description',
+  'strategicGoal.parent',
+  'strategicGoal.capabilities',
+  'strategicGoal.references',
 ] as const;
 
 export type NativeFieldId = (typeof NATIVE_FIELD_IDS)[number];
@@ -52,6 +57,7 @@ export const LOCKED_NATIVE_FIELD_IDS = [
   'information.name',
   'integration.source',
   'integration.target',
+  'strategicGoal.name',
 ] as const;
 
 const NATIVE_FIELD_ID_SET = new Set<string>(NATIVE_FIELD_IDS);

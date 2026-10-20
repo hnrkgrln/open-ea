@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, type LucideIcon } from 'lucide-react';
+import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, type LucideIcon } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
@@ -62,6 +62,12 @@ const ARTIFACTS: ArtifactConfig[] = [
     label: 'Applications',
     icon: Database,
     picklists: ['application_type', 'owner', 'lifecycle', 'criticality', 'application_cost', 'functional_fit', 'technical_fit'],
+  },
+  {
+    id: 'StrategicGoal',
+    label: 'Strategic Goals',
+    icon: Target,
+    picklists: [],
   },
   {
     id: 'Capability',
@@ -216,6 +222,14 @@ const APPLICATION_FIELDS: ArtifactField[] = [
   { kind: 'builtin', id: 'references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the application.' },
 ];
 
+const STRATEGIC_GOAL_FIELDS: ArtifactField[] = [
+  { kind: 'builtin', id: 'strategicGoal.name', section: 'Definition', label: 'Name', typeLabel: 'Text', detail: 'Required name of the strategic goal.', locked: true, lockedTitle: 'The strategic goal name is required' },
+  { kind: 'builtin', id: 'strategicGoal.description', section: 'Definition', label: 'Description', typeLabel: 'Long text', detail: 'Outcome this goal is meant to achieve.' },
+  { kind: 'builtin', id: 'strategicGoal.parent', section: 'Definition', label: 'Parent Goal', typeLabel: 'Relation', detail: 'Strategic goal this one belongs to.' },
+  { kind: 'builtin', id: 'strategicGoal.capabilities', section: 'Relations', label: 'Required Capabilities', typeLabel: 'Relation', detail: 'Capabilities this strategic goal requires.' },
+  { kind: 'builtin', id: 'strategicGoal.references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the strategic goal.' },
+];
+
 const CAPABILITY_FIELDS: ArtifactField[] = [
   { kind: 'builtin', id: 'capability.name', section: 'Functional definition', label: 'Capability Name', typeLabel: 'Text', detail: 'Required name of the capability.', locked: true, lockedTitle: 'The capability name is required' },
   { kind: 'builtin', id: 'capability.description', section: 'Functional definition', label: 'Purpose & Outcome', typeLabel: 'Long text', detail: 'Business outcomes this capability produces.' },
@@ -262,6 +276,7 @@ const INTEGRATION_FIELDS: ArtifactField[] = [
 
 const ARTIFACT_FIELDS: Record<string, ArtifactField[]> = {
   Application: APPLICATION_FIELDS,
+  StrategicGoal: STRATEGIC_GOAL_FIELDS,
   Capability: CAPABILITY_FIELDS,
   Organization: ORGANIZATION_FIELDS,
   InformationObject: INFORMATION_FIELDS,
@@ -270,6 +285,7 @@ const ARTIFACT_FIELDS: Record<string, ArtifactField[]> = {
 
 const ARTIFACT_SUBJECT: Record<string, string> = {
   Application: 'application',
+  StrategicGoal: 'strategic goal',
   Capability: 'capability',
   Organization: 'organization',
   InformationObject: 'information object',
@@ -409,6 +425,7 @@ interface Props {
   onUpdateBrand: (val: string) => void;
   brandError?: string;
   apps: any[];
+  strategicGoals: any[];
   capabilities: any[];
   organizations: any[];
   informationObjects: any[];
@@ -423,6 +440,7 @@ export const PicklistsView = ({
   onUpdateBrand,
   brandError = '', 
   apps, 
+  strategicGoals,
   capabilities, 
   organizations, 
   informationObjects, 
@@ -1068,7 +1086,7 @@ export const PicklistsView = ({
               </div>
             </div>
           ) : activeTab === 'import-export' ? (
-            <ImportExportSettings apps={apps} capabilities={capabilities} organizations={organizations} informationObjects={informationObjects} integrations={integrations} onRefresh={onRefresh} />
+            <ImportExportSettings apps={apps} strategicGoals={strategicGoals} capabilities={capabilities} organizations={organizations} informationObjects={informationObjects} integrations={integrations} onRefresh={onRefresh} />
           ) : activeTab === 'ai' ? (
             <AiProvidersSettings />
           ) : activeTab === 'ai-prompt' ? (

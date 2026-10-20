@@ -176,7 +176,7 @@ export const ImportExport = ({ type, onImportSuccess }: ImportExportProps) => {
         });
         return obj;
       });
-      if (type === 'organizations' || type === 'capabilities') importedData = orderByParent(importedData);
+      if (type === 'organizations' || type === 'capabilities' || type === 'strategic-goals') importedData = orderByParent(importedData);
 
       // Initialize status
       setStatus({
@@ -353,10 +353,18 @@ const IMPORT_STEPS = [
   {
     title: 'Capabilities',
     reason: 'Initial hierarchy',
-    description: 'Import the business capability map first. Organizations and applications link to it.',
+    description: 'Import the business capability map first. Organizations, applications, and strategic goals link to it.',
     type: 'capabilities' as const,
     dataKey: 'capabilities' as const,
     file: '01-capabilities.csv',
+  },
+  {
+    title: 'Strategic Goals',
+    reason: 'Requires capabilities',
+    description: 'Import after capabilities. Each goal requires the capabilities that deliver it.',
+    type: 'strategic-goals' as const,
+    dataKey: 'strategicGoals' as const,
+    file: '02-strategic-goals.csv',
   },
   {
     title: 'Organizations',
@@ -364,7 +372,7 @@ const IMPORT_STEPS = [
     description: 'Import accountability structures next, including the capabilities each one supports. Later files point at these owners.',
     type: 'organizations' as const,
     dataKey: 'organizations' as const,
-    file: '02-organizations.csv',
+    file: '03-organizations.csv',
   },
   {
     title: 'Information Model',
@@ -372,7 +380,7 @@ const IMPORT_STEPS = [
     description: 'Import business data objects before integrations use them as payloads.',
     type: 'information-objects' as const,
     dataKey: 'informationObjects' as const,
-    file: '03-information.csv',
+    file: '04-information.csv',
   },
   {
     title: 'Applications',
@@ -380,7 +388,7 @@ const IMPORT_STEPS = [
     description: 'Import the inventory after the owners and capabilities it refers to.',
     type: 'applications' as const,
     dataKey: 'apps' as const,
-    file: '04-applications.csv',
+    file: '05-applications.csv',
   },
   {
     title: 'Integrations',
@@ -388,12 +396,12 @@ const IMPORT_STEPS = [
     description: 'Import last. Each integration needs both applications and a payload.',
     type: 'integrations' as const,
     dataKey: 'integrations' as const,
-    file: '05-integrations.csv',
+    file: '06-integrations.csv',
   },
 ];
 
-export const ImportExportSettings = ({ onRefresh, apps, capabilities, organizations, informationObjects, integrations }: { onRefresh: () => void, apps: any[], capabilities: any[], organizations: any[], informationObjects: any[], integrations: any[] }) => {
-  const dataByKey = { apps, capabilities, organizations, informationObjects, integrations };
+export const ImportExportSettings = ({ onRefresh, apps, strategicGoals, capabilities, organizations, informationObjects, integrations }: { onRefresh: () => void, apps: any[], strategicGoals: any[], capabilities: any[], organizations: any[], informationObjects: any[], integrations: any[] }) => {
+  const dataByKey = { apps, strategicGoals, capabilities, organizations, informationObjects, integrations };
 
   const exportAll = () => {
     const files = IMPORT_STEPS.map((step) => ({

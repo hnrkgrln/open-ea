@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Search, Database, Boxes, X, FileText, Layers, Network, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, Database, Boxes, X, FileText, Layers, Network, ArrowRight, Sparkles, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ChatTranscript, useSearchPortfolioChat } from './PortfolioChat';
@@ -38,7 +38,7 @@ export const UnifiedSearch = ({}: Props) => {
   const { data: results, isLoading } = useQuery({
     queryKey: ['search', query],
     queryFn: async () => {
-      if (!query) return { applications: [], capabilities: [], organizations: [], informationObjects: [], integrations: [] };
+      if (!query) return { applications: [], capabilities: [], strategicGoals: [], organizations: [], informationObjects: [], integrations: [] };
       const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       return res.json();
     },
@@ -66,10 +66,12 @@ export const UnifiedSearch = ({}: Props) => {
     return score;
   };
 
-  const { sortedApps, sortedCaps, sortedOrgs, sortedInfo, sortedIntegrations, flatResults } = useMemo(() => {
+  const { sortedApps, sortedCaps, sortedGoals, sortedOrgs, sortedInfo, sortedIntegrations, flatResults } = useMemo(() => {
     const apps = [...(results?.applications || [])]
       .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
     const caps = [...(results?.capabilities || [])]
+      .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
+    const goals = [...(results?.strategicGoals || [])]
       .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
     const orgs = [...(results?.organizations || [])]
       .sort((a: any, b: any) => getScore(b, query) - getScore(a, query));
@@ -81,6 +83,7 @@ export const UnifiedSearch = ({}: Props) => {
     const flat = [
       ...apps.map((item: any) => ({ ...item, _type: 'app' })),
       ...caps.map((item: any) => ({ ...item, _type: 'cap' })),
+      ...goals.map((item: any) => ({ ...item, _type: 'goal' })),
       ...orgs.map((item: any) => ({ ...item, _type: 'org' })),
       ...info.map((item: any) => ({ ...item, _type: 'info' })),
       ...integrations.map((item: any) => ({ ...item, _type: 'integration' }))
@@ -89,6 +92,7 @@ export const UnifiedSearch = ({}: Props) => {
     return {
       sortedApps: apps,
       sortedCaps: caps,
+      sortedGoals: goals,
       sortedOrgs: orgs,
       sortedInfo: info,
       sortedIntegrations: integrations,
@@ -120,11 +124,12 @@ export const UnifiedSearch = ({}: Props) => {
     return () => document.removeEventListener('keydown', down);
   }, [openSearch]);
 
-  const closeAndSelect = useCallback((type: 'app' | 'cap' | 'org' | 'info' | 'integration', item: any) => {
+  const closeAndSelect = useCallback((type: 'app' | 'cap' | 'goal' | 'org' | 'info' | 'integration', item: any) => {
     setOpen(false);
     setQ('');
     if (type === 'app') navigate(`/apps/${item.id}`);
     else if (type === 'cap') navigate(`/capabilities/${item.id}`);
+    else if (type === 'goal') navigate(`/strategic-goals/${item.id}`);
     else if (type === 'org') navigate(`/organizations/${item.id}`);
     else if (type === 'info') navigate(`/information/${item.id}`);
     else if (type === 'integration') navigate(`/integrations/${item.id}`);
@@ -207,14 +212,14 @@ export const UnifiedSearch = ({}: Props) => {
             ...(answerFillsDialog ? { display: 'flex', flexDirection: 'column', height: '80vh' } : {}),
           }}>
             <Dialog.Title style={{ display: 'none' }}>Search</Dialog.Title>
-            <Dialog.Description style={{ display: 'none' }}>Search for apps, owners, capabilities, information, or integrations.</Dialog.Description>
+            <Dialog.Description style={{ display: 'none' }}>Search for apps, owners, strategic goals, capabilities, information, or integrations.</Dialog.Description>
             <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border)', display: 'flex', gap: '1.25rem', alignItems: 'center', flexShrink: 0 }}>
               <Search size={28} style={{ color: 'var(--muted-foreground)' }} />
               <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
                 <input
                   ref={inputRef}
                   autoFocus
-                  placeholder={messages.length > 0 ? 'Ask a follow-up, or search again...' : 'Search apps, owners, capabilities, information, or integrations...'}
+                  placeholder={messages.length > 0 ? 'Ask a follow-up, or search again...' : 'Search apps, owners, strategic goals, capabilities, information, or integrations...'}
                   value={query}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -315,7 +320,7 @@ export const UnifiedSearch = ({}: Props) => {
               {!query && messages.length === 0 && (
                 <div style={{ padding: '8rem 2rem', textAlign: 'center', color: 'var(--muted-foreground)' }}>
                   <div style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--foreground)' }}>Quick Landscape Search</div>
-                  <div style={{ fontSize: '1.1rem' }}>Find apps, owners, capabilities, information objects or system integrations...</div>
+                  <div style={{ fontSize: '1.1rem' }}>Find apps, owners, strategic goals, capabilities, information objects or system integrations...</div>
                 </div>
               )}
 
@@ -399,6 +404,38 @@ export const UnifiedSearch = ({}: Props) => {
                     </div>
                   )}
 
+                  {sortedGoals?.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <div style={{ padding: '0 1.5rem 0.5rem', fontSize: '0.85rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.6rem', letterSpacing: '0.1em' }}>
+                        <Target size={16} /> Strategic Goals
+                      </div>
+                      {sortedGoals.map((goal: any, idx: number) => {
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + idx;
+                        const isSelected = selectedIndex === actualIdx;
+                        const required = (goal.capabilities || []).map((capability: { name: string }) => capability.name).join(', ');
+                        return (
+                          <button
+                            key={goal.id}
+                            onClick={() => closeAndSelect('goal', goal)}
+                            onMouseEnter={() => setSelectedIndex(actualIdx)}
+                            style={{
+                              width: '100%', padding: '1.5rem 2rem', textAlign: 'left',
+                              background: isSelected ? 'var(--accent)' : 'transparent',
+                              border: 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                              borderRadius: '12px', cursor: 'pointer', minHeight: '90px'
+                            }}
+                            className="search-result-item"
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 800, fontSize: '1.15rem', marginBottom: '0.4rem', color: isSelected ? 'var(--primary)' : 'inherit' }}>{goal.name}</div>
+                              <div style={{ fontSize: '0.925rem', color: 'var(--muted-foreground)', lineHeight: 1.5, ...lineClampStyle }}>{goal.description || (required ? `Requires ${required}` : 'Strategic goal')}</div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* Organizations Section */}
                   {sortedOrgs?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -406,7 +443,7 @@ export const UnifiedSearch = ({}: Props) => {
                         <Layers size={16} /> Organizations
                       </div>
                       {sortedOrgs.map((org: any, idx: number) => {
-                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + idx;
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedGoals?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button
@@ -438,7 +475,7 @@ export const UnifiedSearch = ({}: Props) => {
                         <FileText size={16} /> Information Objects
                       </div>
                       {sortedInfo.map((io: any, idx: number) => {
-                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedOrgs?.length || 0) + idx;
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedGoals?.length || 0) + (sortedOrgs?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button
@@ -474,7 +511,7 @@ export const UnifiedSearch = ({}: Props) => {
                         <Network size={16} /> Integrations
                       </div>
                       {sortedIntegrations.map((i: any, idx: number) => {
-                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedOrgs?.length || 0) + (sortedInfo?.length || 0) + idx;
+                        const actualIdx = (sortedApps?.length || 0) + (sortedCaps?.length || 0) + (sortedGoals?.length || 0) + (sortedOrgs?.length || 0) + (sortedInfo?.length || 0) + idx;
                         const isSelected = selectedIndex === actualIdx;
                         return (
                           <button
@@ -509,7 +546,7 @@ export const UnifiedSearch = ({}: Props) => {
                     </div>
                   )}
 
-                  {(!results?.applications?.length && !results?.capabilities?.length && !results?.organizations?.length && !results?.informationObjects?.length && !results?.integrations?.length) && (
+                  {(!results?.applications?.length && !results?.capabilities?.length && !results?.strategicGoals?.length && !results?.organizations?.length && !results?.informationObjects?.length && !results?.integrations?.length) && (
                     <div style={{ padding: '6rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '1.25rem' }}>
                       No results found for "<strong style={{ color: 'var(--foreground)' }}>{query}</strong>"
                     </div>

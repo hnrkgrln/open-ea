@@ -21,7 +21,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { toPng } from 'html-to-image';
-import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronRight, Download, Loader2, FilterX, WrapText, Frame } from 'lucide-react';
+import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, FilterX, WrapText, Frame } from 'lucide-react';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 import { BoxLabel, revealWidth, useDiagramReveal } from '../diagramLabel';
 
@@ -261,25 +261,38 @@ const getTimeColor = (app: Application, isDark: boolean, thresholds: TimeThresho
   return { bg: stage.color, text: getContrastColor(stage.color) };
 };
 
-const NODE_SHADOW = '0 4px 6px -1px rgba(0, 0, 0, 0.1)';
+const nodeShadow = (isDark: boolean) => isDark
+  ? '0 1px 2px rgba(0, 0, 0, 0.45), 0 6px 14px -4px rgba(0, 0, 0, 0.55)'
+  : '0 1px 2px rgba(16, 24, 40, 0.08), 0 5px 12px -3px rgba(16, 24, 40, 0.16)';
+
+const groupShadow = (isDark: boolean) => isDark
+  ? '0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 24px -8px rgba(0, 0, 0, 0.55)'
+  : '0 1px 2px rgba(16, 24, 40, 0.06), 0 10px 22px -8px rgba(16, 24, 40, 0.16)';
 
 const REFLOW_KEY = 'meat_diagram_reflow';
 const FILTER_FRAME_KEY = 'meat_diagram_filter_frame';
+const TOOLS_KEY = 'meat_diagram_tools';
 
 const quantizeZoom = (zoom: number) => Math.max(0.05, Math.round(zoom * 20) / 20);
 
-const labelFont = (name: string, max: number) => {
-  const len = (name || '').trim().length || 1;
-  if (len > 42) return Math.max(13, max - 8);
-  if (len > 26) return Math.max(14, max - 4);
-  if (len > 14) return Math.max(15, max - 2);
-  return max;
+const labelFont = (_name: string, max: number) => max;
+
+// Type tracks both the band height and the room beside the icon, so a short equal card does not get a poster-sized name.
+const fittedType = (boxW: number, boxH: number, ceiling: number) => {
+  const fromHeight = Math.round(boxH * 0.42);
+  const fromWidth = Math.round(Math.max(48, boxW - 32) / 7.2);
+  return Math.max(boxH >= 48 ? 13 : 12, Math.min(ceiling, fromHeight, fromWidth));
 };
 
 const nodeBorder = (isDark: boolean) => isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.32)';
 
 // Group frames pack near this width so a shorter frame gets the next one beneath it.
 const GROUP_FRAME_PREFERRED = 520;
+// Title bar matches a capability title row. The 16px title sits with ordinary padding.
+const GROUP_HEADER = 48;
+
+const groupHeaderHeight = (fontScale = 1) =>
+  fontScale < 0.99 ? Math.max(36, Math.round(GROUP_HEADER * Math.max(fontScale, 0.75))) : GROUP_HEADER;
 
 const masonryFrameColumns = (count: number, available: number, gap: number) => {
   const n = Math.max(count, 1);
@@ -368,8 +381,20 @@ const absoluteBounds = (list: Node[], fallbackW = 200, fallbackH = 80) => {
   return { minX, minY, maxX, maxY };
 };
 
-const groupTint = (color: string, isDark: boolean) =>
-  color.startsWith('#') && color.length === 7 ? `${color}${isDark ? '73' : '5c'}` : (isDark ? '#2c2e33' : '#ffffff');
+const mixSolid = (base: string, tint: string, amount: number) => {
+  const channel = (index: number) => {
+    const from = parseInt(base.slice(index, index + 2), 16);
+    const to = parseInt(tint.slice(index, index + 2), 16);
+    return Math.round(from + (to - from) * amount).toString(16).padStart(2, '0');
+  };
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
+};
+
+const groupTint = (color: string, isDark: boolean) => {
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return isDark ? '#2c2e33' : '#f1f3f5';
+  // Opaque wash. An alpha tint let the landscape art show through and same-hue cards dissolve into the frame.
+  return mixSolid(isDark ? '#1c1e22' : '#f7f8fa', color, isDark ? 0.3 : 0.42);
+};
 
 const getLifecycleColor = (lifecycle: string, isDark: boolean, picklists?: Picklist[]) => {
   if (picklists) {
@@ -686,6 +711,9 @@ const DiagramInner = ({
   const [filterFrame, setFilterFrame] = useState(() => {
     try { return localStorage.getItem(FILTER_FRAME_KEY) === '1'; } catch { return false; }
   });
+  const [toolsOpen, setToolsOpen] = useState(() => {
+    try { return localStorage.getItem(TOOLS_KEY) !== '0'; } catch { return true; }
+  });
   const [reflowZoom, setReflowZoom] = useState(1);
   const reflowFocus = useRef(0.12);
 
@@ -729,6 +757,10 @@ const DiagramInner = ({
   useEffect(() => {
     try { localStorage.setItem(FILTER_FRAME_KEY, filterFrame ? '1' : '0'); } catch { /* private mode */ }
   }, [filterFrame]);
+
+  useEffect(() => {
+    try { localStorage.setItem(TOOLS_KEY, toolsOpen ? '1' : '0'); } catch { /* private mode */ }
+  }, [toolsOpen]);
 
   useEffect(() => {
     if (!reflow) return;
@@ -1104,7 +1136,7 @@ const DiagramInner = ({
             ), type: 'app', original: app },
 
             position: { x: cursorX + (dNode.x - islandBox.minX), y: cursorY + (dNode.y - islandBox.minY) },
-            style: { background: colors.bg, color: colors.text, border: `1.5px solid ${borderColor}`, borderRadius: '12px', width: nodeWidth, height: nodeHeight, fontWeight: 560, textAlign: 'left', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', boxShadow: NODE_SHADOW, cursor: 'pointer' }
+            style: { background: colors.bg, color: colors.text, border: `1.5px solid ${borderColor}`, borderRadius: '12px', width: nodeWidth, height: nodeHeight, fontWeight: 560, textAlign: 'left', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', boxShadow: nodeShadow(isDark), cursor: 'pointer' }
           });
         });
         filteredIntegrations.forEach(i => {
@@ -1278,7 +1310,10 @@ const DiagramInner = ({
           const scale = (n: number, floor = 11) => tighten ? Math.max(floor, Math.round(n * fontScale)) : n;
           const padding = scale(8, 4);
           const hasBody = children.length > 0 || associatedApps.length > 0;
-          const titleHeight = scale(hasBody ? 40 : 64, hasBody ? 26 : 36);
+          // One title size whether or not the box holds child capabilities or applications.
+          const titleSize = scale(18, 13);
+          const titleHeight = scale(48, 34);
+          const titleIcon = scale(16, 12);
           const appChipH = scale(34, 24);
           const appGap = scale(6, 4);
           const childGap = scale(8, 4);
@@ -1327,13 +1362,13 @@ const DiagramInner = ({
               id: `app-${containerId || 'main'}-${capId}-${app.id}`, parentNode: boxId(capId),
               data: { label: (
                 <div data-box-row="" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px', width: '100%', height: '100%', minWidth: 0, padding: '0 8px', boxSizing: 'border-box' }}>
-                  <Database size={scale(13, 11)} style={{ flexShrink: 0 }} />
-                  <BoxLabel id={`app-${containerId || 'main'}-${capId}-${app.id}`} name={app.name} style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: labelFont(app.name, scale(14, 11)), fontWeight: 560, lineHeight: 1.2 }} />
+                  <Database size={scale(14, 12)} style={{ flexShrink: 0 }} />
+                  <BoxLabel id={`app-${containerId || 'main'}-${capId}-${app.id}`} name={app.name} style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: scale(14, 12), fontWeight: 560, lineHeight: 1.2 }} />
                   {getCustomLabels(app, 'Application').length > 0 && <div style={{ display: 'flex', gap: '1.5px', marginLeft: 'auto', flexShrink: 0 }}>{getCustomLabels(app, 'Application')}</div>}
                 </div>
               ), type: 'app', original: app },
               position: { x: padding + c * (appChipW + appGap), y: appsStartY + r * (appChipH + appGap) },
-              style: { background: colors.bg, color: colors.text, border: `1px solid ${borderColor}`, borderRadius: '6px', width: appChipW, height: appChipH, display: 'flex', alignItems: 'center', padding: 0, fontWeight: 560, overflow: 'hidden', zIndex: 100, cursor: 'pointer', boxShadow: NODE_SHADOW }
+              style: { background: colors.bg, color: colors.text, border: `1px solid ${borderColor}`, borderRadius: '6px', width: appChipW, height: appChipH, display: 'flex', alignItems: 'center', padding: 0, fontWeight: 560, overflow: 'hidden', zIndex: 100, cursor: 'pointer', boxShadow: nodeShadow(isDark) }
             });
           });
 
@@ -1349,14 +1384,13 @@ const DiagramInner = ({
               };
           const NodeIcon = isOrg ? Layers : Boxes;
           const orgType = isOrg ? (cap as Organization).type : undefined;
-          const titleMax = scale(hasBody ? (depth === 0 ? 15 : 13) : 20, 11);
 
           groupNodes.unshift({
             id: boxId(capId), parentNode: parentNodeId,
             data: { label: (
               <div data-box-row="" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '6px', width: '100%', height: hasBody ? titleHeight : '100%', minWidth: 0, padding: '0 10px', boxSizing: 'border-box' }}>
-                <NodeIcon size={scale(hasBody ? (depth === 0 ? 16 : 13) : 18, 11)} style={{ flexShrink: 0 }} />
-                <BoxLabel id={boxId(capId)} name={cap.name} style={{ flex: hasBody ? '1 1 auto' : '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: labelFont(cap.name, titleMax), fontWeight: 560, lineHeight: 1.25 }} />
+                <NodeIcon size={titleIcon} style={{ flexShrink: 0 }} />
+                <BoxLabel id={boxId(capId)} name={cap.name} style={{ flex: hasBody ? '1 1 auto' : '0 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: titleSize, fontWeight: 560, lineHeight: 1.25 }} />
                 {orgType && <span style={{ flexShrink: 0, fontWeight: 500, fontSize: '12px' }}>{orgType}</span>}
                 {getCustomLabels(cap, isOrg ? 'Organization' : 'Capability').length > 0 && <div style={{ display: 'flex', gap: '1.5px', marginLeft: 'auto', flexShrink: 0 }}>{getCustomLabels(cap, isOrg ? 'Organization' : 'Capability')}</div>}
               </div>
@@ -1373,7 +1407,7 @@ const DiagramInner = ({
               alignItems: hasBody ? 'flex-start' : 'center',
               justifyContent: 'stretch',
               padding: 0,
-              boxShadow: NODE_SHADOW,
+              boxShadow: nodeShadow(isDark),
               cursor: 'pointer',
               zIndex: 10 + depth
             }
@@ -1402,12 +1436,12 @@ const DiagramInner = ({
               if (nodeH - headerBand < 16) headerBand = Math.max(16, nodeH - 16);
             }
             const chipRoomW = Math.max(4, nodeW - pad * 2);
+            // The name uses the card, not the chip band, so a card with capabilities matches its neighbors.
+            const nameMax = fittedType(nodeW, nodeH, nodeH >= 76 ? 20 : 16);
+            if (showingCaps) headerBand = Math.max(headerBand, Math.min(nodeH - 18, nameMax + 16));
             const chipRoomH = Math.max(4, nodeH - headerBand - pad);
             const chips = showingCaps ? fitChipGrid(associatedCaps.length, chipRoomW, chipRoomH) : null;
-            const nameMax = showingCaps
-              ? Math.max(11, Math.min(16, Math.round(headerBand * 0.5)))
-              : Math.max(13, Math.min(24, Math.round(nodeH * 0.36)));
-            const iconSize = showingCaps ? Math.max(11, Math.min(16, nameMax)) : Math.max(14, Math.min(22, nameMax));
+            const iconSize = Math.max(12, Math.min(nameMax, 16));
             groupNodes.push({
               id: `app-node-${containerId || 'main'}-${app.id}`, parentNode: containerId,
               data: { label: (
@@ -1419,7 +1453,7 @@ const DiagramInner = ({
                 </div>
               ), type: 'app', original: app },
               position: { x: 0, y: 0 },
-              style: { background: colors.bg, color: colors.text, border: `2px solid ${borderColor}`, borderRadius: nodeH >= 72 ? '16px' : '12px', width: nodeW, height: nodeH, fontWeight: 560, textAlign: 'left', display: 'flex', justifyContent: 'flex-start', alignItems: showingCaps ? 'flex-start' : 'center', padding: 0, boxShadow: NODE_SHADOW, cursor: 'pointer', overflow: 'hidden' }
+              style: { background: colors.bg, color: colors.text, border: `2px solid ${borderColor}`, borderRadius: nodeH >= 80 ? '16px' : nodeH >= 64 ? '12px' : '10px', width: nodeW, height: nodeH, fontWeight: 560, textAlign: 'left', display: 'flex', justifyContent: 'flex-start', alignItems: showingCaps ? 'flex-start' : 'center', padding: 0, boxShadow: nodeShadow(isDark), cursor: 'pointer', overflow: 'hidden' }
             });
             if (chips) {
               associatedCaps.forEach((c, i) => {
@@ -1428,8 +1462,8 @@ const DiagramInner = ({
                 const row = Math.floor(i / chips.cols);
                 let capColors = { bg: 'var(--secondary)', text: 'var(--foreground)' };
                 if (critDef && fullCap) capColors = getOverlayColor(getCapScore(fullCap.id), critDef, picklists);
-                const chipFont = Math.max(8, Math.min(14, Math.round(chips.chipH * 0.42)));
-                const chipIcon = Math.max(8, Math.min(14, chipFont));
+                const chipFont = Math.max(11, Math.min(13, fittedType(chips.chipW, chips.chipH, 13)));
+                const chipIcon = Math.max(10, Math.min(13, chipFont));
                 const showChipIcon = chips.chipW >= chipIcon + 28;
                 groupNodes.push({
                   id: `cap-in-app-${containerId || 'main'}-${app.id}-${c.id}`, parentNode: `app-node-${containerId || 'main'}-${app.id}`,
@@ -1440,7 +1474,7 @@ const DiagramInner = ({
                     </div>
                   ), type: 'capability', original: fullCap },
                   position: { x: pad + col * (chips.chipW + chips.gap), y: headerBand + row * (chips.chipH + chips.gap) },
-                  style: { background: capColors.bg, color: capColors.text, border: `1px solid ${borderColor}`, borderRadius: '6px', width: chips.chipW, height: chips.chipH, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: 0, fontWeight: 560, zIndex: 100, cursor: 'pointer', boxShadow: NODE_SHADOW, overflow: 'hidden' }
+                  style: { background: capColors.bg, color: capColors.text, border: `1px solid ${borderColor}`, borderRadius: '6px', width: chips.chipW, height: chips.chipH, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: 0, fontWeight: 560, zIndex: 100, cursor: 'pointer', boxShadow: nodeShadow(isDark), overflow: 'hidden' }
                 });
               });
             }
@@ -1471,14 +1505,14 @@ const DiagramInner = ({
             data: { label: (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center', gap: '4px', width: '100%', height: showingCaps ? headerH : '100%', minWidth: 0, padding: '8px 14px', boxSizing: 'border-box' }}>
                 <div data-box-row="" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-start', width: '100%', minWidth: 0 }}>
-                  <Database size={scale(showingCaps ? 16 : 20, 12)} style={{ flexShrink: 0 }} />
-                  <BoxLabel id={`app-node-${containerId || 'main'}-${app.id}`} name={app.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: labelFont(app.name, scale(showingCaps ? 17 : 24, 12)), fontWeight: 560, lineHeight: 1.2 }} />
+                  <Database size={scale(16, 12)} style={{ flexShrink: 0 }} />
+                  <BoxLabel id={`app-node-${containerId || 'main'}-${app.id}`} name={app.name} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: scale(18, 13), fontWeight: 560, lineHeight: 1.2 }} />
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px', justifyContent: 'flex-start' }}>{getCustomLabels(app, 'Application')}</div>
               </div>
             ), type: 'app', original: app },
             position: { x: 0, y: 0 }, 
-            style: { background: colors.bg, color: colors.text, border: `2px solid ${borderColor}`, borderRadius: '16px', width: nodeW, height: nodeH, fontWeight: 560, textAlign: 'left', display: 'flex', justifyContent: 'flex-start', alignItems: showingCaps ? 'flex-start' : 'center', padding: 0, boxShadow: NODE_SHADOW, cursor: 'pointer' }
+            style: { background: colors.bg, color: colors.text, border: `2px solid ${borderColor}`, borderRadius: '16px', width: nodeW, height: nodeH, fontWeight: 560, textAlign: 'left', display: 'flex', justifyContent: 'flex-start', alignItems: showingCaps ? 'flex-start' : 'center', padding: 0, boxShadow: nodeShadow(isDark), cursor: 'pointer' }
           });
 
           associatedCaps.forEach((c, i) => {
@@ -1499,7 +1533,7 @@ const DiagramInner = ({
                 </div>
               ), type: 'capability', original: fullCap },
               position: { x: padding + col * (childW + gap), y: headerH + row * (childH + gap) },
-              style: { background: capColors.bg, color: capColors.text, border: `1px solid ${borderColor}`, borderRadius: '8px', width: childW, height: childH, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: 0, fontWeight: 560, zIndex: 100, cursor: 'pointer', boxShadow: NODE_SHADOW }
+              style: { background: capColors.bg, color: capColors.text, border: `1px solid ${borderColor}`, borderRadius: '8px', width: childW, height: childH, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: 0, fontWeight: 560, zIndex: 100, cursor: 'pointer', boxShadow: nodeShadow(isDark) }
             });
           });
           return { width: nodeW, height: nodeH };
@@ -1509,7 +1543,7 @@ const DiagramInner = ({
           const roots = structure.filter(c => !c.parentId);
           const relevantRoots = roots.filter(r => isRelevant(r.id));
           if (cell) {
-            const headerH = containerId ? 72 : 0;
+            const headerH = containerId ? GROUP_HEADER : 0;
             const insetX = 16;
             const insetY = containerId ? headerH + 12 : 12;
             const gap = 10;
@@ -1557,7 +1591,7 @@ const DiagramInner = ({
             ? packedColumns(relevantRoots.length, room, 280, gap)
             : { ...flowColumns(relevantRoots.length, room, 280, gap, room), fontScale: 1 };
           const { cols, size: colW, fontScale } = packed;
-          const headerH = containerId ? (fontScale < 0.99 ? Math.max(44, Math.round(72 * Math.max(fontScale, 0.7))) : 72) : 0;
+          const headerH = containerId ? groupHeaderHeight(fontScale) : 0;
           const insetY = containerId ? headerH + 12 : 12;
           const colHeights = new Array(cols).fill(0);
 
@@ -1587,7 +1621,7 @@ const DiagramInner = ({
             headerH
           };
         } else if (cell) {
-          const headerH = containerId ? 100 : 0;
+          const headerH = containerId ? GROUP_HEADER : 0;
           const insetX = 16;
           const insetY = containerId ? headerH + 12 : 12;
           const gap = 10;
@@ -1619,7 +1653,7 @@ const DiagramInner = ({
             ? packedColumns(targetApps.length, room, 300, gap)
             : { ...flowColumns(targetApps.length, room, 300, gap, room), fontScale: 1 };
           const { cols, size: colW, fontScale } = packed;
-          const headerH = containerId ? (fontScale < 0.99 ? Math.max(52, Math.round(100 * Math.max(fontScale, 0.7))) : 100) : 0;
+          const headerH = containerId ? groupHeaderHeight(fontScale) : 0;
           const insetY = containerId ? headerH + 12 : 12;
           const colHeights = new Array(cols).fill(0);
 
@@ -1700,20 +1734,20 @@ const DiagramInner = ({
           columnHeights[col] += content.height + groupGap;
           const { color, label: valLabel } = getGroupInfo(primaryGroup.field, groupVal, primaryGroup.entityType);
           const groupTitle = `${getFieldLabel(primaryGroup.field)}: ${valLabel}`;
-          const headerH = content.headerH || (mode === 'app-landscape' ? 100 : 72);
+          const headerH = content.headerH || GROUP_HEADER;
           const titleColor = getContrastColor(color);
           allFinalNodes.push({
             id: containerId,
             data: { label: (
               <div data-box-row="" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: headerH, display: 'flex', alignItems: 'center', justifyContent: 'flex-start', padding: '0 28px', boxSizing: 'border-box', background: color, color: titleColor, borderRadius: '16px 16px 0 0', pointerEvents: 'auto' }}>
-                <BoxLabel id={containerId} name={groupTitle} style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: labelFont(groupTitle, headerH >= 90 ? 26 : headerH >= 64 ? 20 : 16), fontWeight: 600, lineHeight: 1.2, textAlign: 'left' }} />
+                <BoxLabel id={containerId} name={groupTitle} style={{ flex: '1 1 auto', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, fontSize: headerH >= 40 ? 16 : 14, fontWeight: 600, lineHeight: 1.2, textAlign: 'left' }} />
               </div>
             ) },
             position: { x: col * (groupW + groupGap), y },
             style: {
               background: groupTint(color, isDark),
               border: `4px solid ${color}`,
-              boxShadow: NODE_SHADOW,
+              boxShadow: groupShadow(isDark),
               borderRadius: '20px',
               width: groupW,
               height: content.height,
@@ -1816,6 +1850,8 @@ const DiagramInner = ({
     if (integration) onIntegrationClick?.(integration);
   };
 
+  const landscapeTitle = mode === 'network' ? 'Landscape: Integrations' : mode === 'app-landscape' ? 'Landscape: Application' : mode === 'org-landscape' ? 'Landscape: Organization' : 'Landscape: Capability';
+
   return (
     <div className="diagram-surface" style={{ width: '100%', height: '100%', position: 'relative' }}>
     <ReactFlow
@@ -1830,7 +1866,7 @@ const DiagramInner = ({
       <Controls showInteractive={false} />
       <Panel position="top-right" style={{ 
         background: 'var(--card)', 
-        padding: '10px 14px', 
+        padding: toolsOpen ? '10px 14px' : '6px', 
         borderRadius: '10px', 
         border: '1px solid var(--border)', 
         fontSize: '12px', 
@@ -1839,11 +1875,26 @@ const DiagramInner = ({
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        minWidth: '220px'
+        minWidth: toolsOpen ? '220px' : undefined
       }}>
-        <div style={{ fontSize: '11px', fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: '6px', marginBottom: '2px' }}>
-          {mode === 'network' ? 'Landscape: Integrations' : mode === 'app-landscape' ? 'Landscape: Application' : mode === 'org-landscape' ? 'Landscape: Organization' : 'Landscape: Capability'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', borderBottom: toolsOpen ? '1px solid var(--border)' : 'none', paddingBottom: toolsOpen ? '6px' : 0, marginBottom: toolsOpen ? '2px' : 0 }}>
+          {toolsOpen && (
+            <div style={{ fontSize: '10px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase', minWidth: 0 }}>
+              Tools
+            </div>
+          )}
+          <button
+            type="button"
+            aria-expanded={toolsOpen}
+            aria-label={toolsOpen ? 'Hide diagram tools' : 'Show diagram tools'}
+            title={toolsOpen ? 'Hide diagram tools' : 'Show diagram tools'}
+            onClick={() => setToolsOpen((open) => !open)}
+            style={{ border: 'none', background: 'var(--secondary)', color: 'var(--secondary-foreground)', height: '22px', width: toolsOpen ? '22px' : 'auto', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer', padding: toolsOpen ? 0 : '0 8px', flexShrink: 0, marginLeft: toolsOpen ? 'auto' : 0, fontSize: '10px', fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}
+          >
+            {toolsOpen ? <ChevronRight size={14} /> : <><ChevronLeft size={14} /> Tools</>}
+          </button>
         </div>
+        {toolsOpen && <>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button 
             onClick={toggleFullscreen}
@@ -1983,6 +2034,7 @@ const DiagramInner = ({
         <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
           {reflow ? 'Zoom reflows the columns to this view' : lockNodes ? 'Click objects to edit • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
         </div>
+        </>}
       </Panel>
       <Panel position="top-left" style={{ 
         background: 'var(--card)', 
@@ -2003,17 +2055,23 @@ const DiagramInner = ({
         zIndex: 1000,
         transition: 'width 0.2s ease, padding 0.2s ease'
       }} onMouseDown={onLegendMouseDown}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted-foreground)' }}>
-            <MapIcon size={14} />
-            <span style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '10px' }}>Legend</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted-foreground)' }}>
+              <MapIcon size={14} />
+              <span style={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '10px' }}>Legend</span>
+            </div>
+            <button
+              type="button"
+              aria-expanded={isLegendExpanded}
+              aria-label={isLegendExpanded ? 'Collapse legend' : 'Expand legend'}
+              onClick={(e) => { e.stopPropagation(); setIsLegendExpanded(!isLegendExpanded); }}
+              style={{ border: 'none', background: 'var(--secondary)', color: 'var(--secondary-foreground)', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+            >
+              {isLegendExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </button>
           </div>
-          <button 
-            onClick={(e) => { e.stopPropagation(); setIsLegendExpanded(!isLegendExpanded); }}
-            style={{ border: 'none', background: 'var(--secondary)', color: 'var(--secondary-foreground)', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
-          >
-            {isLegendExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-          </button>
+          <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.3, color: 'var(--foreground)' }}>{landscapeTitle}</div>
         </div>
 
         {isLegendExpanded && (

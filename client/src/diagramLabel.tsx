@@ -3,6 +3,10 @@ import type { CSSProperties } from 'react';
 import { useStoreApi, type Node } from 'reactflow';
 
 export const REVEAL_CLASS = 'diagram-box-revealed';
+const ANIM_CLASS = 'diagram-box-reveal-anim';
+const ANIM_MS = 220;
+// Above group frames (-100) and chips (100). Ancestors must rise too: a child z-index cannot leave its parent.
+const REVEAL_Z = 10000;
 
 type Snap = {
   width: number;
@@ -96,6 +100,56 @@ function childrenByParent(nodes: Node[]): Map<string, Node[]> {
   return map;
 }
 
+function ancestorIds(nodes: Node[], id: string): string[] {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  let current = byId.get(id)?.parentNode;
+  while (current && !seen.has(current)) {
+    seen.add(current);
+    ids.push(current);
+    current = byId.get(current)?.parentNode;
+  }
+  return ids;
+}
+
+function openRootId(nodes: Node[], placements: Placement[]): string | null {
+  const ids = new Set(placements.map((placement) => placement.id));
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const root = placements.find((placement) => {
+    const parent = byId.get(placement.id)?.parentNode;
+    return !parent || !ids.has(parent);
+  });
+  return root?.id ?? placements[0]?.id ?? null;
+}
+
+// A revealed child is trapped under later frames unless every parent stacking context is raised.
+function withRaisedAncestors(nodes: Node[], rootId: string | null): Node[] {
+  if (!rootId) return nodes;
+  const ids = new Set(ancestorIds(nodes, rootId));
+  if (!ids.size) return nodes;
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (!ids.has(node.id)) return node;
+    const existing = snapOf(node);
+    const snap: Snap = existing ?? {
+      width: numericWidth(node.style?.width) ?? 0,
+      x: node.position.x,
+      zIndex: node.style?.zIndex,
+      overflow: node.style?.overflow,
+      className: plainClass(node.className),
+    };
+    if (existing && node.style?.zIndex === REVEAL_Z && node.style?.overflow === 'visible') return node;
+    changed = true;
+    return {
+      ...node,
+      data: { ...(node.data as object), revealSnap: snap },
+      style: { ...node.style, zIndex: REVEAL_Z, overflow: 'visible' },
+    };
+  });
+  return changed ? next : nodes;
+}
+
 function containsNode(nodes: Node[], rootId: string, nodeId: string): boolean {
   if (nodeId === rootId) return true;
   const byId = new Map(nodes.map((node) => [node.id, node]));
@@ -162,7 +216,7 @@ function planOpen(nodes: Node[], rootId: string): Placement[] | null {
           x: cursor,
           width: childWidth,
           reveal: existing?.reveal ?? false,
-          z: 10000 + (depth + 1) * 200 + rowIndex * 30 + i,
+          z: REVEAL_Z + (depth + 1) * 200 + rowIndex * 30 + i,
         });
         cursor += childWidth;
       }
@@ -174,7 +228,7 @@ function planOpen(nodes: Node[], rootId: string): Placement[] | null {
       x: base.x,
       width: kids.length ? Math.max(own.width, contentRight) : own.width,
       reveal: own.reveal,
-      z: 10000 + depth * 200,
+      z: REVEAL_Z + depth * 200,
     });
   };
 
@@ -189,9 +243,41 @@ function planOpen(nodes: Node[], rootId: string): Placement[] | null {
   return changed ? placements : null;
 }
 
+function classTokens(className: string | undefined): string[] {
+  return className ? className.split(' ').filter(Boolean) : [];
+}
+
+function hasClass(className: string | undefined, token: string): boolean {
+  return classTokens(className).includes(token);
+}
+
+function plainClass(className: string | undefined): string | undefined {
+  const tokens = classTokens(className).filter((token) => token !== ANIM_CLASS && token !== REVEAL_CLASS);
+  return tokens.length ? tokens.join(' ') : undefined;
+}
+
 function withClass(className: string | undefined): string {
-  if (!className) return REVEAL_CLASS;
-  return className.split(' ').includes(REVEAL_CLASS) ? className : `${className} ${REVEAL_CLASS}`;
+  const tokens = classTokens(className);
+  if (!tokens.includes(REVEAL_CLASS)) tokens.push(REVEAL_CLASS);
+  return tokens.join(' ');
+}
+
+function ensureAnim(className: string | undefined): string {
+  const tokens = classTokens(className);
+  if (!tokens.includes(ANIM_CLASS)) tokens.push(ANIM_CLASS);
+  return tokens.join(' ');
+}
+
+// The transition has to be on the node before its width changes, or the browser skips the animation.
+function arm(nodes: Node[], placements: Placement[]): Node[] {
+  const ids = new Set(placements.map((placement) => placement.id));
+  let changed = false;
+  const next = nodes.map((node) => {
+    if (!ids.has(node.id) || hasClass(node.className, ANIM_CLASS)) return node;
+    changed = true;
+    return { ...node, className: ensureAnim(node.className) };
+  });
+  return changed ? next : nodes;
 }
 
 // The saved size lives on the node. A ref mutated inside setNodes is wrong in
@@ -209,9 +295,9 @@ function withOpen(nodes: Node[], placements: Placement[]): Node[] {
       x: node.position.x,
       zIndex: node.style?.zIndex,
       overflow: node.style?.overflow,
-      className: node.className,
+      className: plainClass(node.className),
     };
-    const className = placement.reveal ? withClass(node.className) : node.className;
+    const className = ensureAnim(placement.reveal ? withClass(snap.className) : snap.className);
     const overflow = placement.reveal ? 'visible' as const : node.style?.overflow;
     const same = !!existing
       && node.position.x === placement.x
@@ -229,7 +315,8 @@ function withOpen(nodes: Node[], placements: Placement[]): Node[] {
       style: { ...node.style, width: placement.width, zIndex: placement.z, overflow },
     };
   });
-  return changed ? next : nodes;
+  const opened = changed ? next : nodes;
+  return withRaisedAncestors(opened, openRootId(nodes, placements));
 }
 
 function subtreeIds(nodes: Node[], rootId: string): Set<string> {
@@ -251,7 +338,37 @@ function withClose(nodes: Node[], rootId: string): Node[] {
   const next = nodes.map((node) => {
     if (!closing.has(node.id)) return node;
     const snap = snapOf(node);
-    if (!snap) return node;
+    if (!snap) {
+      if (!hasClass(node.className, ANIM_CLASS)) return node;
+      changed = true;
+      return { ...node, className: plainClass(node.className) };
+    }
+    const className = ensureAnim(hasClass(node.className, REVEAL_CLASS) ? withClass(snap.className) : snap.className);
+    if (node.position.x === snap.x && node.style?.width === snap.width && node.className === className) return node;
+    changed = true;
+    return {
+      ...node,
+      className,
+      position: node.position.x === snap.x ? node.position : { ...node.position, x: snap.x },
+      style: { ...node.style, width: snap.width },
+    };
+  });
+  return changed ? next : nodes;
+}
+
+function finishAnim(nodes: Node[]): Node[] {
+  let changed = false;
+  const next = nodes.map((node) => {
+    const snap = snapOf(node);
+    if (!snap) {
+      if (!hasClass(node.className, ANIM_CLASS)) return node;
+      if (openRoot && containsNode(nodes, openRoot, node.id)) return node;
+      changed = true;
+      return { ...node, className: plainClass(node.className) };
+    }
+    const width = numericWidth(node.style?.width);
+    const stillOpen = (width != null && Math.abs(width - snap.width) > 0.5) || Math.abs(node.position.x - snap.x) > 0.5;
+    if (stillOpen) return node;
     changed = true;
     const data = { ...(node.data as object) };
     delete (data as { revealSnap?: Snap }).revealSnap;
@@ -270,11 +387,32 @@ export function revealWidth(node: Node): number | undefined {
   return snapOf(node)?.width;
 }
 
+let openFrame = 0;
+let closeTimer = 0;
+
 export function useDiagramReveal(setNodes: SetNodes) {
   revealRef.current = {
-    open: (placements) => setNodes((current) => withOpen(current, placements)),
-    close: (rootId) => setNodes((current) => withClose(current, rootId)),
+    open: (placements) => {
+      window.clearTimeout(closeTimer);
+      window.cancelAnimationFrame(openFrame);
+      setNodes((current) => arm(current, placements));
+      openFrame = window.requestAnimationFrame(() => {
+        setNodes((current) => withOpen(current, placements));
+      });
+    },
+    close: (rootId) => {
+      window.cancelAnimationFrame(openFrame);
+      setNodes((current) => withClose(current, rootId));
+      window.clearTimeout(closeTimer);
+      closeTimer = window.setTimeout(() => {
+        setNodes((current) => finishAnim(current));
+      }, ANIM_MS + 40);
+    },
   };
+  useEffect(() => () => {
+    window.cancelAnimationFrame(openFrame);
+    window.clearTimeout(closeTimer);
+  }, []);
 }
 
 function nodeIdFromTarget(target: EventTarget | null): string | null {

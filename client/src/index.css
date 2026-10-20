@@ -243,6 +243,15 @@ body {
 
 .diagram-surface .react-flow__node.diagram-box-revealed {
   overflow: visible !important;
+  z-index: 10000 !important;
+}
+
+.diagram-surface .react-flow__node.diagram-box-reveal-anim {
+  transition: width 220ms cubic-bezier(0.33, 1, 0.68, 1), transform 220ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.diagram-surface .react-flow__node.dragging {
+  transition: none;
 }
 
 .diagram-surface .react-flow__node.diagram-box-revealed [data-box-row] {
@@ -250,11 +259,12 @@ body {
 }
 
 .diagram-surface .react-flow__node.diagram-box-revealed [data-box-label] {
-  overflow: visible !important;
+  overflow: hidden !important;
   text-overflow: clip !important;
   white-space: nowrap !important;
-  flex: 0 0 auto !important;
-  min-width: max-content !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100%;
 }
 
 .diagram-surface .react-flow__edge,
@@ -346,7 +356,8 @@ body {
     display: none;
   }
 
-  .diagram-groupby-label {
+  .diagram-groupby-label,
+  .diagram-aspect-label {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -405,30 +416,9 @@ button.model-menu-trigger.active {
   transition: transform 0.15s ease;
 }
 
-button.model-menu-trigger[data-state="open"] .model-menu-chevron,
-button.diagram-aspects-trigger[data-state="open"] .model-menu-chevron {
+button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   transform: rotate(180deg);
   opacity: 1;
-}
-
-button.diagram-aspects-trigger {
-  height: 2.2rem;
-  padding: 0 0.65rem;
-  border: 1px solid var(--border);
-  background: var(--background);
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 500;
-  line-height: 1;
-  color: var(--foreground);
-  gap: 0.4rem;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-button.diagram-aspects-trigger:hover,
-button.diagram-aspects-trigger[data-state="open"] {
-  background: var(--accent);
 }
 
 .model-menu-panel {
@@ -639,13 +629,11 @@ button.diagram-aspects-trigger[data-state="open"] {
   }
 }
 
-@media (min-width: 1040px) {
-  .insights-stats {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
 @media (min-width: 1280px) {
+  .insights-stats {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
   .insights-charts,
   .insights-lists {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1577,6 +1565,10 @@ input:focus, textarea:focus, select:focus {
   .chat-ellipsis span {
     animation: none;
     opacity: 0.75;
+  }
+
+  .diagram-surface .react-flow__node.diagram-box-reveal-anim {
+    transition: none;
   }
 }
 

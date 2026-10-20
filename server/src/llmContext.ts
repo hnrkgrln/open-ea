@@ -56,6 +56,13 @@ export type PortfolioSnapshot = {
     ownerOrg: Named | null;
     capabilities: Named[];
   }>;
+  strategicGoals: Array<{
+    name: string;
+    description: string | null;
+    references: string | null;
+    parent: Named | null;
+    capabilities: Named[];
+  }>;
   capabilities: Array<{
     name: string;
     description: string | null;
@@ -224,6 +231,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
   const funcHigh = cutoff(cutoffs.functionalFit);
   const note = (value: string | null) => (includeNotes ? clip(value) : null);
   const applications = [...snapshot.applications].sort((a, b) => a.name.localeCompare(b.name));
+  const strategicGoals = [...snapshot.strategicGoals].sort((a, b) => a.name.localeCompare(b.name));
   const capabilities = [...snapshot.capabilities].sort((a, b) => a.name.localeCompare(b.name));
   const organizations = [...snapshot.organizations].sort((a, b) => a.name.localeCompare(b.name));
   const informationObjects = [...snapshot.informationObjects].sort((a, b) => a.name.localeCompare(b.name));
@@ -264,6 +272,13 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
       includeNotes ? referenceField(app.references) : null,
     ]);
   });
+
+  const strategicGoalLines = strategicGoals.map((goal) => line(goal.name, [
+    field('parent', goal.parent?.name ?? 'none'),
+    field('requires', sortedNames(goal.capabilities)),
+    field('description', note(goal.description)),
+    includeNotes ? referenceField(goal.references) : null,
+  ]));
 
   const capabilityLines = capabilities.map((capability) => line(capability.name, [
     field('parent', capability.parent?.name ?? 'none'),
@@ -308,13 +323,15 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
 
   return [
     '# OpenEA workspace data',
-    `Records: ${applications.length} applications, ${capabilities.length} capabilities, ${organizations.length} organizations, ${informationObjects.length} information objects, ${integrations.length} integrations.`,
+    `Records: ${applications.length} applications, ${strategicGoals.length} strategic goals, ${capabilities.length} capabilities, ${organizations.length} organizations, ${informationObjects.length} information objects, ${integrations.length} integrations.`,
     'This is the full current portfolio, not a sample.',
     `Scores run from 1 to 5. A missing functional fit or technical fit is treated as 3. TIME treats technical fit ${techHigh} or above, and functional fit ${funcHigh} or above, as high: Invest when both are high, Migrate when only functional fit is high, Tolerate when only technical fit is high, Eliminate when both are low. TIME is omitted when both scores are missing.`,
     'Custom attributes are listed only when a value is stored.',
     ...(includeNotes ? [] : ['Descriptions, contract notes, vendor summaries, TIME rationales, aliases, and reference lists were omitted because the snapshot was too long.']),
     '',
     section('Applications', applicationLines),
+    '',
+    section('Strategic goals', strategicGoalLines),
     '',
     section('Capabilities', capabilityLines),
     '',
@@ -327,7 +344,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
 }
 
 async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
-  const [applications, capabilities, organizations, informationObjects, integrations, metadataDefinitions] = await Promise.all([
+  const [applications, strategicGoals, capabilities, organizations, informationObjects, integrations, metadataDefinitions] = await Promise.all([
     prisma.application.findMany({
       orderBy: { name: 'asc' },
       select: {
@@ -352,6 +369,16 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
         metadata: true,
         references: true,
         ownerOrg: { select: { name: true } },
+        capabilities: { select: { name: true } },
+      },
+    }),
+    prisma.strategicGoal.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        name: true,
+        description: true,
+        references: true,
+        parent: { select: { name: true } },
         capabilities: { select: { name: true } },
       },
     }),
@@ -414,7 +441,7 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
     }),
   ]);
 
-  return { applications, capabilities, organizations, informationObjects, integrations, metadataDefinitions };
+  return { applications, strategicGoals, capabilities, organizations, informationObjects, integrations, metadataDefinitions };
 }
 
 // Full compact snapshot for a question or a future tip. Callers decide when it is needed.

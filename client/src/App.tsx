@@ -4,6 +4,9 @@ import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Na
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram } from './components/ApplicationDiagram';
+import { StrategicGoalsView } from './components/StrategicGoalsView';
+import { StrategicGoalDetailsView } from './components/StrategicGoalDetailsView';
+import { EditStrategicGoalPage } from './components/EditStrategicGoalPage';
 import { CapabilityDetailsView } from './components/CapabilityDetailsView';
 import { EditAppPage } from './components/EditAppPage';
 import { EditCapabilityPage } from './components/EditCapabilityPage';
@@ -345,6 +348,11 @@ const AppDetailWrapper = ({ onRefresh, timeThresholds }: { onRefresh: () => void
   return <AppDetailsView appId={id || ''} onBack={useSmartBack('/apps')} onRefresh={onRefresh} thresholds={timeThresholds} />;
 };
 
+const StrategicGoalDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+  const { id } = useParams<{ id: string }>();
+  return <StrategicGoalDetailsView goalId={id || ''} onBack={useSmartBack('/strategic-goals')} onRefresh={onRefresh} />;
+};
+
 // Capability Detail Wrapper for Route
 const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
   const { id } = useParams<{ id: string }>();
@@ -470,6 +478,7 @@ const AppContent = () => {
     queryClient.invalidateQueries({ queryKey: ['applications'] });
     queryClient.invalidateQueries({ queryKey: ['integrations'] });
     queryClient.invalidateQueries({ queryKey: ['capabilities'] });
+    queryClient.invalidateQueries({ queryKey: ['strategic-goals'] });
     queryClient.invalidateQueries({ queryKey: ['picklists'] });
     queryClient.invalidateQueries({ queryKey: ['search'] });
     queryClient.invalidateQueries({ queryKey: ['metadata-definitions'] });
@@ -480,6 +489,14 @@ const AppContent = () => {
     queryFn: async () => {
       const res = await fetch('/api/applications');
       return res.json() as Promise<Application[]>;
+    }
+  });
+
+  const { data: strategicGoals } = useQuery({
+    queryKey: ['strategic-goals'],
+    queryFn: async () => {
+      const res = await fetch('/api/strategic-goals');
+      return res.json();
     }
   });
 
@@ -523,7 +540,7 @@ const AppContent = () => {
     }
   });
 
-  const isInitialLoading = !apps || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading || (isWorkspaceLoading && !isWorkspaceError);
+  const isInitialLoading = !apps || !strategicGoals || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading || (isWorkspaceLoading && !isWorkspaceError);
 
   if (isInitialLoading) {
     return (
@@ -541,6 +558,7 @@ const AppContent = () => {
         <Route path="/insights" element={
           <InsightsView
             apps={apps || []}
+            strategicGoals={strategicGoals || []}
             capabilities={capabilities || []}
             organizations={organizations || []}
             informationObjects={informationObjects || []}
@@ -564,6 +582,13 @@ const AppContent = () => {
         <Route path="/apps/new" element={<EditAppPage timeThresholds={timeThresholds} />} />
         <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} />} />
         <Route path="/apps/:id/edit" element={<EditAppPage timeThresholds={timeThresholds} />} />
+
+        <Route path="/strategic-goals" element={
+          <StrategicGoalsView goals={strategicGoals || []} onRefresh={handleRefresh} />
+        } />
+        <Route path="/strategic-goals/new" element={<EditStrategicGoalPage />} />
+        <Route path="/strategic-goals/:id" element={<StrategicGoalDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/strategic-goals/:id/edit" element={<EditStrategicGoalPage />} />
 
         {/* Capability Routes */}
         <Route path="/capabilities" element={
@@ -614,6 +639,7 @@ const AppContent = () => {
             onUpdateBrand={setBrandName}
             brandError={brandError} 
             apps={apps || []} 
+            strategicGoals={strategicGoals || []}
             capabilities={capabilities || []} 
             organizations={organizations || []} 
             informationObjects={informationObjects || []} 
@@ -669,6 +695,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
   }, [filters]);
 
   const [showFilters, setShowFilters] = useState(isPanelFilterActive);
+  const [timeQuadrant, setTimeQuadrant] = useState<string | null>(null);
 
   const lifecycleOptions = picklists?.find(p => p.name === 'lifecycle')?.options || [];
   const ownerOptions = picklists?.find(p => p.name === 'owner')?.options || [];
@@ -769,6 +796,33 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     criticality: [], cost: [], functionalFit: [], technicalFit: [], time: [],
     custom: {}
   });
+
+  const filteredView = isPanelFilterActive || (filters.search || '').trim().length > 0 || !!timeQuadrant;
+
+  const openFilteredDiagram = () => {
+    const params = new URLSearchParams();
+    params.set('mode', 'app-landscape');
+    const put = (key: string, value: string | string[] | undefined) => {
+      if (Array.isArray(value)) {
+        if (value.length > 0) params.set(key, value.join(','));
+        return;
+      }
+      const text = (value || '').trim();
+      if (text) params.set(key, text);
+    };
+    put('q', filters.search);
+    put('ownerOrg', filters.ownerOrgId);
+    put('owner', filters.owner);
+    put('lifecycle', filters.lifecycle);
+    put('type', filters.type);
+    put('crit', filters.criticality);
+    put('cost', filters.cost);
+    put('func', filters.functionalFit);
+    put('tech', filters.technicalFit);
+    put('time', timeQuadrant ? [timeQuadrant] : filters.time);
+    Object.entries(filters.custom || {}).forEach(([field, values]) => put(`meta_${field}`, values));
+    navigate(`/diagrams?${params.toString()}`);
+  };
 
   const getCustomOptions = (fieldName: string) => {
     if (!apps) return [];
@@ -874,6 +928,17 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             Filters
             {isPanelFilterActive && <FilterDot badge />}
           </button>
+          {filteredView && (
+            <button
+              type="button"
+              onClick={openFilteredDiagram}
+              title={timeQuadrant ? 'Show this TIME quadrant on the application landscape' : 'Show these applications on the application landscape'}
+              style={{ height: '2.2rem', padding: '0 0.75rem', fontSize: '0.9rem', background: 'var(--background)', border: '1px solid var(--brand-focus)' }}
+            >
+              <MapIcon size={16} style={{ marginRight: '0.4rem' }} />
+              View diagram
+            </button>
+          )}
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button title="TIME Dashboard" onClick={() => setViewMode('dashboard')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'dashboard' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'dashboard' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutDashboard size={16} /></button>
             <button title="Grid View" onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
@@ -928,6 +993,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           onSelectApp={onSelectApp} 
           onEditApp={onEditApp}
           activeTimeFilters={filters.time || []}
+          onQuadrantChange={setTimeQuadrant}
           onToggleTimeFilter={(val) => {
             const current = filters.time || [];
             const next = current.includes(val) ? current.filter(x => x !== val) : [...current, val];

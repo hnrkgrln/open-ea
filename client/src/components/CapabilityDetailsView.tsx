@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Edit2, Database, Boxes, ShieldCheck, ChevronLeft, Calendar, Info, Share2, Layers } from 'lucide-react';
+import { Edit2, Database, Boxes, ShieldCheck, ChevronLeft, Calendar, Info, Share2, Layers, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
@@ -238,6 +238,24 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                   )}
                 </div>
               </section>}
+
+              <section>
+                <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Target size={14} /> Required by
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
+                  {(capability.strategicGoals || []).length > 0 ? capability.strategicGoals.map((goal: { id: string; name: string }) => (
+                    <div key={goal.id} onClick={() => navigate(`/strategic-goals/${goal.id}`)} style={{ cursor: 'pointer', padding: '0.85rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.6rem' }} className="row-hover">
+                      <div style={{ background: 'var(--accent)', padding: '0.35rem', borderRadius: '8px', flexShrink: 0 }}>
+                        <Target size={14} style={{ color: '#5f3dc4' }} />
+                      </div>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{goal.name}</span>
+                    </div>
+                  )) : (
+                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic', gridColumn: '1 / -1' }}>No strategic goal requires this capability.</div>
+                  )}
+                </div>
+              </section>
 
               {/* Sub-Capabilities Section */}
               {children.length > 0 && (

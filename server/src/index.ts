@@ -522,7 +522,11 @@ server.get('/capabilities/:id', {
       include: { 
         applications: {
           include: { ownerOrg: true }
-        } 
+        },
+        strategicGoals: {
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        },
       }
     });
     if (!cap) return reply.status(404).send({ error: 'Capability not found' });
@@ -808,6 +812,126 @@ server.delete('/organizations/:id', {
     return await prisma.organization.delete({ where: { id: request.params.id } });
   } catch (err: any) {
     if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Organization not found' });
+    throw err;
+  }
+});
+
+const strategicGoalInclude = {
+  capabilities: { select: { id: true, name: true, criticality: true } },
+} as const;
+
+async function existingCapabilityIds(ids: string[] | undefined) {
+  if (!ids || ids.length === 0) return [];
+  const existing = await prisma.capability.findMany({
+    where: { id: { in: ids } },
+    select: { id: true },
+  });
+  return existing.map((capability) => capability.id);
+}
+
+// A missing parent is dropped. A parent that is the goal itself, or one of its
+// sub-goals, keeps the current parent so the tree cannot cycle.
+async function resolveGoalParent(goalId: string | undefined, parentId: string | null | undefined) {
+  if (parentId === undefined) return undefined;
+  if (!parentId) return null;
+  const rows = await prisma.strategicGoal.findMany({ select: { id: true, parentId: true } });
+  if (!rows.some((row) => row.id === parentId)) return null;
+  if (!goalId) return parentId;
+  const parentOf = new Map(rows.map((row) => [row.id, row.parentId]));
+  const seen = new Set<string>();
+  let cursor: string | null | undefined = parentId;
+  while (cursor) {
+    if (cursor === goalId) return parentOf.get(goalId) ?? null;
+    if (seen.has(cursor)) break;
+    seen.add(cursor);
+    cursor = parentOf.get(cursor) ?? null;
+  }
+  return parentId;
+}
+
+server.get('/strategic-goals', async () => {
+  const goals = await prisma.strategicGoal.findMany({
+    include: strategicGoalInclude,
+    orderBy: { name: 'asc' },
+  });
+  goals.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  return goals;
+});
+
+server.get('/strategic-goals/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  const goal = await prisma.strategicGoal.findUnique({
+    where: { id: request.params.id },
+    include: strategicGoalInclude,
+  });
+  if (!goal) return reply.status(404).send({ error: 'Strategic goal not found' });
+  return goal;
+});
+
+server.post('/strategic-goals', {
+  schema: {
+    body: z.object({
+      id: z.string().optional(),
+      name: z.string(),
+      description: z.string().optional().nullable(),
+      references: z.string().optional().nullable(),
+      parentId: z.string().optional().nullable(),
+      capabilityIds: z.array(z.string()).optional(),
+    }),
+  },
+}, async (request) => {
+  const { capabilityIds, ...data } = request.body;
+  data.parentId = await resolveGoalParent(undefined, data.parentId === '' ? null : data.parentId);
+  const validIds = await existingCapabilityIds(capabilityIds);
+  return prisma.strategicGoal.create({
+    data: {
+      ...data,
+      capabilities: validIds.length > 0 ? { connect: validIds.map((id) => ({ id })) } : undefined,
+    },
+    include: strategicGoalInclude,
+  });
+});
+
+server.put('/strategic-goals/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      name: z.string().optional(),
+      description: z.string().optional().nullable(),
+      references: z.string().optional().nullable(),
+      parentId: z.string().optional().nullable(),
+      capabilityIds: z.array(z.string()).optional(),
+    }),
+  },
+}, async (request, reply) => {
+  const { capabilityIds, ...data } = request.body;
+  if (data.parentId !== undefined) {
+    data.parentId = await resolveGoalParent(request.params.id, data.parentId === '' ? null : data.parentId);
+  }
+  const validIds = capabilityIds === undefined ? undefined : await existingCapabilityIds(capabilityIds);
+  try {
+    return await prisma.strategicGoal.update({
+      where: { id: request.params.id },
+      data: {
+        ...data,
+        capabilities: validIds ? { set: validIds.map((id) => ({ id })) } : undefined,
+      },
+      include: strategicGoalInclude,
+    });
+  } catch (err: any) {
+    if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Strategic goal not found' });
+    throw err;
+  }
+});
+
+server.delete('/strategic-goals/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  try {
+    return await prisma.strategicGoal.delete({ where: { id: request.params.id } });
+  } catch (err: any) {
+    if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Strategic goal not found' });
     throw err;
   }
 });
@@ -1255,6 +1379,10 @@ const NATIVE_FIELD_IDS = [
   'integration.description',
   'integration.payload',
   'integration.references',
+  'strategicGoal.description',
+  'strategicGoal.parent',
+  'strategicGoal.capabilities',
+  'strategicGoal.references',
 ] as const;
 
 function parseDisabledNativeFields(raw: unknown): string[] {
@@ -1549,7 +1677,7 @@ server.get('/search', {
   },
 }, async (request) => {
   const { q } = request.query;
-  const [apps, caps, orgs, info, integrations] = await Promise.all([
+  const [apps, caps, goals, orgs, info, integrations] = await Promise.all([
     prisma.application.findMany({
       where: {
         OR: [
@@ -1576,6 +1704,16 @@ server.get('/search', {
           { metadata: { contains: q, mode: 'insensitive' } },
         ],
       },
+      take: 10,
+    }),
+    prisma.strategicGoal.findMany({
+      where: {
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ],
+      },
+      include: { capabilities: { select: { id: true, name: true } } },
       take: 10,
     }),
     prisma.organization.findMany({
@@ -1632,6 +1770,7 @@ server.get('/search', {
   });
 
   const sortedCaps = [...caps].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
+  const sortedGoals = [...goals].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
   const sortedOrgs = [...orgs].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
   const sortedInfo = [...info].sort((a, b) => scoreMatch(b.name, b.description, q) - scoreMatch(a.name, a.description, q));
   const sortedIntegrations = [...integrations].sort((a, b) => scoreMatch(b.name, `${b.sourceApp?.name} ${b.targetApp?.name}`, q) - scoreMatch(a.name, `${a.sourceApp?.name} ${a.targetApp?.name}`, q));
@@ -1639,6 +1778,7 @@ server.get('/search', {
   return {
     applications: sortedApps,
     capabilities: sortedCaps,
+    strategicGoals: sortedGoals,
     organizations: sortedOrgs,
     informationObjects: sortedInfo,
     integrations: sortedIntegrations

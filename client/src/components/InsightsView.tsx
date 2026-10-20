@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Boxes, Database, FileText, Layers, Lightbulb, Network } from 'lucide-react';
+import { Boxes, Database, FileText, Layers, Lightbulb, Network, Target } from 'lucide-react';
 import { TIME_OPTIONS, getAppTimeAssessment, type TimeThresholds } from '../App';
 import { InventoryChat } from './InventoryChat';
 
@@ -44,8 +44,13 @@ interface InsightIntegration {
   targetAppId?: string | null;
 }
 
+interface InsightGoal extends Named {
+  capabilities?: { id: string }[];
+}
+
 interface Props {
   apps: InsightApp[];
+  strategicGoals: InsightGoal[];
   capabilities: InsightCapability[];
   organizations: Named[];
   informationObjects: InsightInformation[];
@@ -66,7 +71,7 @@ const LIFECYCLE_COLOR: Record<string, string> = {
   'not set': '#adb5bd',
 };
 const GAUGE_COLORS = ['#1971c2', '#6741d9', '#0ca678', '#e67700', '#2b8a3e'];
-const STAT_ACCENTS = ['#343a40', '#0ca678', '#6741d9', '#1971c2', '#e67700'];
+const STAT_ACCENTS = ['#343a40', '#5f3dc4', '#0ca678', '#6741d9', '#1971c2', '#e67700'];
 const COST_COLORS = ['#2b8a3e', '#94d82d', '#fab005', '#e67700', '#c92a2a'];
 const RISK_COLOR = '#c92a2a';
 
@@ -162,6 +167,7 @@ const cardTitle = (title: string, detail: string) => (
 
 export const InsightsView = ({
   apps,
+  strategicGoals,
   capabilities,
   organizations,
   informationObjects,
@@ -347,6 +353,15 @@ export const InsightsView = ({
     ...(model.byTime.UNSCORED.length > 0 ? [{ key: 'UNSCORED', label: 'Not scored', value: model.byTime.UNSCORED.length, color: '#868e96' }] : []),
   ];
 
+  const goalsWithoutCapability = strategicGoals.filter((goal) => (goal.capabilities || []).length === 0).length;
+  const goalDetail = strategicGoals.length === 0
+    ? 'None recorded'
+    : goalsWithoutCapability === 0
+      ? 'Each requires a capability'
+      : goalsWithoutCapability === 1
+        ? '1 requires no capability'
+        : `${goalsWithoutCapability} require no capability`;
+
   return (
     <div className="insights-page">
       <div style={{ marginBottom: '1.25rem' }}>
@@ -367,10 +382,11 @@ export const InsightsView = ({
 
       <div className="insights-stats">
         <Stat to="/apps" accent={STAT_ACCENTS[0]} icon={<Database size={14} />} label="Applications" value={apps.length} detail={model.decommissioned > 0 ? `${model.decommissioned} decommissioned` : `${model.activeCount} in the portfolio`} />
-        <Stat to="/capabilities" accent={STAT_ACCENTS[1]} icon={<Boxes size={14} />} label="Capabilities" value={capabilities.length} detail={model.unsupported.length > 0 ? `${model.unsupported.length} have no application` : 'Each has an application'} />
-        <Stat to="/organizations" accent={STAT_ACCENTS[2]} icon={<Layers size={14} />} label="Organizations" value={organizations.length} detail="Accountability hierarchy" />
-        <Stat to="/information" accent={STAT_ACCENTS[3]} icon={<FileText size={14} />} label="Information" value={informationObjects.length} detail={model.sensitive.length > 0 ? `${model.sensitive.length} sensitive` : 'No high sensitivity'} />
-        <Stat to="/integrations" accent={STAT_ACCENTS[4]} icon={<Network size={14} />} label="Integrations" value={integrations.length} detail={integrations.length > 0 ? `${model.linkedApps} applications linked` : 'None recorded'} />
+        <Stat to="/strategic-goals" accent={STAT_ACCENTS[1]} icon={<Target size={14} />} label="Strategic Goals" value={strategicGoals.length} detail={goalDetail} />
+        <Stat to="/capabilities" accent={STAT_ACCENTS[2]} icon={<Boxes size={14} />} label="Capabilities" value={capabilities.length} detail={model.unsupported.length > 0 ? `${model.unsupported.length} have no application` : 'Each has an application'} />
+        <Stat to="/organizations" accent={STAT_ACCENTS[3]} icon={<Layers size={14} />} label="Organizations" value={organizations.length} detail="Accountability hierarchy" />
+        <Stat to="/information" accent={STAT_ACCENTS[4]} icon={<FileText size={14} />} label="Information" value={informationObjects.length} detail={model.sensitive.length > 0 ? `${model.sensitive.length} sensitive` : 'No high sensitivity'} />
+        <Stat to="/integrations" accent={STAT_ACCENTS[5]} icon={<Network size={14} />} label="Integrations" value={integrations.length} detail={integrations.length > 0 ? `${model.linkedApps} applications linked` : 'None recorded'} />
       </div>
 
       <div className="insights-charts">

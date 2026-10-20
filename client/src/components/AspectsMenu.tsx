@@ -1,34 +1,22 @@
-import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import {
-  Activity,
-  Boxes,
-  ChevronDown,
-  Clock,
-  Coins,
-  Monitor,
-  Palette,
-  ShieldAlert,
-  type LucideIcon,
-} from 'lucide-react';
+import { useEffect } from 'react';
+import { ColoredSelect } from './ColoredSelect';
 
 export type DiagramMode = 'network' | 'landscape' | 'app-landscape' | 'org-landscape';
 
 interface Aspect {
   fieldName: string;
   label: string;
-  description: string;
-  icon: LucideIcon;
   /** When set, the aspect is offered only in these diagram views. */
   modes?: DiagramMode[];
 }
 
 const ASPECTS: Aspect[] = [
-  { fieldName: 'lifecycle', label: 'Lifecycle', description: 'Stage in the application life', icon: Activity },
-  { fieldName: 'time', label: 'TIME Assessment', description: 'Invest, migrate, tolerate, or eliminate', icon: Clock },
-  { fieldName: 'criticality', label: 'Business Criticality', description: 'How severe a disruption would be', icon: ShieldAlert, modes: ['network', 'app-landscape', 'org-landscape'] },
-  { fieldName: 'cost', label: 'Cost', description: 'Relative cost of the application', icon: Coins },
-  { fieldName: 'functionalFit', label: 'Functional Fit', description: 'How well it meets the business need', icon: Boxes },
-  { fieldName: 'technicalFit', label: 'Technical Fit', description: 'How sound the technology is', icon: Monitor },
+  { fieldName: 'lifecycle', label: 'Lifecycle' },
+  { fieldName: 'time', label: 'TIME Assessment' },
+  { fieldName: 'criticality', label: 'Business Criticality', modes: ['network', 'app-landscape', 'org-landscape'] },
+  { fieldName: 'cost', label: 'Cost' },
+  { fieldName: 'functionalFit', label: 'Functional Fit' },
+  { fieldName: 'technicalFit', label: 'Technical Fit' },
 ];
 
 const aspectsForMode = (mode: string) =>
@@ -44,46 +32,31 @@ export const AspectsMenu = ({
   onChange: (fieldName: string) => void;
 }) => {
   const aspects = aspectsForMode(mode);
-  const current = ASPECTS.find((aspect) => aspect.fieldName === value) ?? aspects[0];
+  const selected = aspects.some((aspect) => aspect.fieldName === value) ? value : aspects[0]?.fieldName ?? 'lifecycle';
+
+  useEffect(() => {
+    if (selected === value) return;
+    onChange(selected);
+  }, [selected, value, onChange]);
 
   return (
-    <DropdownMenu.Root modal={false}>
-      <DropdownMenu.Trigger
-        className="diagram-aspects-trigger"
-        aria-label={current ? `Aspects, ${current.label}` : 'Aspects'}
-      >
-        <Palette size={16} />
-        Aspects
-        <ChevronDown size={14} className="model-menu-chevron" />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          className="model-menu-panel"
-          sideOffset={10}
-          align="end"
-          collisionPadding={12}
-        >
-          <DropdownMenu.RadioGroup value={value} onValueChange={onChange}>
-            {aspects.map((aspect) => {
-              const Icon = aspect.icon;
-              const selected = aspect.fieldName === value;
-              return (
-                <DropdownMenu.RadioItem
-                  key={aspect.fieldName}
-                  value={aspect.fieldName}
-                  className={`model-menu-item${selected ? ' active' : ''}`}
-                >
-                  <span className="model-menu-icon"><Icon size={16} /></span>
-                  <span className="model-menu-copy">
-                    <span className="model-menu-label">{aspect.label}</span>
-                    <span className="model-menu-desc">{aspect.description}</span>
-                  </span>
-                </DropdownMenu.RadioItem>
-              );
-            })}
-          </DropdownMenu.RadioGroup>
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+    <div role="group" aria-label="Aspect" style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center', position: 'relative' }}>
+      <span className="diagram-aspect-label" style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Aspect</span>
+      <div style={{ minWidth: '140px' }}>
+        <ColoredSelect
+          value={selected}
+          onChange={onChange}
+          options={aspects.map((aspect) => ({ value: aspect.fieldName, label: aspect.label }))}
+          style={{
+            height: '1.65rem',
+            marginTop: 0,
+            background: 'var(--background)',
+            fontSize: '10.5px',
+            color: 'var(--primary)',
+            fontWeight: 600,
+          }}
+        />
+      </div>
+    </div>
   );
 };

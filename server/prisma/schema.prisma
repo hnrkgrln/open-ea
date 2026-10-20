@@ -54,6 +54,20 @@ model Capability {
   children     Capability[]  @relation("CapabilityToCapability")
   applications Application[] @relation("ApplicationToCapability")
   supportingOrganizations Organization[] @relation("OrgSupportsCapability")
+  strategicGoals StrategicGoal[] @relation("GoalRequiresCapability")
+}
+
+model StrategicGoal {
+  id           String          @id @default(uuid())
+  name         String
+  description  String?
+  references   String?
+  parentId     String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  parent       StrategicGoal?  @relation("GoalToGoal", fields: [parentId], references: [id], onDelete: Cascade)
+  children     StrategicGoal[] @relation("GoalToGoal")
+  capabilities Capability[]    @relation("GoalRequiresCapability")
 }
 
 model Organization {

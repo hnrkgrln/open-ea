@@ -1,9 +1,9 @@
 // Round-trip columns for Data Portability. Keep these in step with the scalar
-// fields on Application, Capability, Organization, InformationObject, and
-// Integration in server/prisma/schema.base.prisma. Leave out createdAt and
+// fields on Application, StrategicGoal, Capability, Organization, InformationObject,
+// and Integration in server/prisma/schema.base.prisma. Leave out createdAt and
 // updatedAt. Relation columns carry ids from an earlier import step.
 
-export type ArtifactType = 'applications' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
+export type ArtifactType = 'applications' | 'strategic-goals' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
 
 export const CSV_HEADERS: Record<ArtifactType, string[]> = {
   applications: [
@@ -13,6 +13,7 @@ export const CSV_HEADERS: Record<ArtifactType, string[]> = {
     'functionalFit', 'technicalFit', 'timeRationale', 'metadata', 'references',
     'capabilityIds', 'processedInformationObjectIds',
   ],
+  'strategic-goals': ['id', 'name', 'description', 'parentId', 'references', 'capabilityIds'],
   capabilities: ['id', 'name', 'description', 'criticality', 'parentId', 'metadata', 'references', 'applicationIds'],
   organizations: ['id', 'name', 'description', 'type', 'parentId', 'references', 'supportedCapabilityIds'],
   'information-objects': [
@@ -30,6 +31,7 @@ const NULLABLE_FIELDS: Record<ArtifactType, string[]> = {
     'ownerOrgId', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate',
     'contractDetails', 'vendorName', 'vendorUrl', 'vendorSummary', 'timeRationale', 'references',
   ],
+  'strategic-goals': ['description', 'parentId', 'references'],
   capabilities: ['parentId', 'references'],
   organizations: ['parentId', 'references'],
   'information-objects': ['businessOwnerId', 'appOwnerId', 'references'],
@@ -38,6 +40,7 @@ const NULLABLE_FIELDS: Record<ArtifactType, string[]> = {
 
 const ID_LIST_FIELDS: Record<ArtifactType, string[]> = {
   applications: ['capabilityIds', 'processedInformationObjectIds'],
+  'strategic-goals': ['capabilityIds'],
   capabilities: ['applicationIds'],
   organizations: ['supportedCapabilityIds'],
   'information-objects': [],
