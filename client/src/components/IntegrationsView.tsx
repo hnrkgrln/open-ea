@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 import { getContrastColor } from '../utils/colors';
 import { FilterDot, MultiSelect, SearchInput } from './FilterControls';
+import { SelectionBar, SelectionHeader, SelectionRowCheck, useTableSelection } from './TableSelection';
 
 interface Integration {
   id: string;
@@ -145,6 +146,9 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
     });
   }, [rows, filters, picklists]);
 
+  const visibleIds = useMemo(() => visible.map((row) => row.id), [visible]);
+  const selection = useTableSelection(visibleIds);
+
   const isPanelFilterActive = [filters.sourceAppId, filters.targetAppId, filters.payloadId, filters.pattern, filters.frequency, filters.crud]
     .some((values) => (values?.length || 0) > 0);
   const [showFilters, setShowFilters] = useState(isPanelFilterActive);
@@ -234,10 +238,19 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
       )}
 
       <div className="card" style={{ padding: '0.5rem', overflow: 'hidden' }}>
+        <SelectionBar
+          selection={selection}
+          singular="integration"
+          plural="integrations"
+          deletePath={(id) => `/api/integrations/${id}`}
+          editPath={(id) => `/integrations/${id}/edit`}
+          onRefresh={onRefresh}
+        />
         <table style={{ width: '100%' }}>
           <thead>
             <tr style={{ background: 'var(--muted)' }}>
-              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', borderTopLeftRadius: 'var(--radius)', borderBottomLeftRadius: 'var(--radius)' }}>Source Application</th>
+              <SelectionHeader selection={selection} style={{ borderTopLeftRadius: 'var(--radius)', borderBottomLeftRadius: 'var(--radius)' }} />
+              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Source Application</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'center' }}>Payload & Pattern</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Target Application</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right', borderTopRightRadius: 'var(--radius)', borderBottomRightRadius: 'var(--radius)' }}>Actions</th>
@@ -247,7 +260,8 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
             {visible.map(i => {
               const patternInfo = getPicklistInfo(picklists, 'integration_pattern', i.pattern);
               return (
-              <tr key={i.id} className="row-hover" onClick={() => navigate(`/integrations/${i.id}`)}>
+              <tr key={i.id} className={selection.has(i.id) ? 'row-hover table-row-selected' : 'row-hover'} onClick={() => navigate(`/integrations/${i.id}`)}>
+                <SelectionRowCheck selection={selection} id={i.id} label={`${i.sourceApp?.name || 'Source'} to ${i.targetApp?.name || 'target'}`} />
                 <td style={{ padding: '0.6rem 1rem' }}>
                   <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{i.sourceApp?.name}</div>
                 </td>
@@ -286,7 +300,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
             )})}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={4} style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                <td colSpan={5} style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic', fontSize: '0.8rem' }}>
                   {rows.length === 0 ? 'No integrations recorded yet.' : 'No integrations match the filter.'}
                 </td>
               </tr>

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, PlusCircle, LayoutGrid, List, Trash2, Edit2, ShieldCheck } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
+import { SelectionBar, SelectionHeader, SelectionRowCheck, useTableSelection } from './TableSelection';
 
 interface InformationObject {
   id: string;
@@ -72,6 +73,9 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_information_view', 'grid');
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
+  const rows = useMemo(() => Array.isArray(informationObjects) ? informationObjects : [], [informationObjects]);
+  const visibleIds = useMemo(() => rows.map((item) => item.id), [rows]);
+  const selection = useTableSelection(visibleIds);
 
   const getLabel = (picklist: string, val: string) => {
     const list = picklists?.find(p => p.name === picklist);
@@ -99,15 +103,24 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
 
       {viewMode === 'grid' ? (
         <div className="grid">
-          {Array.isArray(informationObjects) && informationObjects.map(io => (
+          {rows.map(io => (
             <InfoCard key={io.id} item={io} onRefresh={onRefresh} picklists={picklists || []} />
           ))}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <SelectionBar
+            selection={selection}
+            singular="information object"
+            plural="information objects"
+            deletePath={(id) => `/api/information-objects/${id}`}
+            editPath={(id) => `/information/${id}/edit`}
+            onRefresh={onRefresh}
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                <SelectionHeader selection={selection} />
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Confidentiality</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>PII Category</th>
@@ -116,10 +129,11 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
               </tr>
             </thead>
             <tbody>
-              {Array.isArray(informationObjects) && informationObjects.map(io => {
+              {rows.map(io => {
                 const listTypeInfo = picklists?.find(p => p.name === 'information_type')?.options?.find((o: any) => o.value === io.type);
                 return (
-                <tr key={io.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/information/${io.id}`)}>
+                <tr key={io.id} className={selection.has(io.id) ? 'row-hover table-row-selected' : 'row-hover'} style={{ borderBottom: '1px solid var(--border)' }} onClick={() => navigate(`/information/${io.id}`)}>
+                  <SelectionRowCheck selection={selection} id={io.id} label={io.name} />
                   <td style={{ padding: '0.6rem 1rem' }}>
                     <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{io.name}</div>
                     <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>

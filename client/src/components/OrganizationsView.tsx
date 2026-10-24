@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App'; // Need to export useLocalStorage from App.tsx or duplicate
 import { OrganizationDiagram } from './OrganizationDiagram';
 import { FilterDot, MultiSelect, SearchInput } from './FilterControls';
+import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection, type TableSelection } from './TableSelection';
 
 interface Organization {
   id: string;
@@ -29,7 +30,7 @@ const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, val
   return option || { label: value, color: 'var(--secondary)' };
 };
 
-const OrgListRow = ({ node, organizations, picklists, onRefresh, depth = 0 }: { node: Organization, organizations: Organization[], picklists: any[], onRefresh: () => void, depth?: number }) => {
+const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, depth = 0 }: { node: Organization, organizations: Organization[], picklists: any[], onRefresh: () => void, selection: TableSelection, depth?: number }) => {
   const navigate = useNavigate();
   const hasChildren = node.children && node.children.length > 0;
   const typeInfo = getPicklistInfo(picklists, 'organization_type', node.type);
@@ -56,7 +57,8 @@ const OrgListRow = ({ node, organizations, picklists, onRefresh, depth = 0 }: { 
 
   return (
     <>
-      <tr key={node.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
+      <tr key={node.id} className={selection.has(node.id) ? 'row-hover table-row-selected' : 'row-hover'} style={{ borderBottom: '1px solid var(--border)' }}>
+        <SelectionRowCheck selection={selection} id={node.id} label={node.name} />
         <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 600, paddingLeft: `${0.75 + depth * 1.5}rem` }}>
           <div onClick={() => navigate(`/organizations/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
             {depth > 0 && <ChevronRight size={12} style={{ color: 'var(--muted-foreground)' }} />}
@@ -96,7 +98,7 @@ const OrgListRow = ({ node, organizations, picklists, onRefresh, depth = 0 }: { 
         </td>
       </tr>
       {hasChildren && node.children!.map(child => (
-        <OrgListRow key={child.id} node={child} organizations={organizations} picklists={picklists} onRefresh={onRefresh} depth={depth + 1} />
+        <OrgListRow key={child.id} node={child} organizations={organizations} picklists={picklists} onRefresh={onRefresh} selection={selection} depth={depth + 1} />
       ))}
     </>
   );
@@ -246,6 +248,9 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
     return roots;
   }, [visibleOrgs]);
 
+  const visibleOrgIds = useMemo(() => collectTreeIds(orgTree), [orgTree]);
+  const selection = useTableSelection(visibleOrgIds);
+
   const isPanelFilterActive = (filters.type?.length || 0) > 0 || (filters.parentId?.length || 0) > 0;
   const [showFilters, setShowFilters] = useState(isPanelFilterActive);
   const filtersActive = isPanelFilterActive || (filters.search || '').trim().length > 0;
@@ -308,9 +313,19 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
 
       {viewMode === 'list' && (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <SelectionBar
+            selection={selection}
+            singular="organization"
+            plural="organizations"
+            detail={() => 'Units under a selected organization are removed too.'}
+            deletePath={(id) => `/api/organizations/${id}`}
+            editPath={(id) => `/organizations/${id}/edit`}
+            onRefresh={onRefresh}
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                <SelectionHeader selection={selection} />
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Organization</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', width: '110px' }}>Actions</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th>
@@ -322,12 +337,12 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
             <tbody>
               {orgTree.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                  <td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic', fontSize: '0.8rem' }}>
                     {orgList.length === 0 ? 'No organizations defined.' : 'No organizations match the filter.'}
                   </td>
                 </tr>
               ) : orgTree.map(org => (
-                <OrgListRow key={org.id} node={org} organizations={organizations} picklists={picklists || []} onRefresh={onRefresh} />
+                <OrgListRow key={org.id} node={org} organizations={organizations} picklists={picklists || []} onRefresh={onRefresh} selection={selection} />
               ))}
             </tbody>
           </table>

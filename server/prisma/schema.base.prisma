@@ -29,6 +29,10 @@ model Application {
   targetOf      Integration[] @relation("targetApp")
   ownedInformationObjects InformationObject[] @relation("AppOwner")
   processedInformationObjects InformationObject[] @relation("AppProcessesInfoObject")
+  stateId String @default("current")
+  state   LandscapeState @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([stateId])
 }
 
 model Capability {
@@ -46,6 +50,10 @@ model Capability {
   applications Application[] @relation("ApplicationToCapability")
   supportingOrganizations Organization[] @relation("OrgSupportsCapability")
   strategicGoals StrategicGoal[] @relation("GoalRequiresCapability")
+  stateId String @default("current")
+  state   LandscapeState @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([stateId])
 }
 
 model StrategicGoal {
@@ -59,6 +67,10 @@ model StrategicGoal {
   parent       StrategicGoal?  @relation("GoalToGoal", fields: [parentId], references: [id], onDelete: Cascade)
   children     StrategicGoal[] @relation("GoalToGoal")
   capabilities Capability[]    @relation("GoalRequiresCapability")
+  stateId String @default("current")
+  state   LandscapeState @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([stateId])
 }
 
 model Organization {
@@ -75,6 +87,10 @@ model Organization {
   informationObjects InformationObject[]
   ownedApplications Application[]       @relation("OrgOwnedApps")
   supportedCapabilities Capability[]    @relation("OrgSupportsCapability")
+  stateId String @default("current")
+  state   LandscapeState @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([stateId])
 }
 
 model InformationObject {
@@ -97,6 +113,10 @@ model InformationObject {
   appOwner        Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
   integrations    Integration[]
   processingApplications Application[] @relation("AppProcessesInfoObject")
+  stateId String @default("current")
+  state   LandscapeState @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([stateId])
 }
 
 model Integration {
@@ -115,6 +135,10 @@ model Integration {
   targetApp     Application        @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)
   sourceApp     Application        @relation("sourceApp", fields: [sourceAppId], references: [id], onDelete: Cascade)
   payload       InformationObject? @relation(fields: [infoObjectId], references: [id], onDelete: SetNull)
+  stateId String @default("current")
+  state   LandscapeState @relation(fields: [stateId], references: [id], onDelete: Restrict)
+
+  @@index([stateId])
 }
 
 model MetadataDefinition {
@@ -166,6 +190,22 @@ model LlmSettings {
   id           String   @id
   systemPrompt String
   updatedAt    DateTime @updatedAt
+}
+
+model LandscapeState {
+  id            String   @id
+  name          String
+  sourceStateId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  source        LandscapeState?  @relation("StateLineage", fields: [sourceStateId], references: [id], onDelete: SetNull)
+  derived       LandscapeState[] @relation("StateLineage")
+  applications       Application[]
+  capabilities       Capability[]
+  strategicGoals     StrategicGoal[]
+  organizations      Organization[]
+  informationObjects InformationObject[]
+  integrations       Integration[]
 }
 
 model WorkspaceSettings {

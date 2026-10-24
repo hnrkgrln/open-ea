@@ -29,6 +29,8 @@ import { TimeDashboardView } from './components/TimeDashboardView';
 import { InsightsView } from './components/InsightsView';
 import { PortfolioChatProvider } from './components/PortfolioChat';
 import { ModelMenu } from './components/ModelMenu';
+import { StateMenu, TargetStateBanner, useLandscapeStateController } from './components/StateMenu';
+import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection } from './components/TableSelection';
 import { AspectsMenu } from './components/AspectsMenu';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 import { fetchWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
@@ -238,6 +240,7 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const location = useLocation();
   const isFullWidth = location.pathname.startsWith('/diagrams');
   const headerRef = useRef<HTMLElement>(null);
+  const { isTarget } = useLandscapeStateController();
 
   // The search stays a fixed 280px control centered on the header when that fits.
   // A narrower window, or a long brand name, would otherwise cover Diagrams, so
@@ -290,6 +293,8 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
     place();
     const observer = new ResizeObserver(place);
     observer.observe(header);
+    observer.observe(start);
+    observer.observe(end);
     let cancelled = false;
     document.fonts?.ready.then(() => {
       if (!cancelled) place();
@@ -302,8 +307,8 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
 
   return (
     <PortfolioChatProvider>
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <header ref={headerRef} className="header" style={{ flexShrink: 0, position: 'relative' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }} data-landscape-state={isTarget ? 'target' : 'current'}>
+      <header ref={headerRef} className="header" data-landscape-state={isTarget ? 'target' : 'current'} style={{ flexShrink: 0, position: 'relative' }}>
         <div className="header-start">
           <Link to="/insights" className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav">
@@ -316,10 +321,12 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
           <UnifiedSearch />
         </div>
         <div className="header-end">
+          <StateMenu />
           <NavLink to="/settings" title="Settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /><span className="header-label">Settings</span></NavLink>
           <ThemeToggle />
         </div>
       </header>
+      <TargetStateBanner />
       <main className={isFullWidth ? "main-full" : "main-container"}>
         {children}
       </main>
@@ -478,6 +485,8 @@ const AppContent = () => {
     queryClient.invalidateQueries({ queryKey: ['integrations'] });
     queryClient.invalidateQueries({ queryKey: ['capabilities'] });
     queryClient.invalidateQueries({ queryKey: ['strategic-goals'] });
+    queryClient.invalidateQueries({ queryKey: ['organizations'] });
+    queryClient.invalidateQueries({ queryKey: ['information-objects'] });
     queryClient.invalidateQueries({ queryKey: ['picklists'] });
     queryClient.invalidateQueries({ queryKey: ['search'] });
     queryClient.invalidateQueries({ queryKey: ['metadata-definitions'] });
@@ -539,7 +548,9 @@ const AppContent = () => {
     }
   });
 
-  const isInitialLoading = !apps || !strategicGoals || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading || (isWorkspaceLoading && !isWorkspaceError);
+  const hasBooted = useRef(false);
+  const isInitialLoading = !hasBooted.current && (!apps || !strategicGoals || !capabilities || !organizations || !informationObjects || !integrations || isPicklistsLoading || (isWorkspaceLoading && !isWorkspaceError));
+  if (!isInitialLoading) hasBooted.current = true;
 
   if (isInitialLoading) {
     return (
@@ -574,6 +585,7 @@ const AppContent = () => {
             organizations={organizations || []}
             onSelectApp={(id) => navigate(`/apps/${id}`)}
             onEditApp={(app) => navigate(`/apps/${app.id}/edit`)}
+            onRefresh={handleRefresh}
             onNewApp={<button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button>}
             timeThresholds={timeThresholds}
           />
@@ -652,7 +664,7 @@ const AppContent = () => {
     </Layout>
   );
 };
-const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode, timeThresholds?: TimeThresholds }) => {
+const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp, onRefresh, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode, onRefresh: () => void, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
@@ -789,6 +801,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
       return matchSearch && matchOwner && matchOwnerOrg && matchLifecycle && matchType && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom;
     });
   }, [apps, filters, timeThresholds]);
+
+  const visibleAppIds = useMemo(() => filteredApps.map((app) => app.id), [filteredApps]);
+  const selection = useTableSelection(visibleAppIds);
 
   const clearFilters = () => setFilters({ 
     search: '', owner: [], ownerOrgId: [], lifecycle: [], type: [], 
@@ -1097,8 +1112,17 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <SelectionBar
+            selection={selection}
+            singular="application"
+            plural="applications"
+            detail={(count) => `Integrations that use ${count === 1 ? 'it are' : 'them are'} removed too.`}
+            deletePath={(id) => `/api/applications/${id}`}
+            editPath={(id) => `/apps/${id}/edit`}
+            onRefresh={onRefresh}
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>TIME</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Cost</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owning Org</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
+            <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><SelectionHeader selection={selection} /><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>TIME</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Cost</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owning Org</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
             <tbody>
             {filteredApps.map(app => {
               const meta = safeJsonParse(app.metadata);
@@ -1124,7 +1148,8 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
               const timeInfo = getAppTimeAssessment(app, timeThresholds);
 
               return (
-                <tr key={app.id} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+                <tr key={app.id} className={selection.has(app.id) ? 'table-row-selected' : undefined} onClick={() => onSelectApp(app.id)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
+                  <SelectionRowCheck selection={selection} id={app.id} label={app.name} />
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><Database size={12} style={{ color: 'var(--muted-foreground)' }} /> {app.name}</td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
                     {timeInfo ? (
@@ -1304,7 +1329,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
   );
 };
 
-const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number }) => {
+const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, selection, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], selection: ReturnType<typeof useTableSelection>, showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
   
   const getEffectiveCapabilityCriticality = (n: Capability): number => {
@@ -1322,7 +1347,8 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
 
   return (
     <>
-      <tr key={node.id} className="row-hover" style={{ borderBottom: '1px solid var(--border)' }}>
+      <tr key={node.id} className={selection.has(node.id) ? 'row-hover table-row-selected' : 'row-hover'} style={{ borderBottom: '1px solid var(--border)' }}>
+        <SelectionRowCheck selection={selection} id={node.id} label={node.name} />
         <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', fontWeight: 600, paddingLeft: `${0.75 + depth * 1.5}rem` }}>
           <div onClick={() => navigate(`/capabilities/${node.id}`)} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
             {depth > 0 && <ChevronRight size={12} style={{ color: 'var(--muted-foreground)' }} />}
@@ -1354,7 +1380,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
         </td>
       </tr>
       {hasChildren && node.children!.map(child => (
-        <CapabilityListRow key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} depth={depth + 1} />
+        <CapabilityListRow key={child.id} node={child} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} selection={selection} showApps={showApps} depth={depth + 1} />
       ))}
     </>
   );
@@ -1393,6 +1419,9 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
     });
     return roots;
   }, [capabilities]);
+
+  const visibleCapabilityIds = useMemo(() => collectTreeIds(capabilityTree), [capabilityTree]);
+  const selection = useTableSelection(visibleCapabilityIds);
 
   const exportToCSV = () => {
     if (!capabilities || capabilities.length === 0) return;
@@ -1525,9 +1554,19 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <SelectionBar
+            selection={selection}
+            singular="capability"
+            plural="capabilities"
+            detail={() => 'Sub-capabilities are removed with a selected parent.'}
+            deletePath={(id) => `/api/capabilities/${id}`}
+            editPath={(id) => `/capabilities/${id}/edit`}
+            onRefresh={onRefresh}
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                <SelectionHeader selection={selection} />
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capability Name (Hierarchy)</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', width: '110px' }}>Actions</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Criticality</th>
@@ -1536,7 +1575,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
             </thead>
             <tbody>
               {capabilityTree.map(cap => (
-                <CapabilityListRow key={cap.id} node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} showApps={showApps} />
+                <CapabilityListRow key={cap.id} node={cap} onRefresh={onRefresh} onSelectApp={onSelectApp} criticalityOptions={criticalityOptions} selection={selection} showApps={showApps} />
               ))}
             </tbody>
           </table>

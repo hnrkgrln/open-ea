@@ -1,7 +1,6 @@
 import 'dotenv/config';
 import { fastify } from 'fastify';
 import { fastifyCors } from '@fastify/cors';
-import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { serializerCompiler, validatorCompiler, type ZodTypeProvider } from 'fastify-type-provider-zod';
 import { suggestApplicationFields } from './applicationSuggestions.js';
@@ -9,8 +8,8 @@ import { suggestApplicationCapabilities } from './capabilityMapping.js';
 import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
+import { createLandscapeState, deleteLandscapeState, LandscapeStateError, landscapeContext, listLandscapeStates, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
 
-const prisma = new PrismaClient();
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
 // ---------------------------------------------------------------------------
@@ -265,6 +264,12 @@ server.register(fastifyCors, {
   origin: true,
 });
 
+server.addHook('onRequest', (request, _reply, done) => {
+  const header = request.headers['x-landscape-state'];
+  const stateId = resolveStateId(typeof header === 'string' ? header : undefined);
+  landscapeContext.run(stateId, () => done());
+});
+
 server.setErrorHandler((error: any, request, reply) => {
   console.error('FASTIFY ERROR:', error);
   // Validation errors from fastify-type-provider-zod should surface as 400, not 500.
@@ -283,6 +288,49 @@ server.setErrorHandler((error: any, request, reply) => {
 });
 
 // Applications API
+const stateName = z.string().trim().min(1).max(80);
+
+server.get('/landscape-states', async () => listLandscapeStates());
+
+server.post('/landscape-states', {
+  schema: { body: z.object({ name: stateName, sourceStateId: z.string().trim().min(1) }) },
+}, async (request, reply) => {
+  try {
+    const created = await createLandscapeState(request.body.name, request.body.sourceStateId);
+    await landscapeContext.run(created.id, () => backfillCriticality());
+    return created;
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.put('/landscape-states/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({ name: stateName }),
+  },
+}, async (request, reply) => {
+  try {
+    return await renameLandscapeState(request.params.id, request.body.name);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.delete('/landscape-states/:id', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  try {
+    await deleteLandscapeState(request.params.id);
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
 server.get('/applications', async () => {
   return prisma.application.findMany({
     include: {
@@ -1831,6 +1879,7 @@ server.get('/search', {
 
 const start = async () => {
   try {
+    await refreshStates();
     await server.listen({ port: 3001, host: '0.0.0.0' });
     console.log('Server is running on http://localhost:3001');
   } catch (err) {

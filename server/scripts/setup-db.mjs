@@ -37,6 +37,38 @@ try {
   fs.writeFileSync(OUTPUT_SCHEMA, header + baseContent);
   console.log('Successfully generated schema.prisma');
 
+  // The Current row has to exist before existing portfolio rows gain a stateId
+  // foreign key. db push then fills those rows with the default id "current".
+  const ensureCurrentSql = isPostgres
+    ? `CREATE TABLE IF NOT EXISTS "LandscapeState" (
+        "id" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "sourceStateId" TEXT,
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT "LandscapeState_pkey" PRIMARY KEY ("id")
+      );
+      INSERT INTO "LandscapeState" ("id", "name", "createdAt", "updatedAt")
+      VALUES ('current', 'Current', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT ("id") DO NOTHING;`
+    : `CREATE TABLE IF NOT EXISTS "LandscapeState" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "sourceStateId" TEXT,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
+      INSERT INTO "LandscapeState" ("id", "name", "createdAt", "updatedAt")
+      VALUES ('current', 'Current', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT ("id") DO NOTHING;`;
+  console.log('Ensuring the Current landscape state exists...');
+  execSync('npx prisma db execute --stdin --schema prisma/schema.prisma', {
+    cwd: path.join(__dirname, '..'),
+    input: ensureCurrentSql,
+    stdio: ['pipe', 'inherit', 'inherit'],
+    env: { ...process.env, DATABASE_URL: databaseUrl },
+  });
+
   console.log('Generating Prisma Client...');
   execSync('npx prisma generate', { 
     cwd: path.join(__dirname, '..'), 

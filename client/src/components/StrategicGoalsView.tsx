@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Boxes, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Plus, PlusCircle, Target, Trash2 } from 'lucide-react';
 import { useLocalStorage } from '../App';
 import { SearchInput } from './FilterControls';
+import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection, type TableSelection } from './TableSelection';
 
 interface RequiredCapability {
   id: string;
@@ -111,12 +112,13 @@ const GoalNode = ({ goal, onRefresh, depth = 0, forceExpand }: { goal: Strategic
   );
 };
 
-const GoalListRow = ({ goal, onRefresh, depth = 0 }: { goal: StrategicGoal; onRefresh: () => void; depth?: number }) => {
+const GoalListRow = ({ goal, onRefresh, selection, depth = 0 }: { goal: StrategicGoal; onRefresh: () => void; selection: TableSelection; depth?: number }) => {
   const navigate = useNavigate();
   const required = requiredNames(goal);
   return (
     <>
-      <tr className="row-hover" style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => navigate(`/strategic-goals/${goal.id}`)}>
+      <tr className={selection.has(goal.id) ? 'row-hover table-row-selected' : 'row-hover'} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }} onClick={() => navigate(`/strategic-goals/${goal.id}`)}>
+        <SelectionRowCheck selection={selection} id={goal.id} label={goal.name} />
         <td style={{ padding: '0.6rem 1rem', fontWeight: 700, fontSize: '0.85rem', paddingLeft: `${0.75 + depth * 1.5}rem` }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
             {depth > 0 && <ChevronRight size={12} style={{ color: 'var(--muted-foreground)' }} />}
@@ -135,7 +137,7 @@ const GoalListRow = ({ goal, onRefresh, depth = 0 }: { goal: StrategicGoal; onRe
         </td>
         <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>{goal.description || '—'}</td>
       </tr>
-      {(goal.children || []).map((child) => <GoalListRow key={child.id} goal={child} onRefresh={onRefresh} depth={depth + 1} />)}
+      {(goal.children || []).map((child) => <GoalListRow key={child.id} goal={child} onRefresh={onRefresh} selection={selection} depth={depth + 1} />)}
     </>
   );
 };
@@ -169,6 +171,9 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
     });
     return buildTree(rows.filter((goal) => keep.has(goal.id)));
   }, [rows, query]);
+
+  const visibleGoalIds = useMemo(() => collectTreeIds(visible), [visible]);
+  const selection = useTableSelection(visibleGoalIds);
 
   return (
     <div style={{ width: '100%', minWidth: 0, paddingBottom: '3rem' }}>
@@ -208,9 +213,19 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+          <SelectionBar
+            selection={selection}
+            singular="strategic goal"
+            plural="strategic goals"
+            detail={() => 'Sub-goals are removed with a selected parent.'}
+            deletePath={(id) => `/api/strategic-goals/${id}`}
+            editPath={(id) => `/strategic-goals/${id}/edit`}
+            onRefresh={onRefresh}
+          />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+                <SelectionHeader selection={selection} />
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Actions</th>
                 <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Requires</th>
@@ -218,7 +233,7 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
               </tr>
             </thead>
             <tbody>
-              {visible.map((goal) => <GoalListRow key={goal.id} goal={goal} onRefresh={onRefresh} />)}
+              {visible.map((goal) => <GoalListRow key={goal.id} goal={goal} onRefresh={onRefresh} selection={selection} />)}
             </tbody>
           </table>
         </div>

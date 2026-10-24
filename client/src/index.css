@@ -487,6 +487,247 @@ button.model-menu-trigger[data-state="open"] .model-menu-chevron {
   color: var(--brand-focus);
 }
 
+.header[data-landscape-state="target"] {
+  border-bottom-color: color-mix(in srgb, var(--brand-focus) 38%, var(--border));
+}
+
+button.model-menu-trigger.state-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--background);
+}
+
+button.model-menu-trigger.state-target,
+button.model-menu-trigger.state-target[data-state="open"] {
+  color: var(--brand-focus);
+  font-weight: 700;
+  border-color: color-mix(in srgb, var(--brand-focus) 45%, var(--border));
+  background: color-mix(in srgb, var(--brand-focus) 12%, var(--card));
+}
+
+.state-trigger-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.state-trigger-badge.target {
+  padding: 0.16rem 0.42rem;
+  border-radius: 999px;
+  background: var(--brand-focus);
+  color: #ffffff;
+}
+
+[data-theme='dark'] .state-trigger-badge.target {
+  color: #101113;
+}
+
+.state-trigger-name {
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state-menu-tag {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 0.14rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--secondary);
+  color: var(--muted-foreground);
+}
+
+.target-state-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 1.25rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--brand-focus) 35%, var(--border));
+  background: color-mix(in srgb, var(--brand-focus) 10%, var(--card));
+  color: var(--foreground);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.target-state-banner-info {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.target-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--brand-focus);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+[data-theme='dark'] .target-state-pill {
+  color: #101113;
+}
+
+.target-state-name {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.target-state-lineage {
+  color: var(--muted-foreground);
+}
+
+.target-state-lineage strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+.target-state-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+button.target-state-return {
+  height: 1.65rem;
+  padding: 0 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--brand-focus) 42%, var(--border));
+  background: var(--card);
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.target-state-return:hover {
+  background: var(--secondary);
+}
+
+.state-menu-panel {
+  min-width: 20rem;
+}
+
+.state-menu-heading {
+  padding: 0.45rem 0.55rem 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.state-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.state-menu-actions {
+  margin-left: auto;
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.1rem;
+}
+
+.state-menu-actions button {
+  height: 1.6rem;
+  width: 1.6rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+.state-menu-actions button:hover {
+  background: var(--secondary);
+  color: var(--foreground);
+}
+
+.state-menu-separator {
+  height: 1px;
+  margin: 0.3rem 0.4rem;
+  background: var(--border);
+}
+
+.state-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.state-dialog {
+  width: min(28rem, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 1.25rem;
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.state-dialog h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.state-dialog p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.85rem;
+}
+
+.state-dialog input,
+.state-dialog select {
+  width: 100%;
+}
+
+.state-dialog-error {
+  color: var(--destructive);
+}
+
+.state-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+}
+
 .model-menu-copy {
   display: flex;
   flex-direction: column;
@@ -1958,5 +2199,76 @@ input[type="range"]::-moz-range-thumb:hover {
   border-top: 4px solid var(--muted-foreground);
   pointer-events: none;
   z-index: 3;
+}
+
+table td.table-select-cell,
+table th.table-select-cell {
+  width: 2.5rem;
+  padding: 0.35rem 0.45rem 0.35rem 0.7rem;
+  text-align: center;
+  vertical-align: middle;
+  cursor: default;
+}
+
+input.table-select-check {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  accent-color: var(--brand-focus);
+  cursor: pointer;
+  box-shadow: none;
+}
+
+input.table-select-check:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+table tr.table-row-selected td {
+  background: color-mix(in srgb, var(--brand-focus) 14%, var(--card));
+}
+
+table tr.table-row-selected:hover td {
+  background: var(--accent);
+}
+
+[data-theme='dark'] table tr.table-row-selected:hover td {
+  background: var(--secondary);
+}
+
+.table-selection-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--brand-focus) 10%, var(--card));
+  font-size: 0.8rem;
+}
+
+.table-selection-count {
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.table-selection-bar button {
+  height: 1.8rem;
+  padding: 0 0.65rem;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.table-selection-bar button.table-selection-delete {
+  color: var(--destructive);
+  border-color: color-mix(in srgb, var(--destructive) 40%, var(--border));
+}
+
+.table-selection-bar button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
