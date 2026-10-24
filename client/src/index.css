@@ -611,6 +611,29 @@ button.model-menu-trigger.state-target[data-state="open"] {
   flex-shrink: 0;
 }
 
+button.target-state-merge {
+  height: 1.65rem;
+  padding: 0 0.7rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--brand-focus);
+  background: var(--brand-focus);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+[data-theme='dark'] button.target-state-merge {
+  color: #101113;
+}
+
+button.target-state-merge:hover {
+  filter: brightness(0.95);
+}
+
 button.target-state-return {
   height: 1.65rem;
   padding: 0 0.65rem;
@@ -726,6 +749,152 @@ button.target-state-return:hover {
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.3rem;
+}
+
+.state-merge-dialog {
+  width: min(35rem, 100%);
+  max-height: min(90vh, 46rem);
+  overflow-y: auto;
+  gap: 0.85rem;
+}
+
+.state-merge-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.state-merge-presets {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.state-merge-preset-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.state-merge-preset-buttons button.secondary {
+  height: 1.75rem;
+  padding: 0 0.65rem;
+  font-size: 0.75rem;
+  border-radius: 999px;
+}
+
+.state-merge-preset-buttons button.secondary.active {
+  border-color: var(--brand-focus);
+  background: color-mix(in srgb, var(--brand-focus) 14%, var(--card));
+  color: var(--foreground);
+}
+
+.state-merge-domains {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.state-merge-domain-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.state-merge-domain-row:hover {
+  background: var(--secondary);
+}
+
+.state-merge-domain-row.selected {
+  border-color: color-mix(in srgb, var(--brand-focus) 55%, var(--border));
+  background: color-mix(in srgb, var(--brand-focus) 8%, var(--card));
+}
+
+.state-merge-domain-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.state-merge-domain-title {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.state-merge-domain-desc {
+  font-size: 0.74rem;
+  color: var(--muted-foreground);
+}
+
+.state-merge-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.state-merge-count-pair {
+  font-size: 0.78rem;
+  color: var(--muted-foreground);
+}
+
+.state-merge-count-pair strong {
+  color: var(--foreground);
+  font-weight: 700;
+}
+
+.state-merge-delta {
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.state-merge-delta.plus {
+  background: rgba(34, 197, 94, 0.16);
+  color: #15803d;
+}
+
+[data-theme='dark'] .state-merge-delta.plus {
+  color: #4ade80;
+}
+
+.state-merge-delta.minus {
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+}
+
+[data-theme='dark'] .state-merge-delta.minus {
+  color: #fbbf24;
+}
+
+.state-merge-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+}
+
+.state-merge-option-check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: var(--foreground);
+  cursor: pointer;
 }
 
 .model-menu-copy {

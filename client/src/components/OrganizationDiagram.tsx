@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BoxLabel, useDiagramReveal } from '../diagramLabel';
 import ReactFlow, {
   Background,
@@ -16,13 +16,15 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { useNavigate } from 'react-router-dom';
-import { Layers } from 'lucide-react';
+import { Layers, ExternalLink, X } from 'lucide-react';
 
 interface Organization {
   id: string;
   name: string;
   type?: string;
   parentId?: string | null;
+  ownedApplications?: { id: string; name: string }[];
+  informationObjects?: { id: string; name: string }[];
 }
 
 interface PicklistOption { value: string; label: string; color?: string; }
@@ -352,16 +354,162 @@ const DiagramInner = ({ organizations, picklists }: { organizations: Organizatio
     };
   }, [graphKey, organizations.length, fitView, getNodes]);
 
+  const [inspectedOrgId, setInspectedOrgId] = useState<string | null>(null);
+  const inspectedOrg = useMemo(() => organizations.find(o => o.id === inspectedOrgId) || null, [organizations, inspectedOrgId]);
+
+  useEffect(() => {
+    if (!inspectedOrgId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setInspectedOrgId(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [inspectedOrgId]);
+
   return (
-    <ReactFlow
-      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-      nodeTypes={NODE_TYPES} onNodeClick={(_event, node) => navigate(`/organizations/${node.id}`)}
-      proOptions={{ hideAttribution: true }} fitView minZoom={0.1} maxZoom={1.5}
-      nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
-    >
-      <Background gap={20} size={1} color="var(--border)" />
-      <Controls showInteractive={false} />
-    </ReactFlow>
+    <>
+      <ReactFlow
+        nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+        nodeTypes={NODE_TYPES}
+        onNodeClick={(_event, node) => setInspectedOrgId(node.id)}
+        onPaneClick={() => setInspectedOrgId(null)}
+        proOptions={{ hideAttribution: true }} fitView minZoom={0.1} maxZoom={1.5}
+        nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
+      >
+        <Background gap={20} size={1} color="var(--border)" />
+        <Controls showInteractive={false} />
+      </ReactFlow>
+      {inspectedOrg && (() => {
+        const parentOrg = organizations.find(o => o.id === inspectedOrg.parentId);
+        const subOrgs = organizations.filter(o => o.parentId === inspectedOrg.id);
+        const typeOpt = getTypeOption(picklists, inspectedOrg.type);
+        const accentColor = (typeOpt?.color && typeOpt.color !== 'var(--secondary)') ? typeOpt.color : 'var(--primary)';
+        const directAppsCount = inspectedOrg.ownedApplications?.length ?? 0;
+
+        return (
+          <div
+            className="state-dialog-backdrop"
+            style={{ zIndex: 1100 }}
+            onMouseDown={() => setInspectedOrgId(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Organization inspector: ${inspectedOrg.name}`}
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(32rem, 100%)',
+                borderRadius: '14px',
+                border: `1.5px solid ${accentColor}`,
+                background: 'var(--card)',
+                color: 'var(--foreground)',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
+                padding: '1.15rem 1.3rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.85rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.6rem' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      padding: '0.12rem 0.45rem',
+                      borderRadius: '4px',
+                      background: 'var(--secondary)',
+                      color: 'var(--muted-foreground)',
+                      border: '1px solid var(--border)',
+                    }}>
+                      Organization
+                    </span>
+                    {(typeOpt?.label || inspectedOrg.type) && (
+                      <span style={{
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                        padding: '0.12rem 0.45rem',
+                        borderRadius: '4px',
+                        background: 'var(--accent)',
+                        color: 'var(--foreground)',
+                      }}>
+                        {typeOpt?.label || inspectedOrg.type}
+                      </span>
+                    )}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.25 }}>
+                    {inspectedOrg.name}
+                  </h3>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                    {parentOrg ? (
+                      <>
+                        Parent:{' '}
+                        <button
+                          type="button"
+                          onClick={() => setInspectedOrgId(parentOrg.id)}
+                          style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                        >
+                          {parentOrg.name}
+                        </button>
+                      </>
+                    ) : (
+                      'Root organization'
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectedOrgId(null);
+                      navigate(`/organizations/${inspectedOrg.id}`);
+                    }}
+                    className="primary"
+                    style={{ height: '1.95rem', padding: '0 0.75rem', fontSize: '0.76rem', gap: '0.35rem', display: 'inline-flex', alignItems: 'center' }}
+                    title="Open full organization details page"
+                  >
+                    Details <ExternalLink size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Close inspector"
+                    onClick={() => setInspectedOrgId(null)}
+                    style={{ height: '1.95rem', width: '1.95rem', padding: 0, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', background: 'var(--secondary)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Type</div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {typeOpt?.label || inspectedOrg.type || '—'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Direct Apps</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                    {directAppsCount}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Sub-Orgs</div>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                    {subOrgs.length}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
   );
 };
 

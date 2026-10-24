@@ -21,8 +21,9 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { toPng } from 'html-to-image';
-import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, FilterX, WrapText, Frame } from 'lucide-react';
+import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, FilterX, WrapText, Frame, ExternalLink, X } from 'lucide-react';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
+import { TimeMatrix } from './TimeMatrix';
 import { BoxLabel, revealWidth, useDiagramReveal } from '../diagramLabel';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -687,7 +688,7 @@ const DiagramInner = ({
   metaDefs: dbMetaDefs, 
   picklists, 
   mode = 'landscape', 
-  activeOverlay = 'lifecycle', 
+  activeOverlay = null, 
   activeCustomOverlays = [],
   showApplications = true, 
   showCapabilities = true,
@@ -725,6 +726,25 @@ const DiagramInner = ({
   });
   const [reflowZoom, setReflowZoom] = useState(1);
   const reflowFocus = useRef(0.12);
+  type InspectedConcept =
+    | { kind: 'app'; app: Application }
+    | { kind: 'capability'; capability: Capability }
+    | { kind: 'organization'; organization: Organization }
+    | { kind: 'integration'; integration: Integration };
+  const [inspectedConcept, setInspectedConcept] = useState<InspectedConcept | null>(null);
+
+  useEffect(() => {
+    setInspectedConcept(null);
+  }, [mode]);
+
+  useEffect(() => {
+    if (!inspectedConcept) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setInspectedConcept(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [inspectedConcept]);
 
   const onExport = async () => {
     const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
@@ -1044,7 +1064,7 @@ const DiagramInner = ({
     }
     const showFilterFrame = filterFrame && !groupingField && describeCategoricalFilters(filters, organizations, capabilities, metaDefs, apps, payloadNames).length > 0;
     const framePad = showFilterFrame ? 128 : 28;
-    const flowWidth = reflow ? viewW / Math.max(reflowZoom, 0.05) : viewW;
+    const flowWidth = viewW / Math.max(reflowZoom, 0.05);
     const canvasBudget = Math.max(360, Math.floor(flowWidth - framePad));
 
     if (mode === 'network') {
@@ -1808,7 +1828,7 @@ const DiagramInner = ({
 
       publishDiagram(allFinalNodes, []);
     }
-  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, reflow, reflowZoom, filterFrame]);
+  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, reflowZoom, filterFrame]);
   useEffect(() => {
     let span = 0;
     nodes.forEach(n => {
@@ -1818,7 +1838,7 @@ const DiagramInner = ({
       const w = saved ?? (typeof n.style?.width === 'number' ? n.style.width : 0);
       span = Math.max(span, n.position.x + w);
     });
-    const fitKey = `${nodes.length}-${Math.round(span)}-${viewportWidth}-${viewportHeight}-${mode}-${relationSearch}-${groupingField || ''}-${reflow ? reflowZoom : 'fit'}`;
+    const fitKey = `${nodes.length}-${Math.round(span)}-${viewportWidth}-${viewportHeight}-${mode}-${relationSearch}-${groupingField || ''}-${reflowZoom}`;
     if (nodes.length > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== fitKey) {
       const timer = setTimeout(() => {
         const currentNodes = getNodes(); if (currentNodes.length === 0) return;
@@ -1857,14 +1877,18 @@ const DiagramInner = ({
   }, [nodes, visible, viewportWidth, viewportHeight, nodesInitialized, mode, relationSearch, groupingField, setViewport, getNodes, reflow, reflowZoom]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
-    if (node.data.type === 'app') onNodeClick?.(node.data.original);
-    else if (node.data.type === 'capability' && node.data.originalId !== 'unassigned') onCapabilityClick?.(node.data.original);
-    else if (node.data.type === 'organization' && node.data.originalId !== 'unassigned') onOrganizationClick?.(node.data.original);
+    if (node.data.type === 'app' && node.data.original) {
+      setInspectedConcept({ kind: 'app', app: node.data.original });
+    } else if (node.data.type === 'capability' && node.data.originalId !== 'unassigned' && node.data.original) {
+      setInspectedConcept({ kind: 'capability', capability: node.data.original });
+    } else if (node.data.type === 'organization' && node.data.originalId !== 'unassigned' && node.data.original) {
+      setInspectedConcept({ kind: 'organization', organization: node.data.original });
+    }
   };
 
   const onEdgeInternalClick = (_: any, edge: Edge) => {
     const integration = edge.data?.original as Integration | undefined;
-    if (integration) onIntegrationClick?.(integration);
+    if (integration) setInspectedConcept({ kind: 'integration', integration });
   };
 
   const landscapeTitle = mode === 'network' ? 'Landscape: Integrations' : mode === 'app-landscape' ? 'Landscape: Application' : mode === 'org-landscape' ? 'Landscape: Organization' : 'Landscape: Capability';
@@ -1872,7 +1896,7 @@ const DiagramInner = ({
   return (
     <div className="diagram-surface" style={{ width: '100%', height: '100%', position: 'relative' }}>
     <ReactFlow
-      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick} onEdgeClick={onEdgeInternalClick}
+      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange} onNodeClick={onNodeInternalClick} onEdgeClick={onEdgeInternalClick} onPaneClick={() => setInspectedConcept(null)}
       nodesDraggable={!lockNodes} nodesConnectable={false} elementsSelectable={!lockNodes} panOnDrag={true} zoomOnScroll={true} minZoom={0.01} maxZoom={4}
       nodeTypes={nodeTypes} edgeTypes={edgeTypes}
       style={{ width: '100%', height: '100%' }}
@@ -2049,7 +2073,7 @@ const DiagramInner = ({
           Frame
         </button>
         <div style={{ fontSize: '10px', opacity: 0.7, borderTop: '1px solid var(--border)', paddingTop: '6px' }}>
-          {reflow ? 'Zoom reflows the columns to this view' : lockNodes ? 'Click objects to edit • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
+          {reflow ? 'Zoom reflows the columns to this view' : lockNodes ? 'Click objects to inspect • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
         </div>
         </>}
       </Panel>
@@ -2154,43 +2178,45 @@ const DiagramInner = ({
             </div>
           )}
 
-          <div>
-            <div style={{ fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
-              Aspect: {getFieldLabel(activeOverlay!)}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {activeOverlay === 'lifecycle' ? ( 
-                (picklists?.find(p => p.name === 'lifecycle')?.options || LIFECYCLE_STAGES).map(opt => {
-                  const lightColor = 'lightColor' in opt ? (opt as { lightColor?: string }).lightColor : undefined;
-                  const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (lightColor || opt.color || '#e9ecef'));
-                  return (
-                    <div key={opt.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: bg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
-                      <span>{opt.label}</span>
+          {activeOverlay && (
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>
+                Aspect: {getFieldLabel(activeOverlay)}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {activeOverlay === 'lifecycle' ? ( 
+                  (picklists?.find(p => p.name === 'lifecycle')?.options || LIFECYCLE_STAGES).map(opt => {
+                    const lightColor = 'lightColor' in opt ? (opt as { lightColor?: string }).lightColor : undefined;
+                    const bg = opt.color && opt.color.startsWith('#') ? (isDark ? opt.color : (lightColor || opt.color)) : (isDark ? (opt.color || '#adb5bd') : (lightColor || opt.color || '#e9ecef'));
+                    return (
+                      <div key={opt.label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: bg, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                        <span>{opt.label}</span>
+                      </div>
+                    );
+                  })
+                ) : activeOverlay === 'time' ? (
+                  TIME_STAGES.map(opt => (
+                    <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${opt.color}` }} />
+                      <span style={{ fontWeight: 500 }}>{opt.label}</span>
                     </div>
-                  );
-                })
-              ) : activeOverlay === 'time' ? (
-                TIME_STAGES.map(opt => (
-                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${opt.color}` }} />
-                    <span style={{ fontWeight: 500 }}>{opt.label}</span>
-                  </div>
-                ))
-              ) : ( 
-                picklists?.find(p => {
-                  const pNorm = p.name.toLowerCase().replace(/_/g, '');
-                  const oNorm = activeOverlay?.toLowerCase().replace(/_/g, '');
-                  return pNorm === oNorm || (oNorm === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost'));
-                })?.options.map(opt => ( 
-                  <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
-                    <span>{opt.label}</span>
-                  </div> 
-                )) 
-              )}
+                  ))
+                ) : ( 
+                  picklists?.find(p => {
+                    const pNorm = p.name.toLowerCase().replace(/_/g, '');
+                    const oNorm = activeOverlay.toLowerCase().replace(/_/g, '');
+                    return pNorm === oNorm || (oNorm === 'cost' && (p.name === 'application_cost' || pNorm === 'applicationcost'));
+                  })?.options.map(opt => ( 
+                    <div key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '12px', height: '12px', borderRadius: '3px', background: opt.color, border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'}` }} />
+                      <span>{opt.label}</span>
+                    </div> 
+                  )) 
+                )}
+              </div>
             </div>
-          </div>
+          )}
           </>
         )}
       </Panel>
@@ -2201,6 +2227,744 @@ const DiagramInner = ({
           <p>Nothing matches this filter.</p>
         </div>
       )}
+      {inspectedConcept && (() => {
+        const getEffectiveCapCrit = (capId: string): number => {
+          const cap = capabilities.find(c => c.id === capId);
+          if (!cap) return 1;
+          const localVal = Number(cap.criticality || safeJsonParse(cap.metadata).criticality || 1);
+          const childMax = capabilities.filter(c => c.parentId === capId).map(c => getEffectiveCapCrit(c.id));
+          return childMax.length > 0 ? Math.max(localVal, ...childMax) : localVal;
+        };
+
+        const getEffectiveAppCrit = (app: Application): number => {
+          const localVal = Number(app.criticality || safeJsonParse(app.metadata).criticality || 1);
+          if (app.capabilities && app.capabilities.length > 0) {
+            const capScores = app.capabilities.map(c => getEffectiveCapCrit(c.id)).filter(n => !isNaN(n) && n > 0);
+            if (capScores.length > 0) return Math.max(localVal, ...capScores);
+          }
+          return localVal;
+        };
+
+        const costOptions = picklists?.find(p => p.name === 'application_cost')?.options || [];
+        const critOptions = picklists?.find(p => p.name === 'criticality')?.options || [];
+        const orgTypeOptions = picklists?.find(p => p.name === 'organization_type')?.options || [];
+
+        if (inspectedConcept.kind === 'app') {
+          const app = apps.find(a => a.id === inspectedConcept.app.id) || inspectedConcept.app;
+          const assessment = getAppTimeAssessment(app, timeThresholds);
+          const accentColor = assessment?.color || 'var(--primary)';
+          const ownerOrg = organizations.find(o => o.id === app.ownerOrgId);
+          const techScore = assessment?.techScore ?? (Number(app.technicalFit) || 0);
+          const funcScore = assessment?.funcScore ?? (Number(app.functionalFit) || 0);
+          const crit = getEffectiveAppCrit(app);
+          const costNum = Number(app.cost);
+          const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
+          const costCutoff = timeThresholds?.cost ?? 4;
+          const isHighCost = costVal >= costCutoff;
+          const costOpt = costOptions.find(o => String(o.value) === String(costVal));
+          const appIntegrations = integrations.filter(i => i.sourceAppId === app.id || i.targetAppId === app.id);
+
+          return (
+            <div
+              className="state-dialog-backdrop"
+              style={{ zIndex: 1100 }}
+              onMouseDown={() => setInspectedConcept(null)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Application inspector: ${app.name}`}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  width: 'min(52rem, 96vw)',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  borderRadius: '16px',
+                  border: `1.5px solid ${accentColor}`,
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  boxShadow: `0 12px 32px rgba(0,0,0,0.28), 0 4px 16px ${accentColor}22`,
+                  padding: '1.35rem 1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.1rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                      {app.lifecycle && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          padding: '0.1rem 0.45rem',
+                          borderRadius: '4px',
+                          background: 'var(--accent)',
+                          color: 'var(--foreground)',
+                          fontWeight: 600,
+                        }}>
+                          {app.lifecycle}
+                        </span>
+                      )}
+                      {app.type && (
+                        <span style={{
+                          fontSize: '0.65rem',
+                          padding: '0.1rem 0.45rem',
+                          borderRadius: '4px',
+                          background: 'var(--accent)',
+                          color: 'var(--muted-foreground)',
+                        }}>
+                          {app.type}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                        {app.owner || 'Unassigned owner'}
+                        {ownerOrg && (
+                          <>
+                            {' • '}
+                            <button
+                              type="button"
+                              onClick={() => setInspectedConcept({ kind: 'organization', organization: ownerOrg })}
+                              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
+                              {ownerOrg.name}
+                            </button>
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, lineHeight: 1.25 }}>
+                      {app.name}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInspectedConcept(null);
+                        onNodeClick?.(app);
+                      }}
+                      className="primary"
+                      style={{ height: '2rem', padding: '0 0.85rem', fontSize: '0.78rem', gap: '0.35rem', display: 'inline-flex', alignItems: 'center' }}
+                      title="Open full application details page"
+                    >
+                      Details <ExternalLink size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Close inspector"
+                      onClick={() => setInspectedConcept(null)}
+                      style={{ height: '2rem', width: '2rem', padding: 0, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem', alignItems: 'start' }}>
+                  <div style={{ width: '100%', minWidth: 0 }}>
+                    <TimeMatrix
+                      singleApp={{
+                        id: app.id,
+                        name: app.name,
+                        technicalFit: app.technicalFit,
+                        functionalFit: app.functionalFit,
+                        criticality: crit,
+                        cost: app.cost,
+                      }}
+                      thresholds={timeThresholds}
+                      aspectRatio="1 / 1"
+                      showLegend={true}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', minWidth: 0 }}>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '0.84rem',
+                      color: 'var(--foreground)',
+                      opacity: 0.9,
+                      lineHeight: 1.5,
+                    }}>
+                      {app.description || 'No description provided.'}
+                    </p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.65rem', background: 'var(--secondary)', padding: '0.75rem 0.9rem', borderRadius: '10px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Technical Fit</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: techScore ? (techScore >= (timeThresholds?.technicalFit ?? 3) ? '#2b8a3e' : '#c92a2a') : 'var(--muted-foreground)' }}>
+                          {techScore ? `${techScore}/5` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Functional Fit</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: funcScore ? (funcScore >= (timeThresholds?.functionalFit ?? 3) ? '#2b8a3e' : '#c92a2a') : 'var(--muted-foreground)' }}>
+                          {funcScore ? `${funcScore}/5` : '—'}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Criticality</div>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: crit >= (timeThresholds?.businessCriticality ?? 4) ? '#c92a2a' : 'var(--foreground)' }}>
+                          {crit}/5
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Cost</div>
+                        <div
+                          style={{
+                            fontSize: '0.95rem',
+                            fontWeight: 800,
+                            color: isHighCost ? '#fd7e14' : (costOpt?.color || 'var(--foreground)'),
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                          }}
+                        >
+                          {costOpt?.color && <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: costOpt.color, flexShrink: 0 }} />}
+                          <span>{costVal}/5</span>
+                          {costOpt?.label && (
+                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                              ({costOpt.label})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {((app.capabilities && app.capabilities.length > 0) || appIntegrations.length > 0) && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                        {app.capabilities && app.capabilities.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem' }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginRight: '0.2rem' }}>
+                              Capabilities:
+                            </span>
+                            {app.capabilities.map(c => {
+                              const fullCap = capabilities.find(item => item.id === c.id);
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onClick={() => fullCap && setInspectedConcept({ kind: 'capability', capability: fullCap })}
+                                  style={{
+                                    fontSize: '0.72rem',
+                                    fontWeight: 600,
+                                    padding: '0.18rem 0.5rem',
+                                    borderRadius: '999px',
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--secondary)',
+                                    color: 'var(--foreground)',
+                                    cursor: fullCap ? 'pointer' : 'default',
+                                  }}
+                                >
+                                  {c.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {appIntegrations.length > 0 && (
+                          <div style={{ fontSize: '0.76rem', color: 'var(--muted-foreground)' }}>
+                            Integrations: <strong>{appIntegrations.length}</strong> ({appIntegrations.filter(i => i.sourceAppId === app.id).length} outbound, {appIntegrations.filter(i => i.targetAppId === app.id).length} inbound)
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (inspectedConcept.kind === 'capability') {
+          const cap = capabilities.find(c => c.id === inspectedConcept.capability.id) || inspectedConcept.capability;
+          const parentCap = capabilities.find(c => c.id === cap.parentId);
+          const subCaps = capabilities.filter(c => c.parentId === cap.id);
+          const effectiveCrit = getEffectiveCapCrit(cap.id);
+          const critOpt = critOptions.find(o => String(o.value) === String(effectiveCrit));
+          const accentColor = critOpt?.color || 'var(--primary)';
+
+          const descendantCapIds = new Set<string>([cap.id]);
+          const collectDescendants = (pid: string) => {
+            for (const child of capabilities.filter(c => c.parentId === pid)) {
+              if (!descendantCapIds.has(child.id)) {
+                descendantCapIds.add(child.id);
+                collectDescendants(child.id);
+              }
+            }
+          };
+          collectDescendants(cap.id);
+
+          const rolledUpApps = apps.filter(a => a.capabilities?.some(c => descendantCapIds.has(c.id)));
+
+          return (
+            <div
+              className="state-dialog-backdrop"
+              style={{ zIndex: 1100 }}
+              onMouseDown={() => setInspectedConcept(null)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Capability inspector: ${cap.name}`}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  width: rolledUpApps.length > 0 ? 'min(52rem, 96vw)' : 'min(34rem, 96vw)',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  borderRadius: '16px',
+                  border: `1.5px solid ${accentColor}`,
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  boxShadow: `0 12px 32px rgba(0,0,0,0.28), 0 4px 16px ${accentColor}22`,
+                  padding: '1.35rem 1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.1rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                      {critOpt && (
+                        <span style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 900,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          padding: '0.12rem 0.45rem',
+                          borderRadius: '4px',
+                          background: `${critOpt.color}22`,
+                          color: critOpt.color,
+                          border: `1px solid ${critOpt.color}55`,
+                        }}>
+                          {critOpt.label}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                        {parentCap ? (
+                          <>
+                            Parent:{' '}
+                            <button
+                              type="button"
+                              onClick={() => setInspectedConcept({ kind: 'capability', capability: parentCap })}
+                              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
+                              {parentCap.name}
+                            </button>
+                          </>
+                        ) : (
+                          'Top-level capability'
+                        )}
+                        {subCaps.length > 0 && ` • ${subCaps.length} sub-capabilities`}
+                      </span>
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, lineHeight: 1.25 }}>
+                      {cap.name}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInspectedConcept(null);
+                        onCapabilityClick?.(cap);
+                      }}
+                      className="primary"
+                      style={{ height: '2rem', padding: '0 0.85rem', fontSize: '0.78rem', gap: '0.35rem', display: 'inline-flex', alignItems: 'center' }}
+                      title="Open full capability details page"
+                    >
+                      Details <ExternalLink size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Close inspector"
+                      onClick={() => setInspectedConcept(null)}
+                      style={{ height: '2rem', width: '2rem', padding: 0, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: rolledUpApps.length > 0 ? 'grid' : 'flex', gridTemplateColumns: rolledUpApps.length > 0 ? 'repeat(auto-fit, minmax(300px, 1fr))' : undefined, flexDirection: 'column', gap: '1.5rem', alignItems: 'start' }}>
+                  {rolledUpApps.length > 0 && (
+                    <div style={{ width: '100%', minWidth: 0 }}>
+                      <TimeMatrix
+                        apps={rolledUpApps.map(a => ({
+                          id: a.id,
+                          name: a.name,
+                          technicalFit: a.technicalFit,
+                          functionalFit: a.functionalFit,
+                          criticality: getEffectiveAppCrit(a),
+                          cost: a.cost,
+                        }))}
+                        onSelectApp={(appId) => {
+                          const found = apps.find(a => a.id === appId);
+                          if (found) setInspectedConcept({ kind: 'app', app: found });
+                        }}
+                        thresholds={timeThresholds}
+                        aspectRatio="1 / 1"
+                        showLegend={true}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', minWidth: 0, width: '100%' }}>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '0.84rem',
+                      color: 'var(--foreground)',
+                      opacity: 0.9,
+                      lineHeight: 1.5,
+                    }}>
+                      {cap.description || 'No description provided.'}
+                    </p>
+
+                    {rolledUpApps.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginRight: '0.2rem' }}>
+                          Applications ({rolledUpApps.length}):
+                        </span>
+                        {rolledUpApps.map(a => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setInspectedConcept({ kind: 'app', app: a })}
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              padding: '0.18rem 0.5rem',
+                              borderRadius: '999px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--secondary)',
+                              color: 'var(--foreground)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {a.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (inspectedConcept.kind === 'organization') {
+          const org = organizations.find(o => o.id === inspectedConcept.organization.id) || inspectedConcept.organization;
+          const parentOrg = organizations.find(o => o.id === org.parentId);
+          const subOrgs = organizations.filter(o => o.parentId === org.id);
+          const typeOpt = orgTypeOptions.find(o => String(o.value) === String(org.type));
+          const accentColor = (typeOpt?.color && typeOpt.color !== 'var(--secondary)') ? typeOpt.color : 'var(--primary)';
+          const orgMeta = safeJsonParse(org.metadata);
+
+          const descendantOrgIds = new Set<string>([org.id]);
+          const collectOrgDescendants = (pid: string) => {
+            for (const child of organizations.filter(o => o.parentId === pid)) {
+              if (!descendantOrgIds.has(child.id)) {
+                descendantOrgIds.add(child.id);
+                collectOrgDescendants(child.id);
+              }
+            }
+          };
+          collectOrgDescendants(org.id);
+
+          const rolledUpApps = apps.filter(a => a.ownerOrgId && descendantOrgIds.has(a.ownerOrgId));
+
+          return (
+            <div
+              className="state-dialog-backdrop"
+              style={{ zIndex: 1100 }}
+              onMouseDown={() => setInspectedConcept(null)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Organization inspector: ${org.name}`}
+                onMouseDown={(e) => e.stopPropagation()}
+                style={{
+                  width: rolledUpApps.length > 0 ? 'min(52rem, 96vw)' : 'min(34rem, 96vw)',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  borderRadius: '16px',
+                  border: `1.5px solid ${accentColor}`,
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
+                  padding: '1.35rem 1.5rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.1rem',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                      {(typeOpt?.label || org.type) && (
+                        <span style={{
+                          fontSize: '0.62rem',
+                          fontWeight: 800,
+                          letterSpacing: '0.05em',
+                          textTransform: 'uppercase',
+                          padding: '0.12rem 0.45rem',
+                          borderRadius: '4px',
+                          background: 'var(--accent)',
+                          color: 'var(--foreground)',
+                        }}>
+                          {typeOpt?.label || org.type}
+                        </span>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)' }}>
+                        {parentOrg ? (
+                          <>
+                            Parent:{' '}
+                            <button
+                              type="button"
+                              onClick={() => setInspectedConcept({ kind: 'organization', organization: parentOrg })}
+                              style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                            >
+                              {parentOrg.name}
+                            </button>
+                          </>
+                        ) : (
+                          'Root organization'
+                        )}
+                        {subOrgs.length > 0 && ` • ${subOrgs.length} sub-orgs`}
+                      </span>
+                    </div>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, lineHeight: 1.25 }}>
+                      {org.name}
+                    </h3>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInspectedConcept(null);
+                        onOrganizationClick?.(org);
+                      }}
+                      className="primary"
+                      style={{ height: '2rem', padding: '0 0.85rem', fontSize: '0.78rem', gap: '0.35rem', display: 'inline-flex', alignItems: 'center' }}
+                      title="Open full organization details page"
+                    >
+                      Details <ExternalLink size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Close inspector"
+                      onClick={() => setInspectedConcept(null)}
+                      style={{ height: '2rem', width: '2rem', padding: 0, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                <div style={{ display: rolledUpApps.length > 0 ? 'grid' : 'flex', gridTemplateColumns: rolledUpApps.length > 0 ? 'repeat(auto-fit, minmax(300px, 1fr))' : undefined, flexDirection: 'column', gap: '1.5rem', alignItems: 'start' }}>
+                  {rolledUpApps.length > 0 && (
+                    <div style={{ width: '100%', minWidth: 0 }}>
+                      <TimeMatrix
+                        apps={rolledUpApps.map(a => ({
+                          id: a.id,
+                          name: a.name,
+                          technicalFit: a.technicalFit,
+                          functionalFit: a.functionalFit,
+                          criticality: getEffectiveAppCrit(a),
+                          cost: a.cost,
+                        }))}
+                        onSelectApp={(appId) => {
+                          const found = apps.find(a => a.id === appId);
+                          if (found) setInspectedConcept({ kind: 'app', app: found });
+                        }}
+                        thresholds={timeThresholds}
+                        aspectRatio="1 / 1"
+                        showLegend={true}
+                      />
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', minWidth: 0, width: '100%' }}>
+                    {orgMeta.description && (
+                      <p style={{
+                        margin: 0,
+                        fontSize: '0.84rem',
+                        color: 'var(--foreground)',
+                        opacity: 0.9,
+                        lineHeight: 1.5,
+                      }}>
+                        {orgMeta.description}
+                      </p>
+                    )}
+
+                    {rolledUpApps.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.35rem', borderTop: orgMeta.description ? '1px solid var(--border)' : undefined, paddingTop: orgMeta.description ? '0.75rem' : 0 }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginRight: '0.2rem' }}>
+                          Owned Apps ({rolledUpApps.length}):
+                        </span>
+                        {rolledUpApps.map(a => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setInspectedConcept({ kind: 'app', app: a })}
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 600,
+                              padding: '0.18rem 0.5rem',
+                              borderRadius: '999px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--secondary)',
+                              color: 'var(--foreground)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {a.name}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
+                        No owned applications assigned to this organization.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        const integration = inspectedConcept.integration;
+        const sourceApp = apps.find(a => a.id === integration.sourceAppId) || integration.sourceApp;
+        const targetApp = apps.find(a => a.id === integration.targetAppId) || integration.targetApp;
+        const title = integration.name || integration.payload?.name || `${sourceApp?.name || 'Source'} → ${targetApp?.name || 'Target'}`;
+
+        return (
+          <div
+            className="state-dialog-backdrop"
+            style={{ zIndex: 1100 }}
+            onMouseDown={() => setInspectedConcept(null)}
+          >
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Integration inspector: ${title}`}
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                width: 'min(34rem, 100%)',
+                borderRadius: '14px',
+                border: '1.5px solid var(--primary)',
+                background: 'var(--card)',
+                color: 'var(--foreground)',
+                boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
+                padding: '1.15rem 1.3rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.85rem',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.6rem' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                    <span style={{
+                      fontSize: '0.62rem',
+                      fontWeight: 800,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      padding: '0.12rem 0.45rem',
+                      borderRadius: '4px',
+                      background: 'var(--secondary)',
+                      color: 'var(--muted-foreground)',
+                      border: '1px solid var(--border)',
+                    }}>
+                      Integration
+                    </span>
+                    {integration.pattern && (
+                      <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--accent)', color: 'var(--foreground)', fontWeight: 600 }}>
+                        {integration.pattern}
+                      </span>
+                    )}
+                    {integration.crud && (
+                      <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--accent)', color: 'var(--muted-foreground)', fontWeight: 700 }}>
+                        {integration.crud}
+                      </span>
+                    )}
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.25 }}>
+                    {title}
+                  </h3>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
+                    {sourceApp ? (
+                      <button
+                        type="button"
+                        onClick={() => setInspectedConcept({ kind: 'app', app: sourceApp })}
+                        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                      >
+                        {sourceApp.name}
+                      </button>
+                    ) : 'Unknown source'}
+                    {' → '}
+                    {targetApp ? (
+                      <button
+                        type="button"
+                        onClick={() => setInspectedConcept({ kind: 'app', app: targetApp })}
+                        style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
+                      >
+                        {targetApp.name}
+                      </button>
+                    ) : 'Unknown target'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInspectedConcept(null);
+                      onIntegrationClick?.(integration);
+                    }}
+                    className="primary"
+                    style={{ height: '1.95rem', padding: '0 0.75rem', fontSize: '0.76rem', gap: '0.35rem', display: 'inline-flex', alignItems: 'center' }}
+                    title="Open full integration details page"
+                  >
+                    Details <ExternalLink size={12} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Close inspector"
+                    onClick={() => setInspectedConcept(null)}
+                    style={{ height: '1.95rem', width: '1.95rem', padding: 0, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', background: 'var(--secondary)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Payload</div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {integration.payload?.name || 'None'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Frequency</div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                    {integration.frequency || '—'}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Pattern</div>
+                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--foreground)' }}>
+                    {integration.pattern || '—'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

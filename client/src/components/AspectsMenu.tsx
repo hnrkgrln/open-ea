@@ -11,6 +11,7 @@ interface Aspect {
 }
 
 const ASPECTS: Aspect[] = [
+  { fieldName: '', label: 'None' },
   { fieldName: 'lifecycle', label: 'Lifecycle' },
   { fieldName: 'time', label: 'TIME Assessment' },
   { fieldName: 'criticality', label: 'Business Criticality', modes: ['network', 'app-landscape', 'org-landscape'] },
@@ -28,16 +29,17 @@ export const AspectsMenu = ({
   onChange,
 }: {
   mode: string;
-  value: string;
-  onChange: (fieldName: string) => void;
+  value: string | null;
+  onChange: (fieldName: string | null) => void;
 }) => {
   const aspects = aspectsForMode(mode);
-  const selected = aspects.some((aspect) => aspect.fieldName === value) ? value : aspects[0]?.fieldName ?? 'lifecycle';
+  const currentVal = value || '';
+  const selected = aspects.some((aspect) => aspect.fieldName === currentVal) ? currentVal : '';
 
   useEffect(() => {
-    if (selected === value) return;
-    onChange(selected);
-  }, [selected, value, onChange]);
+    if (selected === currentVal) return;
+    onChange(selected || null);
+  }, [selected, currentVal, onChange]);
 
   return (
     <div role="group" aria-label="Aspect" style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center', position: 'relative' }}>
@@ -45,15 +47,15 @@ export const AspectsMenu = ({
       <div style={{ minWidth: '140px' }}>
         <ColoredSelect
           value={selected}
-          onChange={onChange}
+          onChange={(val) => onChange(val || null)}
           options={aspects.map((aspect) => ({ value: aspect.fieldName, label: aspect.label }))}
           style={{
             height: '1.65rem',
             marginTop: 0,
             background: 'var(--background)',
             fontSize: '10.5px',
-            color: 'var(--primary)',
-            fontWeight: 600,
+            color: selected ? 'var(--primary)' : 'var(--foreground)',
+            fontWeight: selected ? 600 : 400,
           }}
         />
       </div>

@@ -1683,7 +1683,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
   const mode = (searchParams.get('mode') as any) || 'landscape';
   const setMode = (m: string) => { const p = new URLSearchParams(searchParams); p.set('mode', m); setSearchParams(p, { replace: true }); };
 
-  const activeOverlay = searchParams.get('overlay') || 'lifecycle';
+  const activeOverlay = searchParams.get('overlay') || null;
   const setActiveOverlay = (o: string | null) => { 
     const p = new URLSearchParams(searchParams); 
     if (o) p.set('overlay', o); else p.delete('overlay');

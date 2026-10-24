@@ -8,7 +8,7 @@ import { suggestApplicationCapabilities } from './capabilityMapping.js';
 import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
-import { createLandscapeState, deleteLandscapeState, LandscapeStateError, landscapeContext, listLandscapeStates, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
+import { createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
 
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -325,6 +325,41 @@ server.delete('/landscape-states/:id', {
   try {
     await deleteLandscapeState(request.params.id);
     return { ok: true };
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.get('/landscape-states/:id/summary', {
+  schema: { params: z.object({ id: z.string() }) },
+}, async (request, reply) => {
+  try {
+    return await getLandscapeStateSummary(request.params.id);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.post('/landscape-states/:id/merge', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      domains: z.array(z.enum(MERGE_DOMAINS)).min(1).optional(),
+      backupCurrent: z.boolean().optional(),
+      backupName: z.string().trim().max(80).optional(),
+      deleteSource: z.boolean().optional(),
+    }),
+  },
+}, async (request, reply) => {
+  try {
+    const result = await mergeLandscapeStateIntoCurrent(request.params.id, request.body);
+    await landscapeContext.run(CURRENT_STATE_ID, async () => {
+      await backfillCriticality();
+      await backfillProcessing();
+    });
+    return result;
   } catch (err) {
     if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
     throw err;
