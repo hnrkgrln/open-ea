@@ -54,7 +54,7 @@ const crudSelected = (selected: string[] | undefined, crud: string | null | unde
   return selected.some((item) => ops.some((op) => op === item || op.toLowerCase() === item.toLowerCase()));
 };
 
-const integrationMatchesFilters = (integration: { payload?: InformationObject; pattern?: string | null; frequency?: string | null; crud?: string | null }, filters: any) => {
+const integrationMatchesFilters = (integration: { sourceAppId?: string; targetAppId?: string; infoObjectId?: string | null; payload?: InformationObject; pattern?: string | null; frequency?: string | null; crud?: string | null }, filters: any) => {
   const payload = integration.payload;
   return listSelected(filters?.infoType, payload?.type)
     && listSelected(filters?.pii, payload?.piiCategory)
@@ -63,18 +63,21 @@ const integrationMatchesFilters = (integration: { payload?: InformationObject; p
     && listSelected(filters?.availability, payload?.availability)
     && listSelected(filters?.pattern, integration.pattern)
     && listSelected(filters?.frequency, integration.frequency)
-    && crudSelected(filters?.crud, integration.crud);
+    && crudSelected(filters?.crud, integration.crud)
+    && listSelected(filters?.sourceAppId, integration.sourceAppId)
+    && listSelected(filters?.targetAppId, integration.targetAppId)
+    && listSelected(filters?.payloadId, integration.infoObjectId || payload?.id);
 };
 
 const hasActiveDiagramFilter = (filters: any) => {
   if (String(filters?.search || '').trim()) return true;
-  const keys = ['ownerOrgId', 'orgType', 'owner', 'lifecycle', 'type', 'capabilityId', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'time', 'infoType', 'pii', 'confidentiality', 'integrity', 'availability', 'pattern', 'frequency', 'crud'];
+  const keys = ['ownerOrgId', 'orgType', 'owner', 'lifecycle', 'type', 'capabilityId', 'criticality', 'cost', 'functionalFit', 'technicalFit', 'time', 'infoType', 'pii', 'confidentiality', 'integrity', 'availability', 'pattern', 'frequency', 'crud', 'sourceAppId', 'targetAppId', 'payloadId'];
   if (keys.some((key) => Array.isArray(filters?.[key]) && filters[key].length > 0)) return true;
   const custom = filters?.custom;
   return !!custom && Object.values(custom).some((vals) => Array.isArray(vals) && vals.length > 0);
 };
 
-const describeCategoricalFilters = (filters: any, organizations: Organization[], capabilities: Capability[], metaDefs: MetadataDefinition[]) => {
+const describeCategoricalFilters = (filters: any, organizations: Organization[], capabilities: Capability[], metaDefs: MetadataDefinition[], apps: { id: string; name: string }[] = [], payloadNames: Map<string, string> = new Map()) => {
   const labels: string[] = [];
   const add = (title: string, values?: string[]) => {
     if (values && values.length > 0) labels.push(`${title}: ${values.join(', ')}`);
@@ -104,6 +107,12 @@ const describeCategoricalFilters = (filters: any, organizations: Organization[],
   add('Pattern', filters.pattern);
   add('Frequency', filters.frequency);
   add('CRUD', filters.crud);
+  const named = (title: string, ids: string[] | undefined, nameOf: (id: string) => string) => {
+    if (ids && ids.length > 0) labels.push(`${title}: ${ids.map(nameOf).join(', ')}`);
+  };
+  named('Source', filters.sourceAppId, (id) => apps.find((app) => app.id === id)?.name || id);
+  named('Target', filters.targetAppId, (id) => apps.find((app) => app.id === id)?.name || id);
+  named('Payload', filters.payloadId, (id) => payloadNames.get(id) || id);
   if (filters.custom) {
     Object.entries(filters.custom).forEach(([field, vals]) => {
       if (vals && (vals as any[]).length > 0) {
@@ -1028,7 +1037,12 @@ const DiagramInner = ({
     };
 
     const viewW = viewportWidth > 0 ? viewportWidth : (typeof window !== 'undefined' ? Math.max(720, window.innerWidth - 48) : 1200);
-    const showFilterFrame = filterFrame && !groupingField && describeCategoricalFilters(filters, organizations, capabilities, metaDefs).length > 0;
+    const payloadNames = new Map<string, string>();
+    for (const integration of integrations) {
+      const id = integration.infoObjectId || integration.payload?.id;
+      if (id && integration.payload?.name) payloadNames.set(id, integration.payload.name);
+    }
+    const showFilterFrame = filterFrame && !groupingField && describeCategoricalFilters(filters, organizations, capabilities, metaDefs, apps, payloadNames).length > 0;
     const framePad = showFilterFrame ? 128 : 28;
     const flowWidth = reflow ? viewW / Math.max(reflowZoom, 0.05) : viewW;
     const canvasBudget = Math.max(360, Math.floor(flowWidth - framePad));
@@ -1263,6 +1277,9 @@ const DiagramInner = ({
           hasFilterList(filters.pattern) ||
           hasFilterList(filters.frequency) ||
           hasFilterList(filters.crud) ||
+          hasFilterList(filters.sourceAppId) ||
+          hasFilterList(filters.targetAppId) ||
+          hasFilterList(filters.payloadId) ||
           hasCustomFilter;
         const hasAnyAppFilter = hasStructuralFilter || hasOtherAppFilter;
         // Organization Type and Owning Organization name the boxes. With no other

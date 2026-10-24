@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -237,26 +238,6 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
               </section>
               )}
 
-              {/* Dynamic Metadata Section */}
-              {Object.keys(meta).length > 0 && (
-                <section>
-                  <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Extended Attributes</h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                    {Object.entries(meta).map(([key, val]: [string, any]) => {
-                      const def = metaDefs?.find(d => d.fieldName === key);
-                      return (
-                        <div key={key} style={{ background: 'var(--card)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>{def?.label || key}</div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>
-                            {def?.fieldType === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
-              )}
-
               <section>
                 <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Audit Trail</h3>
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}>
@@ -273,6 +254,26 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
           </div>
 
           {showField('information.references') && <ReferencesList raw={item.references} />}
+
+          {Object.keys(meta).length > 0 && (
+            <section style={{ marginTop: '2.5rem' }}>
+              <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em' }}>Custom attributes</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {Object.entries(meta).map(([key, val]: [string, any]) => {
+                  const def = metaDefs?.find(d => d.fieldName === key);
+                  return (
+                    <div key={key} style={{ background: 'var(--card)', padding: '1rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.4rem' }}>{def?.label || key}</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 700 }}>
+                        {def?.fieldType === 'boolean' ? (val ? 'Yes' : 'No') : String(val)}
+                      </div>
+                      <AttributeHint text={def?.description} />
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>

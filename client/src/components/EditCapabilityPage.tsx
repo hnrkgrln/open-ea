@@ -8,6 +8,7 @@ import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -313,15 +314,17 @@ export const EditCapabilityPage = () => {
               </div>
             </section>}
 
-            {/* CUSTOM META */}
+            {showField('capability.references') && <ReferencesEditor value={references} onChange={setReferences} />}
+
             {otherMetaDefs.length > 0 && (
               <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <Edit2 size={16} /> Extended Metadata
+                  <Edit2 size={16} /> Custom attributes
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
                   {otherMetaDefs.map(def => (
-                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
+                    <div key={def.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
+                    <div style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
                       {def.fieldType === 'range' ? (
                         <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                           <label className="label" style={{ marginBottom: '0.75rem', fontSize: '0.75rem' }}>{def.label}</label>
@@ -349,12 +352,12 @@ export const EditCapabilityPage = () => {
                         </>
                       )}
                     </div>
+                    <AttributeHint text={def.description} />
+                    </div>
                   ))}
                 </div>
               </section>
             )}
-
-            {showField('capability.references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

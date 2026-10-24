@@ -5,8 +5,10 @@ import { useStoreApi, type Node } from 'reactflow';
 export const REVEAL_CLASS = 'diagram-box-revealed';
 const ANIM_CLASS = 'diagram-box-reveal-anim';
 const ANIM_MS = 220;
-// Above group frames (-100) and chips (100). Ancestors must rise too: a child z-index cannot leave its parent.
+// Above group frames (-100) and resting chips (100). Ancestors rise with the open box.
+// Each box sits one step above its parent. The box under the pointer is raised above its siblings.
 const REVEAL_Z = 10000;
+const HOVER_BOOST = 1000;
 
 type Snap = {
   width: number;
@@ -26,10 +28,12 @@ type Placement = {
 
 type SetNodes = (update: (nodes: Node[]) => Node[]) => void;
 
-const revealRef: { current: { open: (placements: Placement[]) => void; close: (rootId: string) => void } | null } = { current: null };
+const revealRef: { current: { open: (placements: Placement[]) => void; raise: () => void; close: (rootId: string) => void } | null } = { current: null };
 
 // The open container. Pointer moves onto a child are not a leave: those nodes are siblings in the DOM, not descendants.
 let openRoot: string | null = null;
+// The box under the pointer. It stays above its siblings; its own children stay above it.
+let hoverTop: string | null = null;
 
 function textShortfall(el: HTMLElement): number {
   const cs = getComputedStyle(el);
@@ -123,14 +127,53 @@ function openRootId(nodes: Node[], placements: Placement[]): string | null {
   return root?.id ?? placements[0]?.id ?? null;
 }
 
-// A revealed child is trapped under later frames unless every parent stacking context is raised.
-function withRaisedAncestors(nodes: Node[], rootId: string | null): Node[] {
+// Outermost raised frame sits at REVEAL_Z. Every child is one step above its parent.
+// The hovered box, and the boxes inside it, then rise so that box paints above its siblings.
+function stackingZ(nodes: Node[], rootId: string, topId: string | null): Map<string, number> {
+  const ancestors = ancestorIds(nodes, rootId);
+  const outermost = ancestors.length ? ancestors[ancestors.length - 1] : rootId;
+  const childMap = childrenByParent(nodes);
+  const zById = new Map<string, number>();
+  const seen = new Set<string>();
+  const queue = [outermost];
+  zById.set(outermost, REVEAL_Z);
+  while (queue.length) {
+    const id = queue.shift()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const z = zById.get(id) ?? REVEAL_Z;
+    const kids = childMap.get(id) ?? [];
+    if (!kids.length) continue;
+    const childZ = z + 1;
+    for (const child of kids) {
+      zById.set(child.id, childZ);
+      queue.push(child.id);
+    }
+  }
+  if (topId && zById.has(topId)) {
+    const lift = [topId];
+    const lifted = new Set<string>();
+    while (lift.length) {
+      const id = lift.pop()!;
+      if (lifted.has(id)) continue;
+      lifted.add(id);
+      zById.set(id, (zById.get(id) ?? REVEAL_Z) + HOVER_BOOST);
+      for (const child of childMap.get(id) ?? []) lift.push(child.id);
+    }
+  }
+  return zById;
+}
+
+function withEvenStacking(nodes: Node[], rootId: string | null): Node[] {
   if (!rootId) return nodes;
-  const ids = new Set(ancestorIds(nodes, rootId));
-  if (!ids.size) return nodes;
+  const topId = hoverTop && (hoverTop === rootId || containsNode(nodes, rootId, hoverTop)) ? hoverTop : rootId;
+  const zById = stackingZ(nodes, rootId, topId);
+  const ancestors = new Set(ancestorIds(nodes, rootId));
   let changed = false;
   const next = nodes.map((node) => {
-    if (!ids.has(node.id)) return node;
+    const z = zById.get(node.id);
+    if (z == null) return node;
+    const raiseOverflow = ancestors.has(node.id);
     const existing = snapOf(node);
     const snap: Snap = existing ?? {
       width: numericWidth(node.style?.width) ?? 0,
@@ -139,12 +182,13 @@ function withRaisedAncestors(nodes: Node[], rootId: string | null): Node[] {
       overflow: node.style?.overflow,
       className: plainClass(node.className),
     };
-    if (existing && node.style?.zIndex === REVEAL_Z && node.style?.overflow === 'visible') return node;
+    const overflow = raiseOverflow ? 'visible' as const : node.style?.overflow;
+    if (existing && node.style?.zIndex === z && node.style?.overflow === overflow) return node;
     changed = true;
     return {
       ...node,
-      data: { ...(node.data as object), revealSnap: snap },
-      style: { ...node.style, zIndex: REVEAL_Z, overflow: 'visible' },
+      data: existing ? node.data : { ...(node.data as object), revealSnap: snap },
+      style: { ...node.style, zIndex: z, overflow },
     };
   });
   return changed ? next : nodes;
@@ -196,7 +240,6 @@ function planOpen(nodes: Node[], rootId: string): Placement[] | null {
       else rows.set(key, [kid]);
     }
     let contentRight = 0;
-    let rowIndex = 0;
     for (const row of rows.values()) {
       row.sort((a, b) => baseGeom(a)!.x - baseGeom(b)!.x);
       const last = baseGeom(row[row.length - 1])!;
@@ -216,19 +259,18 @@ function planOpen(nodes: Node[], rootId: string): Placement[] | null {
           x: cursor,
           width: childWidth,
           reveal: existing?.reveal ?? false,
-          z: REVEAL_Z + (depth + 1) * 200 + rowIndex * 30 + i,
+          z: REVEAL_Z + depth + 1,
         });
         cursor += childWidth;
       }
       contentRight = Math.max(contentRight, cursor + rightInset);
-      rowIndex += 1;
     }
     placed.set(id, {
       id,
       x: base.x,
       width: kids.length ? Math.max(own.width, contentRight) : own.width,
       reveal: own.reveal,
-      z: REVEAL_Z + depth * 200,
+      z: REVEAL_Z + depth,
     });
   };
 
@@ -316,7 +358,7 @@ function withOpen(nodes: Node[], placements: Placement[]): Node[] {
     };
   });
   const opened = changed ? next : nodes;
-  return withRaisedAncestors(opened, openRootId(nodes, placements));
+  return withEvenStacking(opened, openRootId(nodes, placements));
 }
 
 function subtreeIds(nodes: Node[], rootId: string): Set<string> {
@@ -400,6 +442,11 @@ export function useDiagramReveal(setNodes: SetNodes) {
         setNodes((current) => withOpen(current, placements));
       });
     },
+    raise: () => {
+      const root = openRoot;
+      if (!root) return;
+      setNodes((current) => withEvenStacking(current, root));
+    },
     close: (rootId) => {
       window.cancelAnimationFrame(openFrame);
       setNodes((current) => withClose(current, rootId));
@@ -447,9 +494,12 @@ export function BoxLabel({ id, name, style }: { id: string; name: string; style:
       const nodes = store.getState().getNodes();
       if (openRoot && openRoot !== id && containsNode(nodes, openRoot, id)) {
         hovering = true;
+        hoverTop = id;
+        revealRef.current?.raise();
         return;
       }
       openRoot = id;
+      hoverTop = id;
       hovering = true;
       widen();
       cancelAnimationFrame(frame);
@@ -462,7 +512,10 @@ export function BoxLabel({ id, name, style }: { id: string; name: string; style:
       const nextId = [related, under].find((candidate) => candidate && openRoot && containsNode(nodes, openRoot, candidate)) ?? related ?? under;
       if (openRoot && nextId && containsNode(nodes, openRoot, nextId)) return;
       const root = openRoot && containsNode(nodes, openRoot, id) ? openRoot : id;
-      if (openRoot === root) openRoot = null;
+      if (openRoot === root) {
+        openRoot = null;
+        hoverTop = null;
+      }
       hovering = false;
       cancelAnimationFrame(frame);
       revealRef.current?.close(root);
@@ -475,6 +528,7 @@ export function BoxLabel({ id, name, style }: { id: string; name: string; style:
       host.removeEventListener('mouseenter', reveal);
       host.removeEventListener('mouseleave', hide);
       if (openRoot === id) openRoot = null;
+      if (hoverTop === id) hoverTop = null;
     };
   }, [id, store]);
   return <span ref={ref} data-box-label="" style={style}>{name}</span>;

@@ -841,7 +841,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     if (filteredApps.length === 0) return;
     
     // Define headers
-    const headers = ['Name', 'Description', 'Owner', 'Owning Organization', 'Type', 'Lifecycle', 'Lifecycle Start', 'Lifecycle End', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities', 'Processed Information', 'References'];
+    const headers = ['Name', 'Description', 'Owner', 'Owning Organization', 'Type', 'Lifecycle', 'Lifecycle Start', 'Lifecycle End', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities', 'Processed Information', 'Resources'];
     const customHeaders = appMetaDefs.map(d => d.label);
     const allHeaders = [...headers, ...customHeaders];
 
@@ -1397,7 +1397,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
   const exportToCSV = () => {
     if (!capabilities || capabilities.length === 0) return;
 
-    const headers = ['Name', 'Parent ID', 'Criticality', 'Description', 'References', 'Applications'];
+    const headers = ['Name', 'Parent ID', 'Criticality', 'Description', 'Resources', 'Applications'];
     
     const csvContent = [
       headers.join(','),
@@ -1591,6 +1591,9 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     pattern: getParamArray('pattern'),
     frequency: getParamArray('frequency'),
     crud: getParamArray('crud'),
+    sourceAppId: getParamArray('sourceApp'),
+    targetAppId: getParamArray('targetApp'),
+    payloadId: getParamArray('payload'),
     custom: getCustomParams()
   }), [searchParams]);
 
@@ -1622,6 +1625,9 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     if (newFilters.pattern !== undefined) setOrRemove('pattern', newFilters.pattern);
     if (newFilters.frequency !== undefined) setOrRemove('frequency', newFilters.frequency);
     if (newFilters.crud !== undefined) setOrRemove('crud', newFilters.crud);
+    if (newFilters.sourceAppId !== undefined) setOrRemove('sourceApp', newFilters.sourceAppId);
+    if (newFilters.targetAppId !== undefined) setOrRemove('targetApp', newFilters.targetAppId);
+    if (newFilters.payloadId !== undefined) setOrRemove('payload', newFilters.payloadId);
     
     if (newFilters.custom !== undefined) {
       // Clear existing custom meta params
@@ -1705,6 +1711,22 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
   const patternOptions = picklistWithExtras('integration_pattern', integrations.map((integration) => integration.pattern));
   const frequencyOptions = picklistWithExtras('integration_frequency', integrations.map((integration) => integration.frequency));
   const crudOptions = picklistWithExtras('integration_crud', integrations.flatMap((integration) => String(integration.crud || '').split(',').map((part) => part.trim())));
+  const endpointOptions = (ids: Array<string | null | undefined>, nameOf: (id: string) => string) => {
+    const names = new Map<string, string>();
+    for (const id of ids) {
+      if (id) names.set(id, nameOf(id));
+    }
+    return [...names.entries()]
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  };
+  const appName = (id: string) => apps?.find((app) => app.id === id)?.name || id;
+  const sourceOptions = endpointOptions(integrations.map((integration) => integration.sourceAppId), appName);
+  const targetOptions = endpointOptions(integrations.map((integration) => integration.targetAppId), appName);
+  const payloadOptions = endpointOptions(
+    integrations.map((integration) => integration.infoObjectId || integration.payload?.id),
+    (id) => integrations.find((integration) => (integration.infoObjectId || integration.payload?.id) === id)?.payload?.name || id,
+  );
   
   const { filteredApps, categoricalFilteredApps } = useMemo(() => {
     if (!apps) return { filteredApps: [], categoricalFilteredApps: [] };
@@ -1799,10 +1821,16 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       const matchPattern = matchesAnyValue(filters.pattern, flows.map((flow) => flow.pattern));
       const matchFrequency = matchesAnyValue(filters.frequency, flows.map((flow) => flow.frequency));
       const matchCrud = !filters.crud?.length || flows.some((flow) => selectedCrud(filters.crud, flow.crud));
+      const endpointFilter = (filters.sourceAppId?.length || 0) > 0 || (filters.targetAppId?.length || 0) > 0 || (filters.payloadId?.length || 0) > 0;
+      const matchEndpoints = !endpointFilter || flows.some((flow) =>
+        selectedValue(filters.sourceAppId, flow.sourceAppId)
+        && selectedValue(filters.targetAppId, flow.targetAppId)
+        && selectedValue(filters.payloadId, flow.infoObjectId || flow.payload?.id)
+      );
 
       return matchOwner && matchLifecycle && matchType && matchCap && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom
         && matchOwnerOrg && matchOrgType && matchInfoType && matchPii && matchConfidentiality && matchIntegrity && matchAvailability
-        && matchPattern && matchFrequency && matchCrud;
+        && matchPattern && matchFrequency && matchCrud && matchEndpoints;
     });
 
     // 2. Search Filtering (Applied on top of categorical)
@@ -1849,6 +1877,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       filters.ownerOrgId, filters.orgType, filters.owner, filters.lifecycle, filters.type, filters.capabilityId,
       filters.criticality, filters.cost, filters.functionalFit, filters.technicalFit, filters.time, filters.infoType,
       filters.pii, filters.confidentiality, filters.integrity, filters.availability, filters.pattern, filters.frequency, filters.crud,
+      filters.sourceAppId, filters.targetAppId, filters.payloadId,
     ];
     const custom = Object.values(filters.custom || {}).some((vals) => vals.length > 0);
     return filters.search !== '' || lists.some((vals) => vals.length > 0) || custom;
@@ -1984,6 +2013,9 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
               { label: 'Confidentiality', options: ciaOptions, key: 'confidentiality' },
               { label: 'Integrity', options: ciaOptions, key: 'integrity' },
               { label: 'Availability', options: ciaOptions, key: 'availability' },
+              { label: 'Source', options: sourceOptions, key: 'sourceAppId' },
+              { label: 'Target', options: targetOptions, key: 'targetAppId' },
+              { label: 'Payload', options: payloadOptions, key: 'payloadId' },
               { label: 'Integration Pattern', options: patternOptions, key: 'pattern' },
               { label: 'Integration Frequency', options: frequencyOptions, key: 'frequency' },
               { label: 'CRUD', options: crudOptions, key: 'crud' },
@@ -2044,6 +2076,9 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
                 pattern: [],
                 frequency: [],
                 crud: [],
+                sourceAppId: [],
+                targetAppId: [],
+                payloadId: [],
                 custom: {},
               })} 
               style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}

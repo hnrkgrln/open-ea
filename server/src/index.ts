@@ -31,6 +31,12 @@ function normalizeTimeRationale(value: string | null | undefined): string | null
   return text.length > 0 ? text : null;
 }
 
+function cleanAttributeDescription(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  const text = (value ?? '').trim();
+  return text.length > 0 ? text.slice(0, 1000) : null;
+}
+
 const VENDOR_META_KEYS = ['_vendorName', '_vendorUrl', '_vendorSummary'] as const;
 
 function isPublicHttpUrl(value: string): boolean {
@@ -1261,6 +1267,7 @@ server.post('/metadata-definitions', {
       fieldName: z.string(),
       fieldType: z.string(),
       label: z.string(),
+      description: z.string().max(1000).optional().nullable(),
       required: z.boolean().optional(),
       min: z.number().optional().nullable(),
       max: z.number().optional().nullable(),
@@ -1268,8 +1275,9 @@ server.post('/metadata-definitions', {
     }),
   },
 }, async (request) => {
+  const { description, ...rest } = request.body;
   return prisma.metadataDefinition.create({
-    data: request.body,
+    data: { ...rest, description: cleanAttributeDescription(description) ?? null },
   });
 });
 
@@ -1281,6 +1289,7 @@ server.put('/metadata-definitions/:id', {
       fieldName: z.string().optional(),
       fieldType: z.string().optional(),
       label: z.string().optional(),
+      description: z.string().max(1000).optional().nullable(),
       required: z.boolean().optional(),
       min: z.number().optional().nullable(),
       max: z.number().optional().nullable(),
@@ -1288,9 +1297,11 @@ server.put('/metadata-definitions/:id', {
     }),
   },
 }, async (request) => {
+  const data = { ...request.body };
+  if (data.description !== undefined) data.description = cleanAttributeDescription(data.description);
   return prisma.metadataDefinition.update({
     where: { id: request.params.id },
-    data: request.body,
+    data,
   });
 });
 

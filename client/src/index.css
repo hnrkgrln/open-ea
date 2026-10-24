@@ -243,7 +243,6 @@ body {
 
 .diagram-surface .react-flow__node.diagram-box-revealed {
   overflow: visible !important;
-  z-index: 10000 !important;
 }
 
 .diagram-surface .react-flow__node.diagram-box-reveal-anim {
@@ -1657,6 +1656,13 @@ input:focus, textarea:focus, select:focus {
 .clear-all-item:hover {
   background: var(--destructive) !important;
   color: var(--destructive-foreground) !important;
+}
+
+.attribute-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--muted-foreground);
 }
 
 .field {

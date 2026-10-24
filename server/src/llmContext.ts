@@ -29,6 +29,25 @@ type MetadataDefinitionRow = {
   fieldName: string;
   fieldType: string;
   label: string;
+  description: string | null;
+};
+
+const ATTRIBUTE_TYPES: Record<string, string> = {
+  string: 'text',
+  textarea: 'long text',
+  number: 'number',
+  range: 'range',
+  date: 'date',
+  boolean: 'yes or no',
+};
+
+const ATTRIBUTE_SUBJECTS: Record<string, string> = {
+  Application: 'Application',
+  Capability: 'Capability',
+  InformationObject: 'Information',
+  Organization: 'Organization',
+  StrategicGoal: 'Strategic goal',
+  Integration: 'Integration',
 };
 
 export type PortfolioSnapshot = {
@@ -188,6 +207,17 @@ function showValue(fieldType: string, value: unknown): string | null {
   return clip(JSON.stringify(value), 80);
 }
 
+function customAttributeGuide(definitions: MetadataDefinitionRow[]): string[] {
+  return definitions.flatMap((def) => {
+    if ((COLUMN_FIELDS[def.entityType] ?? new Set()).has(def.fieldName)) return [];
+    const subject = ATTRIBUTE_SUBJECTS[def.entityType] ?? def.entityType;
+    const type = ATTRIBUTE_TYPES[def.fieldType] ?? def.fieldType;
+    const description = def.description?.trim();
+    const meaning = description ? `: ${clip(description, 500)}` : '';
+    return [`- ${subject} / ${def.label} (${def.fieldName}, ${type})${meaning}`];
+  });
+}
+
 function customFields(entityType: string, raw: string | null, definitions: MetadataDefinitionRow[]): string[] {
   const data = readMetadata(raw);
   if (!data) return [];
@@ -205,7 +235,7 @@ function referenceField(raw: string | null): string | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return field('references', clip(raw, 200));
+    if (!Array.isArray(parsed)) return field('resources', clip(raw, 200));
     const items = parsed
       .map((item) => {
         if (!item || typeof item !== 'object') return null;
@@ -216,9 +246,9 @@ function referenceField(raw: string | null): string | null {
         return title ? `${title} (${url})` : url;
       })
       .filter((item): item is string => !!item);
-    return field('references', clip(items.join('; '), 200));
+    return field('resources', clip(items.join('; '), 200));
   } catch {
-    return field('references', clip(raw, 200));
+    return field('resources', clip(raw, 200));
   }
 }
 
@@ -240,6 +270,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
     const right = `${b.sourceApp.name}\n${b.targetApp.name}\n${b.name ?? ''}`;
     return left.localeCompare(right);
   });
+  const attributeGuide = customAttributeGuide(snapshot.metadataDefinitions);
 
   const applicationLines = applications.map((app) => {
     const lifecycleSpan = dateSpan(app.lifecycleStartDate, app.lifecycleEndDate);
@@ -326,8 +357,9 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
     `Records: ${applications.length} applications, ${strategicGoals.length} strategic goals, ${capabilities.length} capabilities, ${organizations.length} organizations, ${informationObjects.length} information objects, ${integrations.length} integrations.`,
     'This is the full current portfolio, not a sample.',
     `Scores run from 1 to 5. A missing functional fit or technical fit is treated as 3. TIME treats technical fit ${techHigh} or above, and functional fit ${funcHigh} or above, as high: Invest when both are high, Migrate when only functional fit is high, Tolerate when only technical fit is high, Eliminate when both are low. TIME is omitted when both scores are missing.`,
-    'Custom attributes are listed only when a value is stored.',
-    ...(includeNotes ? [] : ['Descriptions, contract notes, vendor summaries, TIME rationales, aliases, and reference lists were omitted because the snapshot was too long.']),
+    'Custom attributes are listed on a record only when a value is stored. Use the description in Custom attributes when you interpret a value.',
+    ...(includeNotes ? [] : ['Descriptions, contract notes, vendor summaries, TIME rationales, aliases, and resource lists were omitted because the snapshot was too long.']),
+    ...(attributeGuide.length ? ['', section('Custom attributes', attributeGuide)] : []),
     '',
     section('Applications', applicationLines),
     '',
@@ -437,7 +469,7 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
     }),
     prisma.metadataDefinition.findMany({
       orderBy: { label: 'asc' },
-      select: { entityType: true, fieldName: true, fieldType: true, label: true },
+      select: { entityType: true, fieldName: true, fieldType: true, label: true, description: true },
     }),
   ]);
 

@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, FileCode, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, type LucideIcon } from 'lucide-react';
+import { Plus, Trash2, Settings2, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, type LucideIcon } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
+import { AttributeHint } from './AttributeHint';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
 import { ImportExportSettings } from './ImportExport';
 import { useLocalStorage, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
@@ -34,6 +35,7 @@ interface MetadataDefinition {
   fieldName: string;
   fieldType: string;
   label: string;
+  description?: string | null;
   required: boolean;
   min?: number;
   max?: number;
@@ -42,7 +44,7 @@ interface MetadataDefinition {
 
 const STRATEGIC_FIELD_NAMES = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale'];
 
-const SETTINGS_TABS = ['artifact', 'metadata', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt'] as const;
+const SETTINGS_TABS = ['artifact', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt'] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 function isSettingsTab(value: string): value is SettingsTab {
@@ -218,8 +220,8 @@ const APPLICATION_FIELDS: ArtifactField[] = [
   { kind: 'builtin', id: 'capabilities', section: 'Relations', label: 'Business Capabilities', typeLabel: 'Relation', detail: 'Capabilities this application supports.' },
   { kind: 'builtin', id: 'processedInformation', section: 'Relations', label: 'Processed Information', typeLabel: 'Relation', detail: 'Information objects this application processes.' },
   { kind: 'builtin', id: 'integrations', section: 'Relations', label: 'Integrations & Data Flows', typeLabel: 'Relation', detail: 'Inbound and outbound integrations.' },
-  { kind: 'custom-other', section: 'Extended metadata', entityType: 'Application' },
-  { kind: 'builtin', id: 'references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the application.' },
+  { kind: 'builtin', id: 'references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the application.' },
+  { kind: 'custom-other', section: 'Custom attributes', entityType: 'Application' },
 ];
 
 const STRATEGIC_GOAL_FIELDS: ArtifactField[] = [
@@ -227,7 +229,8 @@ const STRATEGIC_GOAL_FIELDS: ArtifactField[] = [
   { kind: 'builtin', id: 'strategicGoal.description', section: 'Definition', label: 'Description', typeLabel: 'Long text', detail: 'Outcome this goal is meant to achieve.' },
   { kind: 'builtin', id: 'strategicGoal.parent', section: 'Definition', label: 'Parent Goal', typeLabel: 'Relation', detail: 'Strategic goal this one belongs to.' },
   { kind: 'builtin', id: 'strategicGoal.capabilities', section: 'Relations', label: 'Required Capabilities', typeLabel: 'Relation', detail: 'Capabilities this strategic goal requires.' },
-  { kind: 'builtin', id: 'strategicGoal.references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the strategic goal.' },
+  { kind: 'builtin', id: 'strategicGoal.references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the strategic goal.' },
+  { kind: 'custom', section: 'Custom attributes', entityType: 'StrategicGoal' },
 ];
 
 const CAPABILITY_FIELDS: ArtifactField[] = [
@@ -236,8 +239,8 @@ const CAPABILITY_FIELDS: ArtifactField[] = [
   { kind: 'builtin', id: 'capability.parent', section: 'Functional definition', label: 'Parent Capability', typeLabel: 'Relation', detail: 'Capability this one belongs to.' },
   { kind: 'picklist', section: 'Strategic importance', name: 'criticality', label: 'Business Criticality' },
   { kind: 'builtin', id: 'capability.applications', section: 'Relations', label: 'Supporting Applications', typeLabel: 'Relation', detail: 'Applications that support this capability.' },
-  { kind: 'custom', section: 'Extended metadata', entityType: 'Capability', skipFieldNames: ['criticality'] },
-  { kind: 'builtin', id: 'capability.references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the capability.' },
+  { kind: 'builtin', id: 'capability.references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the capability.' },
+  { kind: 'custom', section: 'Custom attributes', entityType: 'Capability', skipFieldNames: ['criticality'] },
 ];
 
 const ORGANIZATION_FIELDS: ArtifactField[] = [
@@ -246,7 +249,8 @@ const ORGANIZATION_FIELDS: ArtifactField[] = [
   { kind: 'picklist', section: 'Definition', name: 'organization_type', label: 'Type' },
   { kind: 'builtin', id: 'organization.parent', section: 'Definition', label: 'Parent Organization / Manager', typeLabel: 'Relation', detail: 'Organization this one reports to.' },
   { kind: 'builtin', id: 'organization.capabilities', section: 'Relations', label: 'Supported Capabilities', typeLabel: 'Relation', detail: 'Capabilities this organization supports.' },
-  { kind: 'builtin', id: 'organization.references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the organization.' },
+  { kind: 'builtin', id: 'organization.references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the organization.' },
+  { kind: 'custom', section: 'Custom attributes', entityType: 'Organization' },
 ];
 
 const INFORMATION_FIELDS: ArtifactField[] = [
@@ -258,8 +262,8 @@ const INFORMATION_FIELDS: ArtifactField[] = [
   { kind: 'picklist', section: 'CIA model and compliance', name: 'pii_category', label: 'PII Category' },
   { kind: 'builtin', id: 'information.businessOwner', section: 'Accountability', label: 'Business Owner', typeLabel: 'Relation', detail: 'Organization accountable for this concept.' },
   { kind: 'builtin', id: 'information.sourceOfTruth', section: 'Accountability', label: 'Source of Truth', typeLabel: 'Relation', detail: 'Application that masters this concept.' },
-  { kind: 'custom', section: 'Extended metadata', entityType: 'InformationObject' },
-  { kind: 'builtin', id: 'information.references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the information object.' },
+  { kind: 'builtin', id: 'information.references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the information object.' },
+  { kind: 'custom', section: 'Custom attributes', entityType: 'InformationObject' },
 ];
 
 const INTEGRATION_FIELDS: ArtifactField[] = [
@@ -271,7 +275,8 @@ const INTEGRATION_FIELDS: ArtifactField[] = [
   { kind: 'picklist', section: 'Delivery context', name: 'integration_frequency', label: 'Frequency' },
   { kind: 'picklist', section: 'Delivery context', name: 'integration_crud', label: 'CRUD Operations' },
   { kind: 'picklist', section: 'Delivery context', name: 'integration_type', label: 'Integration Type' },
-  { kind: 'builtin', id: 'integration.references', section: 'References', label: 'References', typeLabel: 'Links', detail: 'Titles and links attached to the integration.' },
+  { kind: 'builtin', id: 'integration.references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the integration.' },
+  { kind: 'custom', section: 'Custom attributes', entityType: 'Integration' },
 ];
 
 const ARTIFACT_FIELDS: Record<string, ArtifactField[]> = {
@@ -334,6 +339,7 @@ function CustomAttributeCard({ definition, onChanged, onDelete }: { definition: 
             Custom attribute
           </div>
           <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>{definition.label}</h3>
+          <AttributeHint text={definition.description} />
           <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem' }}>
             {typeLabel} · <span style={{ fontFamily: 'monospace' }}>{definition.fieldName}</span>
           </div>
@@ -480,10 +486,10 @@ export const PicklistsView = ({
   const [metaLabel, setMetaLabel] = useState('');
   const [metaName, setMetaName] = useState('');
   const [metaType, setMetaType] = useState('string');
-  const [metaEntity, setMetaEntity] = useState('Application');
   const [metaMin, setMetaMin] = useState(0);
   const [metaMax, setMetaMax] = useState(100);
   const [metaScale, setMetaScale] = useState('neutral');
+  const [metaDescription, setMetaDescription] = useState('');
 
   const { data: picklists, isLoading: loadingPicklists } = useQuery<Picklist[]>({
     queryKey: ['picklists'],
@@ -509,6 +515,11 @@ export const PicklistsView = ({
   // Older builds stored one page per picklist. Land on the artifact that owned that field.
   useEffect(() => {
     if (migratedLegacyTab.current) return;
+    if (storedTab === 'metadata') {
+      migratedLegacyTab.current = true;
+      setActiveTab('artifact');
+      return;
+    }
     if (storedTab !== 'picklists') {
       migratedLegacyTab.current = true;
       return;
@@ -523,6 +534,8 @@ export const PicklistsView = ({
 
   if (loadingPicklists || loadingMeta) return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading configuration...</div>;
 
+  const selectedArtifact = ARTIFACTS.find((artifact) => artifact.id === selectedArtifactId) ?? ARTIFACTS[0];
+
   const handleAddMeta = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!metaLabel || !metaName) return;
@@ -532,10 +545,11 @@ export const PicklistsView = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          entityType: metaEntity,
+          entityType: selectedArtifact.id,
           fieldName: metaName,
           fieldType: metaType,
           label: metaLabel,
+          description: metaDescription.trim(),
           required: false,
           min: metaType === 'range' ? Number(metaMin) : undefined,
           max: metaType === 'range' ? Number(metaMax) : undefined,
@@ -546,6 +560,7 @@ export const PicklistsView = ({
       if (res.ok) {
         setMetaLabel('');
         setMetaName('');
+        setMetaDescription('');
         setMetaMin(0);
         setMetaMax(100);
         setMetaScale('neutral');
@@ -566,7 +581,6 @@ export const PicklistsView = ({
     }
   };
 
-  const selectedArtifact = ARTIFACTS.find((artifact) => artifact.id === selectedArtifactId) ?? ARTIFACTS[0];
   const ArtifactIcon = selectedArtifact.icon;
   const artifactPicklists = selectedArtifact.picklists
     .map((name) => picklists?.find((picklist) => picklist.name === name))
@@ -645,12 +659,6 @@ export const PicklistsView = ({
                 />
               );
             })}
-            <SettingsNavButton
-              active={activeTab === 'metadata'}
-              onClick={() => setActiveTab('metadata')}
-              icon={<FileCode size={16} />}
-              label="Custom Attributes"
-            />
           </SettingsGroup>
 
           <SettingsGroup title="Frameworks">
@@ -717,135 +725,91 @@ export const PicklistsView = ({
                   No fields are configured for this artifact yet.
                 </div>
               )}
-            </div>
-          ) : activeTab === 'metadata' ? (
-            <div className="card" style={{ padding: '1.5rem' }}>
-              <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '1rem' }}>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Custom Attributes</h2>
-                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.85rem' }}>Inject dynamically rendered fields into any artifact type.</p>
-              </div>
-
-              <div style={{ marginBottom: '2rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ padding: '0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Target Artifact</th>
-                      <th style={{ padding: '0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Label</th>
-                      <th style={{ padding: '0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>System Name</th>
-                      <th style={{ padding: '0.75rem', fontSize: '0.65rem', textTransform: 'uppercase', color: 'var(--muted-foreground)' }}>Type</th>
-                      <th style={{ padding: '0.75rem', textAlign: 'right' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {metaDefs?.map(def => (
-                      <tr key={def.id} style={{ borderBottom: '1px solid var(--border)' }} className="row-hover">
-                        <td style={{ padding: '0.75rem' }}>
-                          <span style={{ background: 'var(--primary)', color: 'var(--primary-foreground)', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 800, textTransform: 'uppercase' }}>{def.entityType}</span>
-                        </td>
-                        <td style={{ padding: '0.75rem', fontSize: '0.85rem', fontWeight: 600 }}>{def.label}</td>
-                        <td style={{ padding: '0.75rem', fontSize: '0.75rem', color: 'var(--muted-foreground)', fontFamily: 'monospace' }}>{def.fieldName}</td>
-                        <td style={{ padding: '0.75rem' }}>
-                          <span style={{ background: 'var(--secondary)', color: 'var(--secondary-foreground)', padding: '0.15rem 0.4rem', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700 }}>{def.fieldType}</span>
-                        </td>
-                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end' }}>
-                            <EditMetadataDialog 
-                              definition={def} 
-                              onSuccess={() => queryClient.invalidateQueries({ queryKey: ['metadata-definitions'] })} 
-                            />
-                            <button onClick={() => handleDeleteMeta(def.id)} style={{ border: 'none', background: 'transparent', color: 'var(--destructive)', padding: '0.4rem', cursor: 'pointer' }}>
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div style={{ background: 'var(--background)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '1rem' }}>Define New Attribute</h3>
-                <form onSubmit={handleAddMeta}>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+              <form onSubmit={handleAddMeta} className="card" style={{ padding: '1.25rem' }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 800, letterSpacing: '-0.02em', margin: '0 0 0.25rem' }}>Add a custom attribute</h3>
+                <p style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', margin: '0 0 1rem' }}>
+                  Adds a field on {selectedArtifact.label}. A description explains what a value means for people and for landscape analysis.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label className="label">Display Label</label>
+                    <input
+                      value={metaLabel}
+                      onChange={(e) => {
+                        setMetaLabel(e.target.value);
+                        if (!metaName) setMetaName(e.target.value.replace(/\s+/g, '_').toLowerCase());
+                      }}
+                      placeholder="e.g. Support Tier"
+                      required
+                      style={{ height: '2rem', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label className="label">System Property Name</label>
+                    <input value={metaName} onChange={(e) => setMetaName(e.target.value)} placeholder="e.g. support_tier" required style={{ height: '2rem', fontSize: '0.8rem' }} />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label className="label">Input Type</label>
+                    <ColoredSelect
+                      value={metaType}
+                      onChange={setMetaType}
+                      options={[
+                        { value: 'string', label: 'Text (Short)' },
+                        { value: 'textarea', label: 'Text (Long)' },
+                        { value: 'number', label: 'Number' },
+                        { value: 'range', label: 'Range Slider' },
+                        { value: 'date', label: 'Date' },
+                        { value: 'boolean', label: 'Boolean (Checkbox)' },
+                      ]}
+                      style={{ height: '2rem', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                  <div className="field" style={{ margin: 0, gridColumn: '1 / -1' }}>
+                    <label className="label" htmlFor="new-attribute-description">Description</label>
+                    <textarea
+                      id="new-attribute-description"
+                      rows={2}
+                      maxLength={1000}
+                      value={metaDescription}
+                      onChange={(e) => setMetaDescription(e.target.value)}
+                      placeholder="What a value means, for people and for landscape analysis."
+                      style={{ fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+                {metaType === 'range' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginTop: '1rem', padding: '1rem', background: 'var(--background)', borderRadius: '10px', border: '1px solid var(--border)' }}>
                     <div className="field" style={{ margin: 0 }}>
-                      <label className="label">Target Artifact</label>
+                      <label className="label">Min Value</label>
+                      <input type="number" value={metaMin} onChange={(e) => setMetaMin(Number(e.target.value))} style={{ height: '2rem', fontSize: '0.8rem' }} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">Max Value</label>
+                      <input type="number" value={metaMax} onChange={(e) => setMetaMax(Number(e.target.value))} style={{ height: '2rem', fontSize: '0.8rem' }} />
+                    </div>
+                    <div className="field" style={{ margin: 0 }}>
+                      <label className="label">Scale Color Logic</label>
                       <ColoredSelect
-                        value={metaEntity}
-                        onChange={setMetaEntity}
-                        options={ARTIFACTS.map(art => ({ value: art.id, label: art.label }))}
-                        style={{ height: '2rem', fontSize: '0.8rem' }}
-                      />
-                    </div>
-                    <div className="field" style={{ margin: 0 }}>
-                      <label className="label">Display Label</label>
-                      <input 
-                        value={metaLabel}
-                        onChange={(e) => {
-                          setMetaLabel(e.target.value);
-                          if (!metaName) setMetaName(e.target.value.replace(/\s+/g, '_').toLowerCase());
-                        }}
-                        placeholder="e.g. Support Tier" required 
-                        style={{ height: '2rem', fontSize: '0.8rem' }}
-                      />
-                    </div>
-                    <div className="field" style={{ margin: 0 }}>
-                      <label className="label">System Property Name</label>
-                      <input value={metaName} onChange={(e) => setMetaName(e.target.value)} placeholder="e.g. support_tier" required style={{ height: '2rem', fontSize: '0.8rem' }} />
-                    </div>
-                    <div className="field" style={{ margin: 0 }}>
-                      <label className="label">Input Type</label>
-                      <ColoredSelect
-                        value={metaType}
-                        onChange={setMetaType}
+                        value={metaScale}
+                        onChange={setMetaScale}
                         options={[
-                          { value: 'string', label: 'Text (Short)' },
-                          { value: 'textarea', label: 'Text (Long)' },
-                          { value: 'number', label: 'Number' },
-                          { value: 'range', label: 'Range Slider' },
-                          { value: 'date', label: 'Date' },
-                          { value: 'boolean', label: 'Boolean (Checkbox)' },
+                          { value: 'neutral', label: 'Neutral (Blue)' },
+                          { value: 'good-bad', label: 'Good to Bad (Green to Red)' },
+                          { value: 'bad-good', label: 'Bad to Good (Red to Green)' },
+                          { value: 'low-high', label: 'Low to High (Light to Dark)' },
+                          { value: 'importance', label: 'Low to High (Gray to Purple)' },
                         ]}
                         style={{ height: '2rem', fontSize: '0.8rem' }}
                       />
                     </div>
                   </div>
-
-                  {metaType === 'range' && (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem', padding: '1rem', background: 'var(--card)', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label className="label">Min Value</label>
-                        <input type="number" value={metaMin} onChange={(e) => setMetaMin(Number(e.target.value))} style={{ height: '2rem', fontSize: '0.8rem' }} />
-                      </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label className="label">Max Value</label>
-                        <input type="number" value={metaMax} onChange={(e) => setMetaMax(Number(e.target.value))} style={{ height: '2rem', fontSize: '0.8rem' }} />
-                      </div>
-                      <div className="field" style={{ margin: 0 }}>
-                        <label className="label">Scale Color Logic</label>
-                        <ColoredSelect
-                          value={metaScale}
-                          onChange={setMetaScale}
-                          options={[
-                            { value: 'neutral', label: 'Neutral (Blue)' },
-                            { value: 'good-bad', label: 'Good to Bad (Green to Red)' },
-                            { value: 'bad-good', label: 'Bad to Good (Red to Green)' },
-                            { value: 'low-high', label: 'Low to High (Light to Dark)' },
-                            { value: 'importance', label: 'Low to High (Gray to Purple)' },
-                          ]}
-                          style={{ height: '2rem', fontSize: '0.8rem' }}
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                    <button type="submit" className="primary" style={{ height: '2.4rem', padding: '0 1.5rem', fontSize: '0.85rem' }}>
-                      <Plus size={16} style={{ marginRight: '0.4rem' }} /> Create Attribute
-                    </button>
-                  </div>
-                </form>
-              </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
+                  <button type="submit" className="primary" style={{ height: '2.4rem', padding: '0 1.5rem', fontSize: '0.85rem' }}>
+                    <Plus size={16} style={{ marginRight: '0.4rem' }} /> Create Attribute
+                  </button>
+                </div>
+              </form>
             </div>
           ) : activeTab === 'time_thresholds' ? (
             <div className="card" style={{ padding: '1.5rem' }}>

@@ -15,6 +15,7 @@ import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '.
 import { getAppTimeAssessment } from '../timeAssessment';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { AttributeHint } from './AttributeHint';
 
 function vendorGuide(name: string, url: string, summary: string): string {
   const clip = (value: string, max: number) => {
@@ -787,6 +788,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                         <div style={{ fontSize: '0.8rem', fontWeight: 800 }}>{dynamicValues[def.fieldName] ?? def.min ?? 0}</div>
                       </div>
                       <input type="range" min={def.min ?? 0} max={def.max ?? 100} step="1" style={{ background: getScaleGradient(def.scaleType) }} value={dynamicValues[def.fieldName] ?? def.min ?? 0} onChange={e => setDynamicValues({...dynamicValues, [def.fieldName]: Number(e.target.value)})} />
+                      <AttributeHint text={def.description} />
                     </div>
                   ))}
                 </div>
@@ -1041,15 +1043,17 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
               </div>
             </section>}
 
-            {/* CUSTOM META */}
+            {showField('references') && <ReferencesEditor value={references} onChange={setReferences} />}
+
             {otherMetaDefs.length > 0 && (
               <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <User size={16} /> Extended Metadata
+                  <User size={16} /> Custom attributes
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem', background: 'var(--card)', padding: '1.5rem', borderRadius: '16px', border: '1px solid var(--border)' }}>
                   {otherMetaDefs.map(def => (
-                    <div key={def.id} style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
+                    <div key={def.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: '0.35rem' }}>
+                    <div style={{ display: 'flex', flexDirection: def.fieldType === 'boolean' ? 'row' : 'column', alignItems: def.fieldType === 'boolean' ? 'center' : 'flex-start', gap: '0.6rem' }}>
                       {def.fieldType === 'boolean' ? (
                         <>
                           <CustomCheckbox 
@@ -1069,12 +1073,12 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                         </>
                       )}
                     </div>
+                    <AttributeHint text={def.description} />
+                    </div>
                   ))}
                 </div>
               </section>
             )}
-
-            {showField('references') && <ReferencesEditor value={references} onChange={setReferences} />}
 
             {!isNew && (
               <section style={{ borderTop: '1px solid var(--border)', paddingTop: '3rem', display: 'flex', justifyContent: 'center' }}>

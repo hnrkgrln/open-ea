@@ -54,7 +54,7 @@ export const ReferencesList = ({ raw }: ListProps) => {
   return (
     <section style={{ marginTop: '2.5rem' }}>
       <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <LinkIcon size={16} /> References
+        <LinkIcon size={16} /> Resources
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {refs.map((r, i) => (
@@ -100,7 +100,7 @@ export const ReferencesEditor = ({ value, onChange }: EditorProps) => {
   return (
     <section style={{ background: 'var(--card)', padding: '2.5rem', borderRadius: '24px', border: '1px solid var(--border)' }}>
       <h3 style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-        <LinkIcon size={18} /> References
+        <LinkIcon size={18} /> Resources
       </h3>
       <p style={{ fontSize: '0.8125rem', color: 'var(--muted-foreground)', marginBottom: '1.5rem' }}>
         Links to external documentation, tickets, runbooks, or related resources.
@@ -125,7 +125,7 @@ export const ReferencesEditor = ({ value, onChange }: EditorProps) => {
                 type="button"
                 onClick={() => remove(i)}
                 className="secondary"
-                aria-label="Remove reference"
+                aria-label="Remove resource"
                 style={{ height: '2.5rem', width: '2.5rem', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--destructive)' }}
               >
                 <Trash2 size={16} />
@@ -140,7 +140,7 @@ export const ReferencesEditor = ({ value, onChange }: EditorProps) => {
         className="secondary"
         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
       >
-        <Plus size={16} /> Add reference
+        <Plus size={16} /> Add resource
       </button>
     </section>
   );

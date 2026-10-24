@@ -8,6 +8,7 @@ interface MetadataDefinition {
   fieldName: string;
   fieldType: string;
   label: string;
+  description?: string | null;
   min?: number;
   max?: number;
   scaleType?: string;
@@ -32,6 +33,7 @@ export const EditMetadataDialog = ({ definition, onSuccess, buttonLabel }: Props
     
     const data = {
       label: formData.get('label'),
+      description: formData.get('description'),
       fieldType: type,
       min: type === 'range' ? Number(formData.get('min')) : null,
       max: type === 'range' ? Number(formData.get('max')) : null,
@@ -96,6 +98,18 @@ export const EditMetadataDialog = ({ definition, onSuccess, buttonLabel }: Props
             <div className="field">
               <label className="label">Field Label</label>
               <input name="label" required defaultValue={definition.label} />
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="attribute-description">Description</label>
+              <textarea
+                id="attribute-description"
+                name="description"
+                rows={3}
+                maxLength={1000}
+                defaultValue={definition.description || ''}
+                placeholder="What a value means, for people and for landscape analysis."
+              />
             </div>
 
             <div className="field">
