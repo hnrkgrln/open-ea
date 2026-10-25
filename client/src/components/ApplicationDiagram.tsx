@@ -726,6 +726,10 @@ const DiagramInner = ({
   });
   const [reflowZoom, setReflowZoom] = useState(1);
   const reflowFocus = useRef(0.12);
+  const reflowRef = useRef(reflow);
+  reflowRef.current = reflow;
+  const fitTimerRef = useRef<number>(0);
+  const [layoutMetrics, setLayoutMetrics] = useState<{ count: number; span: number }>({ count: 0, span: 0 });
   type InspectedConcept =
     | { kind: 'app'; app: Application }
     | { kind: 'capability'; capability: Capability }
@@ -996,7 +1000,21 @@ const DiagramInner = ({
     const publishDiagram = (nextNodes: Node[], nextEdges: Edge[]) => {
       const hasContent = nextNodes.some((node) => node.id !== 'filter-container');
       setFilterMiss(!hasContent && hasActiveDiagramFilter(filters));
-      setNodes(hasContent ? nextNodes : []);
+      const publishedNodes = hasContent ? nextNodes : [];
+      let nextSpan = 0;
+      for (const n of publishedNodes) {
+        if (n.parentNode || n.id === 'filter-container') continue;
+        const saved = revealWidth(n);
+        const w = saved ?? (typeof n.style?.width === 'number' ? n.style.width : 0);
+        nextSpan = Math.max(nextSpan, n.position.x + w);
+      }
+      const roundedSpan = Math.round(nextSpan);
+      setLayoutMetrics((prev) =>
+        prev.count === publishedNodes.length && prev.span === roundedSpan
+          ? prev
+          : { count: publishedNodes.length, span: roundedSpan }
+      );
+      setNodes(publishedNodes);
       setEdges(hasContent ? nextEdges : []);
     };
 
@@ -1829,24 +1847,18 @@ const DiagramInner = ({
       publishDiagram(allFinalNodes, []);
     }
   }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, reflowZoom, filterFrame]);
+  const currentFitKey = `${layoutMetrics.count}-${layoutMetrics.span}-${viewportWidth}-${viewportHeight}-${mode}-${relationSearch}-${groupingField || ''}-${reflowZoom}`;
+
   useEffect(() => {
-    let span = 0;
-    nodes.forEach(n => {
-      if (n.parentNode || n.id === 'filter-container') return;
-      // Hover keeps the layout width on the node so fitting the view ignores the temporary widen.
-      const saved = revealWidth(n);
-      const w = saved ?? (typeof n.style?.width === 'number' ? n.style.width : 0);
-      span = Math.max(span, n.position.x + w);
-    });
-    const fitKey = `${nodes.length}-${Math.round(span)}-${viewportWidth}-${viewportHeight}-${mode}-${relationSearch}-${groupingField || ''}-${reflowZoom}`;
-    if (nodes.length > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== fitKey) {
-      const timer = setTimeout(() => {
+    if (layoutMetrics.count > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== currentFitKey) {
+      window.clearTimeout(fitTimerRef.current);
+      fitTimerRef.current = window.setTimeout(() => {
         const currentNodes = getNodes(); if (currentNodes.length === 0) return;
         const bounds = getNodesBounds(currentNodes);
         if (!bounds.width || !Number.isFinite(bounds.width)) return;
         const marginX = 16;
         const marginY = 20;
-        if (reflow) {
+        if (reflowRef.current) {
           const zoom = Math.max(reflowZoom, 0.05);
           const x = (viewportWidth - bounds.width * zoom) / 2 - bounds.x * zoom;
           const contentH = bounds.height * zoom;
@@ -1870,11 +1882,11 @@ const DiagramInner = ({
           const x = (viewportWidth - bounds.width * zoom) / 2 - bounds.x * zoom;
           setViewport({ x, y, zoom }, { duration: 450 });
         }
-        lastFitKey.current = fitKey;
+        lastFitKey.current = currentFitKey;
       }, 150);
-      return () => clearTimeout(timer);
+      return () => window.clearTimeout(fitTimerRef.current);
     }
-  }, [nodes, visible, viewportWidth, viewportHeight, nodesInitialized, mode, relationSearch, groupingField, setViewport, getNodes, reflow, reflowZoom]);
+  }, [currentFitKey, layoutMetrics.count, visible, viewportWidth, viewportHeight, nodesInitialized, setViewport, getNodes, reflowZoom]);
 
   const onNodeInternalClick = (_: any, node: Node) => {
     if (node.data.type === 'app' && node.data.original) {
@@ -2019,8 +2031,14 @@ const DiagramInner = ({
           type="button"
           aria-pressed={reflow}
           onClick={() => {
-            if (!reflow) setReflowZoom(quantizeZoom(store.getState().transform[2]));
-            setReflow(on => !on);
+            if (reflow) {
+              window.clearTimeout(fitTimerRef.current);
+              lastFitKey.current = currentFitKey;
+              setReflow(false);
+            } else {
+              setReflowZoom(quantizeZoom(store.getState().transform[2]));
+              setReflow(true);
+            }
           }}
           title={reflow ? 'Stop reflowing the layout when you zoom' : 'Reflow the layout to the width visible at this zoom'}
           style={{
