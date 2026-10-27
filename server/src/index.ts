@@ -9,6 +9,7 @@ import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
 import { createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
+import { applyTransformation, createTransformation, deleteTransformation, getStateDiffPreview, getTransformationDetail, listTransformations, TRANSFORMATION_ACTIONS, TRANSFORMATION_ENTITY_TYPES, TRANSFORMATION_STATUSES, updateTransformation } from './transformations.js';
 
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -356,6 +357,144 @@ server.post('/landscape-states/:id/merge', {
   try {
     const result = await mergeLandscapeStateIntoCurrent(request.params.id, request.body);
     await landscapeContext.run(CURRENT_STATE_ID, async () => {
+      await backfillCriticality();
+      await backfillProcessing();
+    });
+    return result;
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+// Transformations API (cross-state transitions)
+const transformationStepSchema = z.object({
+  id: z.string().optional(),
+  entityType: z.enum(TRANSFORMATION_ENTITY_TYPES),
+  action: z.enum(TRANSFORMATION_ACTIONS),
+  title: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  predecessorIds: z.array(z.string()).default([]),
+  successorIds: z.array(z.string()).default([]),
+  order: z.number().int().optional(),
+});
+
+server.get('/transformations', {
+  schema: {
+    querystring: z.object({
+      stateId: z.string().optional(),
+    }),
+  },
+}, async (request) => {
+  return listTransformations(request.query.stateId);
+});
+
+server.get('/transformations/diff-preview', {
+  schema: {
+    querystring: z.object({
+      fromStateId: z.string().default('current'),
+      toStateId: z.string(),
+    }),
+  },
+}, async (request, reply) => {
+  try {
+    return await getStateDiffPreview(request.query.fromStateId, request.query.toStateId);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.get('/transformations/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+  },
+}, async (request, reply) => {
+  try {
+    return await getTransformationDetail(request.params.id);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.post('/transformations', {
+  schema: {
+    body: z.object({
+      name: z.string().trim().min(1).max(160),
+      description: z.string().nullable().optional(),
+      status: z.enum(TRANSFORMATION_STATUSES).optional(),
+      owner: z.string().nullable().optional(),
+      startDate: z.string().nullable().optional(),
+      targetDate: z.string().nullable().optional(),
+      fromStateId: z.string().optional(),
+      toStateId: z.string().trim().min(1),
+      references: z.string().nullable().optional(),
+      autoPopulateFromDiff: z.boolean().optional(),
+      steps: z.array(transformationStepSchema).optional(),
+    }),
+  },
+}, async (request, reply) => {
+  try {
+    return await createTransformation(request.body);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.put('/transformations/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      name: z.string().trim().min(1).max(160).optional(),
+      description: z.string().nullable().optional(),
+      status: z.enum(TRANSFORMATION_STATUSES).optional(),
+      owner: z.string().nullable().optional(),
+      startDate: z.string().nullable().optional(),
+      targetDate: z.string().nullable().optional(),
+      fromStateId: z.string().optional(),
+      toStateId: z.string().optional(),
+      references: z.string().nullable().optional(),
+      steps: z.array(transformationStepSchema).optional(),
+    }),
+  },
+}, async (request, reply) => {
+  try {
+    return await updateTransformation(request.params.id, request.body);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.delete('/transformations/:id', {
+  schema: {
+    params: z.object({ id: z.string() }),
+  },
+}, async (request, reply) => {
+  try {
+    return await deleteTransformation(request.params.id);
+  } catch (err) {
+    if (err instanceof LandscapeStateError) return reply.status(err.status).send({ error: err.message });
+    throw err;
+  }
+});
+
+server.post('/transformations/:id/apply', {
+  schema: {
+    params: z.object({ id: z.string() }),
+    body: z.object({
+      backupFromState: z.boolean().optional(),
+      backupName: z.string().trim().max(80).optional(),
+      retireMode: z.enum(['delete', 'decommission']).optional(),
+      markCompleted: z.boolean().optional(),
+    }).optional(),
+  },
+}, async (request, reply) => {
+  try {
+    const result = await applyTransformation(request.params.id, request.body ?? {});
+    await landscapeContext.run(result.transformation.fromStateId, async () => {
       await backfillCriticality();
       await backfillProcessing();
     });

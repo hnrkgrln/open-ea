@@ -215,6 +215,46 @@ model LandscapeState {
   organizations      Organization[]
   informationObjects InformationObject[]
   integrations       Integration[]
+  transformationsFrom Transformation[] @relation("TransformationFromState")
+  transformationsTo   Transformation[] @relation("TransformationToState")
+}
+
+model Transformation {
+  id          String               @id @default(uuid())
+  name        String
+  description String?
+  status      String               @default("Planned")
+  owner       String?
+  startDate   DateTime?
+  targetDate  DateTime?
+  fromStateId String               @default("current")
+  toStateId   String
+  references  String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  fromState   LandscapeState       @relation("TransformationFromState", fields: [fromStateId], references: [id], onDelete: Cascade)
+  toState     LandscapeState       @relation("TransformationToState", fields: [toStateId], references: [id], onDelete: Cascade)
+  steps       TransformationStep[]
+
+  @@index([fromStateId])
+  @@index([toStateId])
+}
+
+model TransformationStep {
+  id               String         @id @default(uuid())
+  transformationId String
+  entityType       String         @default("Application")
+  action           String         @default("REPLACE")
+  title            String?
+  notes            String?
+  predecessorIds   String         @default("[]")
+  successorIds     String         @default("[]")
+  order            Int            @default(0)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  transformation   Transformation @relation(fields: [transformationId], references: [id], onDelete: Cascade)
+
+  @@index([transformationId])
 }
 
 model WorkspaceSettings {

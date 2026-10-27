@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { ArrowLeft, GitBranch, GitMerge, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, GitBranch, GitCompareArrows, GitMerge, Pencil, Plus, Trash2 } from 'lucide-react';
 import { landscapeStateHeader, setLandscapeStateId, subscribeLandscapeState } from '../landscapeState';
 
 export type LandscapeState = {
@@ -331,6 +331,7 @@ const MergeStateDialog = ({
 };
 
 export const TargetStateBanner = () => {
+  const navigate = useNavigate();
   const { active, activeId, isTarget, label, sourceState, switchTo } = useLandscapeStateController();
   const [mergingOpen, setMergingOpen] = useState(false);
   if (!isTarget) return null;
@@ -357,6 +358,15 @@ export const TargetStateBanner = () => {
           </span>
         </div>
         <div className="target-state-banner-actions">
+          <button
+            type="button"
+            className="target-state-return"
+            onClick={() => navigate(`/transformations?state=${encodeURIComponent(activeId)}`)}
+            title={`Model or inspect transformations involving "${label}"`}
+          >
+            <GitCompareArrows size={13} />
+            <span>Transformations</span>
+          </button>
           <button
             type="button"
             className="target-state-merge"
