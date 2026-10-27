@@ -20,7 +20,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
-import { toPng } from 'html-to-image';
+import { getFontEmbedCSS, toCanvas } from 'html-to-image';
 import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, FilterX, WrapText, Frame, ExternalLink, X } from 'lucide-react';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 import { TimeMatrix } from './TimeMatrix';
@@ -750,28 +750,89 @@ const DiagramInner = ({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [inspectedConcept]);
 
+  const legendRef = useRef<HTMLDivElement>(null);
+
   const onExport = async () => {
-    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement;
+    const viewport = (containerRef?.current?.querySelector('.react-flow__viewport') ??
+      document.querySelector('.react-flow__viewport')) as HTMLElement | null;
     if (!viewport) return;
 
     setIsExporting(true);
     try {
+      // Wait for React to commit isExporting=true so a collapsed legend expands before measuring
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+
       const nodes = getNodes();
-      const bounds = getNodesBounds(nodes);
-      const imageWidth = bounds.width + 100;
-      const imageHeight = bounds.height + 100;
+      const rawBounds = nodes.length > 0 ? getNodesBounds(nodes) : { x: 0, y: 0, width: 0, height: 0 };
+      const bounds = {
+        x: Number.isFinite(rawBounds.x) ? rawBounds.x : 0,
+        y: Number.isFinite(rawBounds.y) ? rawBounds.y : 0,
+        width: Number.isFinite(rawBounds.width) && rawBounds.width > 0 ? rawBounds.width : 0,
+        height: Number.isFinite(rawBounds.height) && rawBounds.height > 0 ? rawBounds.height : 0,
+      };
+      const legendEl = legendRef.current;
+      const legendRect = legendEl ? legendEl.getBoundingClientRect() : null;
+      const legendW = legendRect ? Math.ceil(legendRect.width) : 0;
+      const legendH = legendRect ? Math.ceil(legendRect.height) : 0;
 
-      const dataUrl = await toPng(viewport, {
-        backgroundColor: isDark ? '#1a1b1e' : '#f8f9fa',
-        width: imageWidth,
-        height: imageHeight,
-        style: {
-          width: `${imageWidth}px`,
-          height: `${imageHeight}px`,
-          transform: `translate(${-bounds.x + 50}px, ${-bounds.y + 50}px) scale(1)`,
-        },
-      });
+      const pad = 50;
+      const legendGap = legendW > 0 ? 32 : 0;
+      const diagramOffsetX = pad + legendW + legendGap;
+      const diagramOffsetY = pad;
+      const imageWidth = Math.max(1, Math.ceil(diagramOffsetX + bounds.width + pad));
+      const imageHeight = Math.max(1, Math.ceil(Math.max(bounds.height, legendH) + pad * 2));
+      const bgColor = isDark ? '#1a1b1e' : '#f8f9fa';
+      const fontEmbedCSS = await getFontEmbedCSS(viewport);
 
+      const [diagramCanvas, legendCanvas] = await Promise.all([
+        toCanvas(viewport, {
+          backgroundColor: bgColor,
+          width: imageWidth,
+          height: imageHeight,
+          fontEmbedCSS,
+          style: {
+            width: `${imageWidth}px`,
+            height: `${imageHeight}px`,
+            transform: `translate(${-bounds.x + diagramOffsetX}px, ${-bounds.y + diagramOffsetY}px) scale(1)`,
+          },
+        }),
+        legendEl && legendW > 0 && legendH > 0
+          ? toCanvas(legendEl, {
+              width: legendW,
+              height: legendH,
+              fontEmbedCSS,
+              filter: (el) => !(el instanceof HTMLElement && el.dataset.exportHide === 'true'),
+              style: {
+                transform: 'none',
+                transition: 'none',
+                margin: '0',
+              },
+            })
+          : Promise.resolve(null),
+      ]);
+
+      const ctx = diagramCanvas.getContext('2d');
+      if (ctx && legendCanvas) {
+        const scaleX = diagramCanvas.width / imageWidth;
+        const scaleY = diagramCanvas.height / imageHeight;
+        ctx.save();
+        ctx.shadowColor = isDark ? 'rgba(0, 0, 0, 0.38)' : 'rgba(0, 0, 0, 0.12)';
+        ctx.shadowBlur = 12 * scaleX;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 4 * scaleY;
+        ctx.drawImage(
+          legendCanvas,
+          pad * scaleX,
+          pad * scaleY,
+          legendW * scaleX,
+          legendH * scaleY,
+        );
+        ctx.restore();
+      }
+
+      const dataUrl = diagramCanvas.toDataURL('image/png');
       const link = document.createElement('a');
       link.download = `openea-diagram-${mode}-${new Date().toISOString().split('T')[0]}.png`;
       link.href = dataUrl;
@@ -2096,24 +2157,35 @@ const DiagramInner = ({
         </>}
       </Panel>
       <Panel position="top-left" style={{ 
-        background: 'var(--card)', 
-        padding: isLegendExpanded ? '16px' : '8px 12px', 
-        borderRadius: '12px', 
-        border: '1px solid var(--border)', 
-        fontSize: '11px', 
-        color: 'var(--foreground)', 
-        boxShadow: '0 4px 12px rgba(0,0,0,0.15)', 
-        width: isLegendExpanded ? '220px' : 'auto', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '16px',
         margin: 0,
+        padding: 0,
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
         transform: `translate(${legendPos.x}px, ${legendPos.y}px)`,
         cursor: 'grab',
         userSelect: 'none',
         zIndex: 1000,
-        transition: 'width 0.2s ease, padding 0.2s ease'
       }} onMouseDown={onLegendMouseDown}>
+        <div
+          ref={legendRef}
+          style={{
+            background: 'var(--card)',
+            padding: (isLegendExpanded || isExporting) ? '16px' : '8px 12px',
+            borderRadius: '12px',
+            border: '1px solid var(--border)',
+            fontSize: '11px',
+            fontFamily: 'var(--font-diagram)',
+            color: 'var(--foreground)',
+            boxShadow: isExporting ? 'none' : '0 4px 12px rgba(0,0,0,0.15)',
+            width: (isLegendExpanded || isExporting) ? '220px' : 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxSizing: 'border-box',
+            transition: isExporting ? 'none' : 'width 0.2s ease, padding 0.2s ease',
+          }}
+        >
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--muted-foreground)' }}>
@@ -2122,10 +2194,11 @@ const DiagramInner = ({
             </div>
             <button
               type="button"
+              data-export-hide="true"
               aria-expanded={isLegendExpanded}
               aria-label={isLegendExpanded ? 'Collapse legend' : 'Expand legend'}
               onClick={(e) => { e.stopPropagation(); setIsLegendExpanded(!isLegendExpanded); }}
-              style={{ border: 'none', background: 'var(--secondary)', color: 'var(--secondary-foreground)', width: '20px', height: '20px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+              style={{ border: 'none', background: 'var(--secondary)', color: 'var(--secondary-foreground)', width: '20px', height: '20px', borderRadius: '4px', display: isExporting ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
             >
               {isLegendExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
             </button>
@@ -2133,7 +2206,7 @@ const DiagramInner = ({
           <div style={{ fontSize: '12px', fontWeight: 600, lineHeight: 1.3, color: 'var(--foreground)' }}>{landscapeTitle}</div>
         </div>
 
-        {isLegendExpanded && (
+        {(isLegendExpanded || isExporting) && (
           <>
           {mode !== 'org-landscape' && <div>
             <div style={{ fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
@@ -2237,6 +2310,7 @@ const DiagramInner = ({
           )}
           </>
         )}
+        </div>
       </Panel>
       </ReactFlow>
       {filterMiss && (
