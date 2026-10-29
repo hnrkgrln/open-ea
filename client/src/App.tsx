@@ -1877,8 +1877,10 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
         && matchPattern && matchFrequency && matchCrud && matchEndpoints;
     });
 
-    // 2. Landscape-aware Quick Search (applied top-down based on the active landscape)
-    if (!filters.search) {
+    // 2. Landscape-aware Quick Search (applied top-down based on the active landscape).
+    // The integrations landscape also expands past the seed applications when a
+    // filter is set, so the count includes the other end of each information object.
+    if (!filters.search && mode !== 'network') {
       return { filteredApps: catFiltered, categoricalFilteredApps: catFiltered };
     }
 
@@ -1893,12 +1895,12 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       filters,
       showApplications,
       showCapabilities,
-      hideOrphanApps: false,
+      hideOrphanApps,
       groupingField,
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, groupingField]);
+  }, [apps, filters, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, hideOrphanApps, groupingField]);
 
   const diagramFiltersActive = useMemo(() => {
     const lists = [

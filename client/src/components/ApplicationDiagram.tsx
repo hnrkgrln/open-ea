@@ -419,8 +419,19 @@ const filterAppLandscapeTopDown = <
   return { matchedApps, allowedCapsByApp };
 };
 
-const filterNetworkTopDown = <
-  TApp extends { id: string; name: string },
+const payloadIdOf = (integration: { infoObjectId?: string | null; payload?: { id?: string } | null }) =>
+  integration.infoObjectId || integration.payload?.id || '';
+
+// Application filters pick the seed flows. The other application on a flow stays
+// visible, and every flow that carries the same information object stays too.
+export const filterNetworkTopDown = <
+  TApp extends {
+    id: string;
+    name: string;
+    lifecycle?: string | null;
+    ownerOrgId?: string | null;
+    ownerOrg?: { name?: string | null } | null;
+  },
   TInt extends {
     id: string;
     sourceAppId: string;
@@ -436,6 +447,7 @@ const filterNetworkTopDown = <
   allApps,
   categoricalApps,
   integrations,
+  organizations = [],
   filters,
   hideOrphanApps,
   query,
@@ -443,6 +455,7 @@ const filterNetworkTopDown = <
   allApps: TApp[];
   categoricalApps: TApp[];
   integrations: TInt[];
+  organizations?: { id: string; name: string }[];
   filters: any;
   hideOrphanApps: boolean;
   query: string;
@@ -450,93 +463,68 @@ const filterNetworkTopDown = <
   finalAppIds: string[];
   filteredIntegrations: TInt[];
 } => {
-  const catAppIds = new Set(categoricalApps.map((a) => a.id));
-  const appById = new Map(allApps.map((a) => [a.id, a]));
+  const catAppIds = new Set(categoricalApps.map((app) => app.id));
+  const appById = new Map(allApps.map((app) => [app.id, app]));
+  const orgNameById = new Map(organizations.map((org) => [org.id, org.name]));
+  const queryText = (query || '').trim().toLowerCase();
 
-  const baseIntegrations = integrations.filter((i) => {
-    if (!catAppIds.has(i.sourceAppId) || !catAppIds.has(i.targetAppId)) return false;
-    if (!appById.has(i.sourceAppId) || !appById.has(i.targetAppId)) return false;
-    return integrationMatchesFilters(i, filters);
-  });
+  const appVisible = (id: string) => {
+    const app = appById.get(id);
+    if (!app) return false;
+    if (catAppIds.has(id)) return true;
+    const decommissioned = (app.lifecycle || '').toLowerCase() === 'decommissioned';
+    return !(decommissioned && !(filters?.lifecycle?.length));
+  };
 
-  const appsWithBaseIntegrations = new Set(
-    baseIntegrations.flatMap((i) => [i.sourceAppId, i.targetAppId]),
+  const flowOk = (integration: TInt) =>
+    appVisible(integration.sourceAppId)
+    && appVisible(integration.targetAppId)
+    && integrationMatchesFilters(integration, filters);
+
+  let seed = integrations.filter((integration) =>
+    flowOk(integration) && (catAppIds.has(integration.sourceAppId) || catAppIds.has(integration.targetAppId)),
   );
-  const baseAppIds = Array.from(
-    new Set([
-      ...Array.from(appsWithBaseIntegrations),
-      ...(hideOrphanApps ? [] : categoricalApps.map((a) => a.id)),
-    ]),
-  );
 
-  if (!query) {
-    return { finalAppIds: baseAppIds, filteredIntegrations: baseIntegrations };
+  if (queryText) {
+    const orgIds = new Set(
+      organizations
+        .filter((org) => org.name.toLowerCase().includes(queryText))
+        .map((org) => org.id),
+    );
+    const appMatches = (id: string) => {
+      const app = appById.get(id);
+      if (!app) return false;
+      if (app.name.toLowerCase().includes(queryText)) return true;
+      const orgName = app.ownerOrg?.name || (app.ownerOrgId ? orgNameById.get(app.ownerOrgId) : '');
+      return (!!orgName && orgName.toLowerCase().includes(queryText)) || orgIds.has(app.ownerOrgId || '');
+    };
+    seed = seed.filter((integration) =>
+      appMatches(integration.sourceAppId)
+      || appMatches(integration.targetAppId)
+      || integration.name?.toLowerCase().includes(queryText)
+      || integration.payload?.name?.toLowerCase().includes(queryText)
+      || integration.pattern?.toLowerCase().includes(queryText)
+      || integration.crud?.toLowerCase().includes(queryText),
+    );
   }
 
-  const adj = new Map<string, string[]>();
-  baseAppIds.forEach((id) => adj.set(id, []));
-  baseIntegrations.forEach((i) => {
-    adj.get(i.sourceAppId)?.push(i.targetAppId);
-    adj.get(i.targetAppId)?.push(i.sourceAppId);
+  const payloadIds = new Set(seed.map(payloadIdOf).filter(Boolean));
+  const seedIds = new Set(seed.map((integration) => integration.id));
+  const filteredIntegrations = integrations.filter((integration) => {
+    if (!flowOk(integration)) return false;
+    if (seedIds.has(integration.id)) return true;
+    const payloadId = payloadIdOf(integration);
+    return !!payloadId && payloadIds.has(payloadId);
   });
 
-  const visited = new Set<string>();
-  const keptAppIdSet = new Set<string>();
-  const keptIntegrationIdSet = new Set<string>();
-
-  for (const startId of baseAppIds) {
-    if (visited.has(startId)) continue;
-    const islandAppIds: string[] = [];
-    const stack = [startId];
-    visited.add(startId);
-    while (stack.length > 0) {
-      const curr = stack.pop()!;
-      islandAppIds.push(curr);
-      adj.get(curr)?.forEach((neighbor) => {
-        if (!visited.has(neighbor)) {
-          visited.add(neighbor);
-          stack.push(neighbor);
-        }
-      });
-    }
-    const islandSet = new Set(islandAppIds);
-    const islandIntegrations = baseIntegrations.filter((i) => islandSet.has(i.sourceAppId));
-
-    // Check top-level Application nodes in this island first
-    const matchingAppIds = islandAppIds.filter((id) =>
-      appById.get(id)?.name.toLowerCase().includes(query),
-    );
-
-    if (matchingAppIds.length > 0) {
-      const matchingSet = new Set(matchingAppIds);
-      matchingAppIds.forEach((id) => keptAppIdSet.add(id));
-      for (const i of islandIntegrations) {
-        if (matchingSet.has(i.sourceAppId) || matchingSet.has(i.targetAppId)) {
-          keptIntegrationIdSet.add(i.id);
-          keptAppIdSet.add(i.sourceAppId);
-          keptAppIdSet.add(i.targetAppId);
-        }
-      }
-    } else {
-      // Fall back to integration flows if no Application node in this island matched
-      for (const i of islandIntegrations) {
-        const flowMatches =
-          i.name?.toLowerCase().includes(query) ||
-          i.payload?.name?.toLowerCase().includes(query) ||
-          i.pattern?.toLowerCase().includes(query) ||
-          i.crud?.toLowerCase().includes(query);
-        if (flowMatches) {
-          keptIntegrationIdSet.add(i.id);
-          keptAppIdSet.add(i.sourceAppId);
-          keptAppIdSet.add(i.targetAppId);
-        }
-      }
-    }
+  const appIds = new Set(filteredIntegrations.flatMap((integration) => [integration.sourceAppId, integration.targetAppId]));
+  if (!queryText && !hideOrphanApps) {
+    categoricalApps.forEach((app) => appIds.add(app.id));
   }
 
   return {
-    finalAppIds: baseAppIds.filter((id) => keptAppIdSet.has(id)),
-    filteredIntegrations: baseIntegrations.filter((i) => keptIntegrationIdSet.has(i.id)),
+    finalAppIds: Array.from(appIds),
+    filteredIntegrations,
   };
 };
 
@@ -575,6 +563,21 @@ export const getLandscapeSearchMatchedApps = <
   groupingField?: string | null;
 }): TApp[] => {
   const query = (search || '').trim().toLowerCase();
+
+  if (mode === 'network') {
+    const { finalAppIds } = filterNetworkTopDown({
+      allApps,
+      categoricalApps,
+      integrations,
+      organizations,
+      filters,
+      hideOrphanApps,
+      query,
+    });
+    const allowed = new Set(finalAppIds);
+    return allApps.filter((app) => allowed.has(app.id));
+  }
+
   if (!query) return categoricalApps;
 
   if (mode === 'app-landscape') {
@@ -583,19 +586,6 @@ export const getLandscapeSearchMatchedApps = <
       showCapabilities,
       query,
     }).matchedApps;
-  }
-
-  if (mode === 'network') {
-    const { finalAppIds } = filterNetworkTopDown({
-      allApps,
-      categoricalApps,
-      integrations,
-      filters,
-      hideOrphanApps,
-      query,
-    });
-    const allowed = new Set(finalAppIds);
-    return categoricalApps.filter((a) => allowed.has(a.id));
   }
 
   const isOrg = mode === 'org-landscape';
@@ -1596,6 +1586,7 @@ const DiagramInner = ({
         allApps: apps,
         categoricalApps: categoricalFilteredApps,
         integrations,
+        organizations,
         filters,
         hideOrphanApps,
         query: search,
