@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { basePrisma, createLandscapeState, LandscapeStateError, type LandscapeStateView } from './landscape.js';
+import { activeStateId, basePrisma, createLandscapeState, CURRENT_STATE_ID, LandscapeStateError, type LandscapeStateView } from './landscape.js';
 
 export const TRANSFORMATION_STATUSES = ['Planned', 'In Progress', 'Completed', 'On Hold'] as const;
 export type TransformationStatus = (typeof TRANSFORMATION_STATUSES)[number];
@@ -1109,13 +1109,36 @@ export async function getTransformationDetail(id: string) {
   };
 }
 
+const CURRENT_VIEW_ONLY =
+  'The current state reflects the present. Transformations can only be viewed here. Create a target state and switch to it to change a transformation.';
+
+function requireTargetBasis(toStateId: string) {
+  const active = activeStateId();
+  if (active === CURRENT_STATE_ID) {
+    throw new LandscapeStateError(400, CURRENT_VIEW_ONLY);
+  }
+  if (toStateId === CURRENT_STATE_ID) {
+    throw new LandscapeStateError(
+      400,
+      'A transformation is based on a target state. The current state reflects the present and cannot be that target.',
+    );
+  }
+  if (toStateId !== active) {
+    throw new LandscapeStateError(
+      400,
+      'Switch to the target state this transformation is based on to change it.',
+    );
+  }
+}
+
 export async function createTransformation(input: CreateTransformationInput) {
   const name = input.name.trim();
   if (!name) {
     throw new LandscapeStateError(400, 'Give the transformation a name.');
   }
-  const fromStateId = input.fromStateId?.trim() || 'current';
+  const fromStateId = input.fromStateId?.trim() || CURRENT_STATE_ID;
   const toStateId = input.toStateId.trim();
+  requireTargetBasis(toStateId);
   if (fromStateId === toStateId) {
     throw new LandscapeStateError(
       400,
@@ -1181,6 +1204,13 @@ export async function updateTransformation(id: string, input: UpdateTransformati
 
   const nextFromStateId = input.fromStateId?.trim() || existing.fromStateId;
   const nextToStateId = input.toStateId?.trim() || existing.toStateId;
+  requireTargetBasis(existing.toStateId);
+  if (nextToStateId !== existing.toStateId) {
+    throw new LandscapeStateError(
+      400,
+      'A transformation stays based on the target state it was created for.',
+    );
+  }
   if (nextFromStateId === nextToStateId) {
     throw new LandscapeStateError(
       400,
@@ -1235,12 +1265,14 @@ export async function deleteTransformation(id: string) {
   if (!existing) {
     throw new LandscapeStateError(404, 'Transformation not found.');
   }
+  requireTargetBasis(existing.toStateId);
   await basePrisma.transformation.delete({ where: { id } });
   return { ok: true };
 }
 
 export async function applyTransformation(id: string, options: ApplyTransformationOptions = {}) {
   const detail = await getTransformationDetail(id);
+  requireTargetBasis(detail.toStateId);
   const { fromStateId, toStateId } = detail;
   const retireMode = options.retireMode || 'delete';
 

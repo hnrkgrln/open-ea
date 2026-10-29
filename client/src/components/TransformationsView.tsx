@@ -99,7 +99,7 @@ export const TransformationsView: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { states, activeId, isTarget } = useLandscapeStateController();
+  const { states, active, activeId, isTarget, label } = useLandscapeStateController();
 
   const initialStateFilter = searchParams.get('state') || 'all';
   const [stateFilter, setStateFilter] = useState<string>(initialStateFilter);
@@ -107,18 +107,10 @@ export const TransformationsView: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [createOpen, setCreateOpen] = useState<boolean>(false);
 
-  // Create form state
-  const targetStates = useMemo(
-    () => (states || []).filter((s) => !s.isCurrent),
-    [states],
+  const fromStateOptions = useMemo(
+    () => (states || []).filter((s) => s.id !== activeId),
+    [states, activeId],
   );
-  const defaultToStateId = isTarget
-    ? activeId
-    : targetStates[0]?.id || 'current';
-  const defaultFromStateId =
-    defaultToStateId === 'current'
-      ? targetStates[0]?.id || 'current'
-      : 'current';
 
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
@@ -126,8 +118,7 @@ export const TransformationsView: React.FC = () => {
   const [newOwner, setNewOwner] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
   const [newTargetDate, setNewTargetDate] = useState('');
-  const [newFromStateId, setNewFromStateId] = useState(defaultFromStateId);
-  const [newToStateId, setNewToStateId] = useState(defaultToStateId);
+  const [newFromStateId, setNewFromStateId] = useState('current');
   const [autoPopulate, setAutoPopulate] = useState(true);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState('');
@@ -144,13 +135,13 @@ export const TransformationsView: React.FC = () => {
   const { data: diffPreview, isFetching: loadingDiffPreview } = useQuery<{
     suggestions: Array<{ key: string; entityType: string; action: string; title: string }>;
   }>({
-    queryKey: ['transformation-diff-preview', newFromStateId, newToStateId],
-    enabled: createOpen && !!newFromStateId && !!newToStateId && newFromStateId !== newToStateId,
+    queryKey: ['transformation-diff-preview', newFromStateId, activeId],
+    enabled: createOpen && isTarget && !!newFromStateId && newFromStateId !== activeId,
     queryFn: async () => {
       const res = await fetch(
         `${API_BASE}/transformations/diff-preview?fromStateId=${encodeURIComponent(
           newFromStateId,
-        )}&toStateId=${encodeURIComponent(newToStateId)}`,
+        )}&toStateId=${encodeURIComponent(activeId)}`,
       );
       if (!res.ok) throw new Error('Failed to preview diff');
       return res.json();
@@ -158,12 +149,14 @@ export const TransformationsView: React.FC = () => {
   });
 
   const openCreateModal = () => {
-    const toId = isTarget ? activeId : targetStates[0]?.id || 'current';
-    const fromId = toId === 'current' ? targetStates[0]?.id || 'current' : 'current';
+    if (!isTarget || activeId === 'current') return;
+    const sourceId = active?.sourceStateId;
+    const fromId =
+      sourceId && sourceId !== activeId && fromStateOptions.some((s) => s.id === sourceId)
+        ? sourceId
+        : 'current';
     setNewFromStateId(fromId);
-    setNewToStateId(toId);
-    const toStateObj = (states || []).find((s) => s.id === toId);
-    setNewName(toStateObj ? `Transformation to ${toStateObj.name}` : '');
+    setNewName(active?.name ? `Transformation to ${active.name}` : `Transformation to ${label}`);
     setNewDescription('');
     setNewStatus('Planned');
     setNewOwner('');
@@ -176,12 +169,16 @@ export const TransformationsView: React.FC = () => {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isTarget || activeId === 'current') {
+      setFormError('The current state reflects the present. Create a target state and switch to it before creating a transformation.');
+      return;
+    }
     if (!newName.trim()) {
       setFormError('Give the transformation a name.');
       return;
     }
-    if (!newFromStateId || !newToStateId || newFromStateId === newToStateId) {
-      setFormError('Select two different landscape states (From State and Target State).');
+    if (!newFromStateId || newFromStateId === activeId) {
+      setFormError('Choose a predecessor state other than this target.');
       return;
     }
     setCreating(true);
@@ -198,7 +195,7 @@ export const TransformationsView: React.FC = () => {
           startDate: newStartDate || null,
           targetDate: newTargetDate || null,
           fromStateId: newFromStateId,
-          toStateId: newToStateId,
+          toStateId: activeId,
           autoPopulateFromDiff: autoPopulate,
         }),
       });
@@ -270,20 +267,23 @@ export const TransformationsView: React.FC = () => {
             <h1 style={{ margin: 0, fontSize: '1.65rem', fontWeight: 700 }}>Transformations</h1>
           </div>
           <p style={{ margin: '0.35rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.92rem', maxWidth: '52rem' }}>
-            Model architectural movement across states (<strong>Predecessor ↔ Successor</strong>) — group applications,
-            integrations, and organizations transitioning from a baseline state to a target state.
+            {isTarget
+              ? <>Model how the landscape moves into <strong>{label}</strong>. This target state is the basis of a new transformation.</>
+              : <>Current state reflects the present, so transformations can only be viewed here. Create a target state and switch to it — that target is the basis of a transformation.</>}
           </p>
         </div>
 
-        <button
-          type="button"
-          className="primary"
-          onClick={openCreateModal}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.1rem' }}
-        >
-          <Plus size={16} />
-          <span>New Transformation</span>
-        </button>
+        {isTarget && (
+          <button
+            type="button"
+            className="primary"
+            onClick={openCreateModal}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.1rem' }}
+          >
+            <Plus size={16} />
+            <span>New Transformation</span>
+          </button>
+        )}
       </div>
 
       {/* KPI Summary Cards */}
@@ -431,15 +431,11 @@ export const TransformationsView: React.FC = () => {
           </div>
           <h3 style={{ margin: 0, fontSize: '1.15rem' }}>No transformations modelled yet</h3>
           <p style={{ margin: 0, color: 'var(--muted-foreground)', maxWidth: '34rem', fontSize: '0.9rem' }}>
-            Create a Transformation to map how applications, integrations, and organizations move from{' '}
-            <strong>Current</strong> to a <strong>Target State</strong> (Predecessor ↔ Successor), analyze integration
-            risks, and compare TIME matrices.
+            {isTarget
+              ? <>Create a transformation based on <strong>{label}</strong> to map how applications, integrations, and organizations move into this target.</>
+              : <>Transformations are listed here for review. Current state reflects the present, so a new one cannot be created until you add a target state and switch to it.</>}
           </p>
-          {(states || []).length < 2 ? (
-            <p style={{ margin: 0, fontSize: '0.82rem', color: '#f59e0b' }}>
-              Tip: Create at least one Target State in the State menu in the top-right header to model transitions between states.
-            </p>
-          ) : (
+          {isTarget ? (
             <button
               type="button"
               className="primary"
@@ -449,6 +445,10 @@ export const TransformationsView: React.FC = () => {
               <Plus size={16} />
               <span>Create First Transformation</span>
             </button>
+          ) : (
+            <p style={{ margin: 0, fontSize: '0.82rem', color: '#f59e0b' }}>
+              Use the state menu in the top-right header to create a target state, then switch to it.
+            </p>
           )}
         </div>
       ) : (
@@ -517,21 +517,23 @@ export const TransformationsView: React.FC = () => {
                         {st.icon}
                         {item.status}
                       </span>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDelete(e, item)}
-                        title="Delete transformation"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: 'var(--muted-foreground)',
-                          padding: '0.25rem',
-                          cursor: 'pointer',
-                          borderRadius: '0.35rem',
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {isTarget && item.toStateId === activeId && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDelete(e, item)}
+                          title="Delete transformation"
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: 'var(--muted-foreground)',
+                            padding: '0.25rem',
+                            cursor: 'pointer',
+                            borderRadius: '0.35rem',
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -661,8 +663,7 @@ export const TransformationsView: React.FC = () => {
             </div>
 
             <p style={{ margin: '0.5rem 0 1rem', fontSize: '0.86rem', color: 'var(--muted-foreground)' }}>
-              Define a transformation moving applications, organizations, and integrations from a source state to a
-              target state.
+              This transformation is based on <strong>{label}</strong>. Predecessors come from another state, usually Current.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.6rem', alignItems: 'end', marginBottom: '0.9rem' }}>
@@ -673,7 +674,7 @@ export const TransformationsView: React.FC = () => {
                   onChange={(e) => setNewFromStateId(e.target.value)}
                   disabled={creating}
                 >
-                  {(states || []).map((s) => (
+                  {fromStateOptions.map((s) => (
                     <option key={s.id} value={s.id}>
                       {s.name} {s.isCurrent ? '(Current)' : ''}
                     </option>
@@ -684,25 +685,8 @@ export const TransformationsView: React.FC = () => {
                 <ArrowRight size={18} />
               </div>
               <div>
-                <label className="label">Target State (Successors)</label>
-                <select
-                  value={newToStateId}
-                  onChange={(e) => {
-                    const nextTo = e.target.value;
-                    setNewToStateId(nextTo);
-                    const st = (states || []).find((s) => s.id === nextTo);
-                    if (st && (!newName || newName.startsWith('Transformation to '))) {
-                      setNewName(`Transformation to ${st.name}`);
-                    }
-                  }}
-                  disabled={creating}
-                >
-                  {(states || []).map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} {s.isCurrent ? '(Current)' : ''}
-                    </option>
-                  ))}
-                </select>
+                <label className="label">Target State (basis)</label>
+                <input value={label} readOnly disabled />
               </div>
             </div>
 
@@ -797,7 +781,7 @@ export const TransformationsView: React.FC = () => {
                     Automatically detect replaced, consolidated, retired, newly introduced, and evolved artifacts
                     between the two states. You can refine or add steps afterward.
                   </span>
-                  {newFromStateId !== newToStateId && (
+                  {newFromStateId !== activeId && (
                     <div style={{ marginTop: '0.2rem', fontSize: '0.78rem', color: 'var(--brand-focus)', fontWeight: 600 }}>
                       {loadingDiffPreview
                         ? 'Scanning state differences…'
@@ -819,7 +803,7 @@ export const TransformationsView: React.FC = () => {
               <button
                 type="submit"
                 className="primary"
-                disabled={creating || newFromStateId === newToStateId}
+                disabled={creating || !isTarget || !newFromStateId || newFromStateId === activeId}
               >
                 <Plus size={14} />
                 {creating ? 'Creating…' : 'Create Transformation'}

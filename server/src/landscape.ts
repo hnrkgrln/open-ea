@@ -51,7 +51,7 @@ function delegate(model: string): Delegate | null {
   }
 }
 
-function activeStateId() {
+export function activeStateId() {
   return landscapeContext.getStore() || CURRENT_STATE_ID;
 }
 

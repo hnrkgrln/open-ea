@@ -40,7 +40,7 @@ import {
 import { TimeMatrix } from './TimeMatrix';
 import { getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 import { setLandscapeStateId } from '../landscapeState';
-import { type LandscapeState } from './StateMenu';
+import { useLandscapeStateController, type LandscapeState } from './StateMenu';
 import {
   STATUS_META,
   type TransformationAction,
@@ -293,10 +293,11 @@ function EntityNodeCard({ data }: { data: any }) {
 
 function ActionStepNodeCard({ data }: { data: any }) {
   const step = data.step as HydratedTransformationStep;
+  const readOnly = Boolean(data.readOnly);
   const meta = ACTION_META[step.action as TransformationAction] || ACTION_META.REPLACE;
   return (
     <div
-      title="Click to edit this transition step"
+      title={readOnly ? 'Transition step' : 'Click to edit this transition step'}
       style={{
         width: 245,
         padding: '0.65rem 0.85rem',
@@ -305,7 +306,7 @@ function ActionStepNodeCard({ data }: { data: any }) {
         border: `1.5px solid ${meta.border}`,
         boxShadow: '0 4px 14px rgba(0, 0, 0, 0.14)',
         textAlign: 'left',
-        cursor: 'pointer',
+        cursor: readOnly ? 'default' : 'pointer',
       }}
     >
       <Handle type="target" position={Position.Left} style={{ background: meta.color }} />
@@ -321,23 +322,25 @@ function ActionStepNodeCard({ data }: { data: any }) {
         >
           {meta.label}
         </span>
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.22rem',
-            fontSize: '0.66rem',
-            fontWeight: 600,
-            padding: '0.1rem 0.42rem',
-            borderRadius: '999px',
-            background: 'var(--card)',
-            border: '1px solid var(--border)',
-            color: 'var(--foreground)',
-          }}
-        >
-          <Edit3 size={10} />
-          Edit
-        </span>
+        {!readOnly && (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.22rem',
+              fontSize: '0.66rem',
+              fontWeight: 600,
+              padding: '0.1rem 0.42rem',
+              borderRadius: '999px',
+              background: 'var(--card)',
+              border: '1px solid var(--border)',
+              color: 'var(--foreground)',
+            }}
+          >
+            <Edit3 size={10} />
+            Edit
+          </span>
+        )}
       </div>
       <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--foreground)' }}>
         {step.title || `${step.entityType} Transition`}
@@ -376,6 +379,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { activeId, isTarget, switchTo } = useLandscapeStateController();
 
   const [activeTab, setActiveTab] = useState<'diagram' | 'steps' | 'impact'>('diagram');
   const [diagramEntityFilter, setDiagramEntityFilter] = useState<string>('all');
@@ -430,6 +434,8 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
     },
   });
 
+  const canEdit = Boolean(isTarget && detail && detail.toStateId === activeId);
+
   const saveStepsList = async (nextSteps: Array<{
     id?: string;
     entityType: TransformationEntityType;
@@ -440,7 +446,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
     successorIds: string[];
     order?: number;
   }>) => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     setSavingSteps(true);
     try {
       const res = await fetch(`${API_BASE}/transformations/${detail.id}`, {
@@ -469,6 +475,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const openNewStepModal = () => {
+    if (!canEdit) return;
     setEditingStepId(null);
     setStepEntityType('Application');
     setStepAction('REPLACE');
@@ -482,6 +489,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const openEditStepModal = (step: HydratedTransformationStep) => {
+    if (!canEdit) return;
     setEditingStepId(step.id);
     setStepEntityType(step.entityType);
     setStepAction(step.action);
@@ -526,13 +534,13 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const handleDeleteStep = async (stepId: string) => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     const nextSteps = detail.steps.filter((s) => s.id !== stepId);
     await saveStepsList(nextSteps);
   };
 
   const handleMoveStep = async (index: number, direction: -1 | 1) => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     const targetIdx = index + direction;
     if (targetIdx < 0 || targetIdx >= detail.steps.length) return;
     const copy = [...detail.steps];
@@ -543,7 +551,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const handleAddSuggestion = async (sug: SuggestedStep) => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     const nextSteps = [
       ...detail.steps,
       {
@@ -559,7 +567,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const handleAddAllSuggestions = async (suggestionsToAdd: SuggestedStep[]) => {
-    if (!detail || suggestionsToAdd.length === 0) return;
+    if (!detail || !canEdit || suggestionsToAdd.length === 0) return;
     const nextSteps = [
       ...detail.steps,
       ...suggestionsToAdd.map((sug) => ({
@@ -575,7 +583,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const openEditMeta = () => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     setMetaName(detail.name);
     setMetaDesc(detail.description || '');
     setMetaStatus(detail.status);
@@ -587,7 +595,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
 
   const handleSaveMeta = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!detail || !metaName.trim()) return;
+    if (!detail || !canEdit || !metaName.trim()) return;
     const res = await fetch(`${API_BASE}/transformations/${detail.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -609,7 +617,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const openApplyModal = () => {
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     const today = new Date().toISOString().slice(0, 10);
     setBackupFromState(true);
     setBackupName(`Before ${detail.name} (${today})`.slice(0, 80));
@@ -621,7 +629,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
 
   const handleApplyTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!detail) return;
+    if (!detail || !canEdit) return;
     setApplying(true);
     setApplyError('');
     try {
@@ -682,7 +690,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
         id: stepNodeId,
         type: 'actionStepNode',
         position: { x: 370, y: stepCenterY },
-        data: { step },
+        data: { step, readOnly: !canEdit },
       });
 
       preds.forEach((pred, idx) => {
@@ -749,7 +757,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
     }
 
     return { flowNodes: nodes, flowEdges: edges };
-  }, [detail, diagramEntityFilter]);
+  }, [detail, diagramEntityFilter, canEdit]);
 
   const filteredSuggestions = useMemo(() => {
     if (!detail) return [];
@@ -874,25 +882,44 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={openEditMeta}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem' }}
-            >
-              <Edit3 size={14} />
-              Edit Details
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={openApplyModal}
-              disabled={detail.steps.length === 0}
-              title={`Promote this transformation's changes from ${detail.toState.name} into ${detail.fromState.name}`}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
-            >
-              <GitMerge size={14} />
-              Apply to {detail.fromState.name}…
-            </button>
+            {canEdit ? (
+              <>
+                <button
+                  type="button"
+                  onClick={openEditMeta}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.82rem' }}
+                >
+                  <Edit3 size={14} />
+                  Edit Details
+                </button>
+                <button
+                  type="button"
+                  className="primary"
+                  onClick={openApplyModal}
+                  disabled={detail.steps.length === 0}
+                  title={`Promote this transformation's changes from ${detail.toState.name} into ${detail.fromState.name}`}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+                >
+                  <GitMerge size={14} />
+                  Apply to {detail.fromState.name}…
+                </button>
+              </>
+            ) : (
+              <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', maxWidth: '36rem' }}>
+                {isTarget
+                  ? <>Read-only here. This transformation is based on <strong>{detail.toState.name}</strong>.</>
+                  : <>Read-only. Current state reflects the present. This transformation is based on <strong>{detail.toState.name}</strong>.</>}
+                {detail.toStateId !== 'current' && detail.toStateId !== activeId && (
+                  <button
+                    type="button"
+                    onClick={() => switchTo(detail.toStateId)}
+                    style={{ marginLeft: '0.55rem', fontSize: '0.78rem' }}
+                  >
+                    Switch to {detail.toState.name}
+                  </button>
+                )}
+              </span>
+            )}
           </div>
         </div>
 
@@ -1029,18 +1056,20 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
             >
               <Edit3 size={14} />
-              Manage & Edit Steps ({detail.steps.length})
+              {canEdit ? 'Manage & Edit Steps' : 'View Steps'} ({detail.steps.length})
             </button>
           )}
-          <button
-            type="button"
-            className="primary"
-            onClick={openNewStepModal}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.84rem' }}
-          >
-            <Plus size={15} />
-            Add Transition Step
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              className="primary"
+              onClick={openNewStepModal}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.84rem' }}
+            >
+              <Plus size={15} />
+              Add Transition Step
+            </button>
+          )}
         </div>
       </div>
 
@@ -1053,7 +1082,9 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                 Predecessor ({detail.fromState.name}) → Transition Action → Successor ({detail.toState.name})
               </h3>
               <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
-                Click any central <strong>Transition Action</strong> card (<strong>Edit</strong>) to modify its predecessors, successors, action, or notes — or click any artifact card to inspect it.
+                {canEdit
+                  ? <>Click any central <strong>Transition Action</strong> card (<strong>Edit</strong>) to modify its predecessors, successors, action, or notes — or click any artifact card to inspect it.</>
+                  : <>Click an artifact card to inspect it. Steps stay read-only until you are working in <strong>{detail.toState.name}</strong>.</>}
               </p>
             </div>
 
@@ -1091,14 +1122,16 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
               <GitCompareArrows size={28} style={{ color: 'var(--muted-foreground)' }} />
               <div style={{ fontWeight: 600 }}>No transition steps in this view yet</div>
               <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--muted-foreground)', maxWidth: '30rem' }}>
-                Add transition steps manually or switch to the <strong>Steps & Diff Builder</strong> tab to import
-                auto-detected differences between <strong>{detail.fromState.name}</strong> and{' '}
-                <strong>{detail.toState.name}</strong>.
+                {canEdit
+                  ? <>Add transition steps manually or switch to the <strong>Steps & Diff Builder</strong> tab to import auto-detected differences between <strong>{detail.fromState.name}</strong> and <strong>{detail.toState.name}</strong>.</>
+                  : <>No steps are mapped yet. Differences between <strong>{detail.fromState.name}</strong> and <strong>{detail.toState.name}</strong> can be reviewed on the Steps tab.</>}
               </p>
               <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.25rem' }}>
-                <button type="button" className="primary" onClick={openNewStepModal}>
-                  <Plus size={14} /> Add Transition Step
-                </button>
+                {canEdit && (
+                  <button type="button" className="primary" onClick={openNewStepModal}>
+                    <Plus size={14} /> Add Transition Step
+                  </button>
+                )}
                 {detail.suggestedSteps.length > 0 && (
                   <button type="button" onClick={() => setActiveTab('steps')}>
                     <Sparkles size={14} /> View {detail.suggestedSteps.length} Suggested Diffs
@@ -1123,7 +1156,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                       stateId: node.data.stateId as string,
                       stateName: node.data.stateLabel as string,
                     });
-                  } else if (node.type === 'actionStepNode' && node.data?.step) {
+                  } else if (node.type === 'actionStepNode' && node.data?.step && !node.data.readOnly) {
                     openEditStepModal(node.data.step as HydratedTransformationStep);
                   }
                 }}
@@ -1154,18 +1187,22 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                   Mapped Transition Steps ({detail.steps.length})
                 </h3>
                 <p style={{ margin: '0.2rem 0 0', fontSize: '0.78rem', color: 'var(--muted-foreground)' }}>
-                  Ordered Predecessor ({detail.fromState.name}) ↔ Successor ({detail.toState.name}) transitions. Click <strong>Edit</strong> on any step to change its action or artifacts.
+                  Ordered Predecessor ({detail.fromState.name}) ↔ Successor ({detail.toState.name}) transitions.
+                  {canEdit ? <> Click <strong>Edit</strong> on any step to change its action or artifacts.</> : ' Viewing only.'}
                 </p>
               </div>
-              <button type="button" className="primary" onClick={openNewStepModal} style={{ fontSize: '0.78rem', padding: '0 0.75rem', gap: '0.3rem' }}>
-                <Plus size={13} /> Add Step
-              </button>
+              {canEdit && (
+                <button type="button" className="primary" onClick={openNewStepModal} style={{ fontSize: '0.78rem', padding: '0 0.75rem', gap: '0.3rem' }}>
+                  <Plus size={13} /> Add Step
+                </button>
+              )}
             </div>
 
             {detail.steps.length === 0 ? (
               <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--muted-foreground)', fontSize: '0.86rem', border: '1px dashed var(--border)', borderRadius: '0.5rem' }}>
-                No transition steps added yet. Click <strong>+ Add Step</strong> or select from the{' '}
-                <strong>Auto-Suggested State Diffs</strong> panel.
+                {canEdit
+                  ? <>No transition steps added yet. Click <strong>+ Add Step</strong> or select from the <strong>Auto-Suggested State Diffs</strong> panel.</>
+                  : 'No transition steps have been mapped yet.'}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -1186,9 +1223,9 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <div
-                          onClick={() => openEditStepModal(step)}
-                          title="Click to edit transition step"
-                          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', cursor: 'pointer' }}
+                          onClick={() => { if (canEdit) openEditStepModal(step); }}
+                          title={canEdit ? 'Click to edit transition step' : undefined}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', cursor: canEdit ? 'pointer' : 'default' }}
                         >
                           <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>
                             #{idx + 1}
@@ -1224,6 +1261,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                           </strong>
                         </div>
 
+                        {canEdit && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                           <button
                             type="button"
@@ -1270,6 +1308,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                             <Trash2 size={13} />
                           </button>
                         </div>
+                        )}
                       </div>
 
                       {step.notes && (
@@ -1282,6 +1321,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '0.6rem', alignItems: 'center' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                           {step.predecessors.length === 0 ? (
+                            canEdit ? (
                             <button
                               type="button"
                               onClick={() => openEditStepModal(step)}
@@ -1297,6 +1337,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                             >
                               + Add predecessors ({detail.fromState.name})
                             </button>
+                            ) : (
+                              <span style={{ fontSize: '0.73rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                                No predecessors
+                              </span>
+                            )
                           ) : (
                             step.predecessors.slice(0, 6).map((p) => (
                               <button
@@ -1327,6 +1372,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                             ))
                           )}
                           {step.predecessors.length > 6 && (
+                            canEdit ? (
                             <button
                               type="button"
                               onClick={() => openEditStepModal(step)}
@@ -1343,6 +1389,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                             >
                               +{step.predecessors.length - 6} more (edit)
                             </button>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)' }}>
+                                +{step.predecessors.length - 6} more
+                              </span>
+                            )
                           )}
                         </div>
 
@@ -1350,6 +1401,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                           {step.successors.length === 0 ? (
+                            canEdit ? (
                             <button
                               type="button"
                               onClick={() => openEditStepModal(step)}
@@ -1367,6 +1419,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                                 ? `Retired in ${detail.toState.name} (click to edit)`
                                 : `+ Add successors (${detail.toState.name})`}
                             </button>
+                            ) : (
+                              <span style={{ fontSize: '0.73rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>
+                                {step.action === 'RETIRE' ? `Retired in ${detail.toState.name}` : 'No successors'}
+                              </span>
+                            )
                           ) : (
                             step.successors.slice(0, 6).map((s) => (
                               <button
@@ -1397,6 +1454,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                             ))
                           )}
                           {step.successors.length > 6 && (
+                            canEdit ? (
                             <button
                               type="button"
                               onClick={() => openEditStepModal(step)}
@@ -1413,6 +1471,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                             >
                               +{step.successors.length - 6} more (edit)
                             </button>
+                            ) : (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)' }}>
+                                +{step.successors.length - 6} more
+                              </span>
+                            )
                           )}
                         </div>
                       </div>
@@ -1437,7 +1500,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                 </p>
               </div>
 
-              {filteredSuggestions.length > 0 && (
+              {canEdit && filteredSuggestions.length > 0 && (
                 <button
                   type="button"
                   onClick={() => handleAddAllSuggestions(filteredSuggestions)}
@@ -1521,6 +1584,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                         )}
                       </div>
 
+                      {canEdit && (
                       <button
                         type="button"
                         onClick={() => handleAddSuggestion(sug)}
@@ -1538,6 +1602,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                       >
                         <Plus size={13} /> Add
                       </button>
+                      )}
                     </div>
                   );
                 })}
