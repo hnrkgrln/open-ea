@@ -24,6 +24,8 @@ import { UnifiedSearch } from './components/UnifiedSearch';
 import { LifecycleBadge } from './components/LifecycleBadge';
 import { PicklistsView } from './components/PicklistsView';
 import { FilterDot, SearchInput, MultiSelect } from './components/FilterControls';
+import { DiagramSearch } from './components/DiagramSearch';
+import { normalizeKeywords, type DiagramNameCatalog } from './diagramSearch';
 import { ColoredSelect } from './components/ColoredSelect';
 import { TimeDashboardView } from './components/TimeDashboardView';
 import { InsightsView } from './components/InsightsView';
@@ -1614,8 +1616,18 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     return custom;
   };
 
+  const committedSearch = useMemo(
+    () => searchParams.getAll('q').map((term) => term.trim()).filter(Boolean),
+    [searchParams],
+  );
+  const [searchDraft, setSearchDraft] = useState('');
+  const activeSearch = useMemo(
+    () => normalizeKeywords([...committedSearch, searchDraft]),
+    [committedSearch, searchDraft],
+  );
+
   const filters = useMemo(() => ({
-    search: searchParams.get('q') || '',
+    search: committedSearch[0] || '',
     ownerOrgId: getParamArray('ownerOrg'),
     orgType: getParamArray('orgType'),
     owner: getParamArray('owner'),
@@ -1639,7 +1651,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     targetAppId: getParamArray('targetApp'),
     payloadId: getParamArray('payload'),
     custom: getCustomParams()
-  }), [searchParams]);
+  }), [searchParams, committedSearch]);
 
   const updateFilters = (newFilters: any) => {
     const params = new URLSearchParams(searchParams);
@@ -1649,7 +1661,14 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       else params.set(key, Array.isArray(val) ? val.join(',') : val);
     };
 
-    if (newFilters.search !== undefined) setOrRemove('q', newFilters.search);
+    if (newFilters.search !== undefined) {
+      params.delete('q');
+      const values = Array.isArray(newFilters.search) ? newFilters.search : [newFilters.search];
+      for (const value of values) {
+        const text = String(value ?? '').trim();
+        if (text) params.append('q', text);
+      }
+    }
     if (newFilters.ownerOrgId !== undefined) setOrRemove('ownerOrg', newFilters.ownerOrgId);
     if (newFilters.orgType !== undefined) setOrRemove('orgType', newFilters.orgType);
     if (newFilters.owner !== undefined) setOrRemove('owner', newFilters.owner);
@@ -1682,6 +1701,25 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       });
     }
 
+    setSearchParams(params, { replace: true });
+  };
+
+  const commitSearch = (text: string) => {
+    const trimmed = text.trim();
+    setSearchDraft('');
+    if (!trimmed) return;
+    if (committedSearch.some((term) => term.toLowerCase() === trimmed.toLowerCase())) return;
+    const params = new URLSearchParams(searchParams);
+    params.append('q', trimmed);
+    setSearchParams(params, { replace: true });
+  };
+
+  const removeSearch = (index: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('q');
+    committedSearch.forEach((term, termIndex) => {
+      if (termIndex !== index) params.append('q', term);
+    });
     setSearchParams(params, { replace: true });
   };
 
@@ -1771,7 +1809,18 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     integrations.map((integration) => integration.infoObjectId || integration.payload?.id),
     (id) => integrations.find((integration) => (integration.infoObjectId || integration.payload?.id) === id)?.payload?.name || id,
   );
-  
+  const diagramSearchCatalog = useMemo<DiagramNameCatalog>(() => ({
+    applications: (apps || []).map((app) => app.name),
+    capabilities: (capabilities || []).map((capability) => capability.name),
+    organizations: organizations.map((org) => org.name),
+    informationObjects: [
+      ...informationObjects.map((info) => info.name),
+      ...integrations.map((integration) => integration.payload?.name || ''),
+    ],
+    patterns: integrations.map((integration) => integration.pattern || ''),
+    crud: integrations.flatMap((integration) => String(integration.crud || '').split(',').map((part) => part.trim())),
+  }), [apps, capabilities, organizations, informationObjects, integrations]);
+
   const { filteredApps, categoricalFilteredApps } = useMemo(() => {
     if (!apps) return { filteredApps: [], categoricalFilteredApps: [] };
 
@@ -1877,16 +1926,17 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
         && matchPattern && matchFrequency && matchCrud && matchEndpoints;
     });
 
-    // 2. Landscape-aware Quick Search (applied top-down based on the active landscape).
+    // 2. Landscape-aware keyword search. Each keyword runs on its own, then the
+    // canvas keeps the overlap. The uncommitted draft counts as one more keyword.
     // The integrations landscape also expands past the seed applications when a
     // filter is set, so the count includes the other end of each information object.
-    if (!filters.search && mode !== 'network') {
+    if (activeSearch.length === 0 && mode !== 'network') {
       return { filteredApps: catFiltered, categoricalFilteredApps: catFiltered };
     }
 
     const finalFiltered = getLandscapeSearchMatchedApps({
       mode,
-      search: filters.search,
+      searchTerms: activeSearch,
       categoricalApps: catFiltered,
       allApps: apps,
       capabilities: capabilities || [],
@@ -1900,7 +1950,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, hideOrphanApps, groupingField]);
+  }, [apps, filters, activeSearch, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, hideOrphanApps, groupingField]);
 
   const diagramFiltersActive = useMemo(() => {
     const lists = [
@@ -1910,8 +1960,8 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       filters.sourceAppId, filters.targetAppId, filters.payloadId,
     ];
     const custom = Object.values(filters.custom || {}).some((vals) => vals.length > 0);
-    return filters.search !== '' || lists.some((vals) => vals.length > 0) || custom;
-  }, [filters]);
+    return committedSearch.length > 0 || searchDraft.trim() !== '' || lists.some((vals) => vals.length > 0) || custom;
+  }, [filters, committedSearch, searchDraft]);
 
   const orphanCount = useMemo(() => {
     const appsWithIntegrations = new Set(integrations?.flatMap(i => [i.sourceAppId, i.targetAppId]));
@@ -1931,9 +1981,14 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
           </div>
 
           <div className="diagram-search">
-            <SearchInput
-              value={filters.search}
-              onChange={(val) => updateFilters({ search: val })}
+            <DiagramSearch
+              terms={committedSearch}
+              draft={searchDraft}
+              onDraft={setSearchDraft}
+              onCommit={commitSearch}
+              onRemove={removeSearch}
+              mode={mode}
+              catalog={diagramSearchCatalog}
               placeholder={
                 mode === 'org-landscape'
                   ? 'Search organizations...'
@@ -1943,7 +1998,6 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
                       ? 'Search applications...'
                       : 'Search apps and flows...'
               }
-              style={{ height: '2.2rem', fontSize: '0.9rem' }}
             />
           </div>
 
@@ -2093,32 +2147,35 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
             ))}
 
             <button 
-              onClick={() => updateFilters({
-                search: '',
-                ownerOrgId: [],
-                orgType: [],
-                owner: [],
-                lifecycle: [],
-                type: [],
-                capabilityId: [],
-                criticality: [],
-                cost: [],
-                functionalFit: [],
-                technicalFit: [],
-                time: [],
-                infoType: [],
-                pii: [],
-                confidentiality: [],
-                integrity: [],
-                availability: [],
-                pattern: [],
-                frequency: [],
-                crud: [],
-                sourceAppId: [],
-                targetAppId: [],
-                payloadId: [],
-                custom: {},
-              })} 
+              onClick={() => {
+                setSearchDraft('');
+                updateFilters({
+                  search: '',
+                  ownerOrgId: [],
+                  orgType: [],
+                  owner: [],
+                  lifecycle: [],
+                  type: [],
+                  capabilityId: [],
+                  criticality: [],
+                  cost: [],
+                  functionalFit: [],
+                  technicalFit: [],
+                  time: [],
+                  infoType: [],
+                  pii: [],
+                  confidentiality: [],
+                  integrity: [],
+                  availability: [],
+                  pattern: [],
+                  frequency: [],
+                  crud: [],
+                  sourceAppId: [],
+                  targetAppId: [],
+                  payloadId: [],
+                  custom: {},
+                });
+              }}
               style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
             >
               <X size={16} style={{ marginRight: '0.5rem' }} /> Clear All
@@ -2151,7 +2208,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
           filters={filters}
           groupingField={groupingField}
           timeThresholds={timeThresholds}
-          relationSearch={filters.search} 
+          searchTerms={activeSearch}
           visible={isVisible}
         />
       </div>

@@ -25,6 +25,7 @@ import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIc
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 import { TimeMatrix } from './TimeMatrix';
 import { BoxLabel, revealWidth, useDiagramReveal } from '../diagramLabel';
+import { intersectAppLandscapeResults, intersectHierarchyResults, normalizeKeywords } from '../diagramSearch';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -218,7 +219,7 @@ interface Props {
   showCriticality?: boolean;
   filters?: any;
   groupingField?: string | null;
-  relationSearch?: string;
+  searchTerms?: string[];
   visible?: boolean;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   timeThresholds?: TimeThresholds;
@@ -278,11 +279,13 @@ const filterHierarchyTopDown = <TApp extends { id: string; name: string }>({
   query: string;
 }): {
   allowedNodeIds: Set<string>;
+  focusNodeIds: Set<string>;
   allowedAppsByNode: Map<string, TApp[]>;
   matchedSubtreeApps: TApp[];
 } => {
   const structureMap = new Map(structure.map((node) => [node.id, node]));
   const allowedNodeIds = new Set<string>();
+  const focusNodeIds = new Set<string>();
   const allowedAppsByNode = new Map<string, TApp[]>();
   const matchedAppMap = new Map<string, TApp>();
 
@@ -330,9 +333,10 @@ const filterHierarchyTopDown = <TApp extends { id: string; name: string }>({
             ancestor = parentInBranch.get(ancestor) ?? null;
           }
 
-          // Include the matched node and its full base-relevant subtree
+          // The match and its subtree are the focus. Ancestors stay wrappers only.
           const includeSubtree = (subId: string) => {
             allowedNodeIds.add(subId);
+            focusNodeIds.add(subId);
             const appsHere = appsByNode.get(subId);
             if (appsHere && appsHere.length > 0) {
               allowedAppsByNode.set(subId, appsHere);
@@ -360,6 +364,7 @@ const filterHierarchyTopDown = <TApp extends { id: string; name: string }>({
           );
           if (matchingApps.length > 0) {
             allowedNodeIds.add(id);
+            focusNodeIds.add(id);
             allowedAppsByNode.set(id, matchingApps);
             for (const app of matchingApps) matchedAppMap.set(app.id, app);
             let ancestor = parentInBranch.get(id) ?? null;
@@ -375,9 +380,63 @@ const filterHierarchyTopDown = <TApp extends { id: string; name: string }>({
 
   return {
     allowedNodeIds,
+    focusNodeIds,
     allowedAppsByNode,
     matchedSubtreeApps: Array.from(matchedAppMap.values()),
   };
+};
+
+const hierarchyForQueries = <TApp extends { id: string; name: string }>({
+  structure,
+  appsByNode,
+  isBaseRelevant,
+  canNodeMatch,
+  showApplications,
+  queries,
+}: {
+  structure: HierarchyNodeLike[];
+  appsByNode: Map<string, TApp[]>;
+  isBaseRelevant: (nodeId: string) => boolean;
+  canNodeMatch: (nodeId: string) => boolean;
+  showApplications: boolean;
+  queries: string[];
+}) => {
+  if (queries.length === 0) return null;
+  const results = queries.map((query) => filterHierarchyTopDown({
+    structure,
+    appsByNode,
+    isBaseRelevant,
+    canNodeMatch,
+    showApplications,
+    query,
+  }));
+  if (results.length === 1) return results[0];
+  const parentById = new Map(structure.map((node) => [node.id, node.parentId]));
+  return intersectHierarchyResults(results, (id) => parentById.get(id));
+};
+
+const appLandscapeForQueries = <
+  TCap extends { id: string; name: string },
+  TApp extends { id: string; name: string; capabilities?: TCap[] },
+>(args: {
+  candidateApps: TApp[];
+  showCapabilities: boolean;
+  queries: string[];
+}) => {
+  if (args.queries.length === 0) {
+    return filterAppLandscapeTopDown({
+      candidateApps: args.candidateApps,
+      showCapabilities: args.showCapabilities,
+      query: '',
+    });
+  }
+  const results = args.queries.map((query) => filterAppLandscapeTopDown({
+    candidateApps: args.candidateApps,
+    showCapabilities: args.showCapabilities,
+    query,
+  }));
+  if (results.length === 1) return results[0];
+  return intersectAppLandscapeResults(results);
 };
 
 const filterAppLandscapeTopDown = <
@@ -528,6 +587,52 @@ export const filterNetworkTopDown = <
   };
 };
 
+const filterNetworkByQueries = <
+  TApp extends {
+    id: string;
+    name: string;
+    lifecycle?: string | null;
+    ownerOrgId?: string | null;
+    ownerOrg?: { name?: string | null } | null;
+  },
+  TInt extends {
+    id: string;
+    sourceAppId: string;
+    targetAppId: string;
+    name?: string;
+    infoObjectId?: string | null;
+    pattern?: string;
+    frequency?: string;
+    crud?: string;
+    payload?: InformationObject;
+  },
+>(args: {
+  allApps: TApp[];
+  categoricalApps: TApp[];
+  integrations: TInt[];
+  organizations?: { id: string; name: string }[];
+  filters: any;
+  hideOrphanApps: boolean;
+  queries: string[];
+}): {
+  finalAppIds: string[];
+  filteredIntegrations: TInt[];
+} => {
+  const { queries: incoming, ...rest } = args;
+  const queries = incoming.map((query) => query.trim()).filter(Boolean);
+  const run = (query: string) => filterNetworkTopDown({ ...rest, query });
+  if (queries.length === 0) return run('');
+  const results = queries.map(run);
+  if (results.length === 1) return results[0];
+  let filteredIntegrations = results[0].filteredIntegrations;
+  for (const result of results.slice(1)) {
+    const ids = new Set(result.filteredIntegrations.map((integration) => integration.id));
+    filteredIntegrations = filteredIntegrations.filter((integration) => ids.has(integration.id));
+  }
+  const appIds = new Set(filteredIntegrations.flatMap((integration) => [integration.sourceAppId, integration.targetAppId]));
+  return { finalAppIds: Array.from(appIds), filteredIntegrations };
+};
+
 export const getLandscapeSearchMatchedApps = <
   TApp extends {
     id: string;
@@ -538,6 +643,7 @@ export const getLandscapeSearchMatchedApps = <
 >({
   mode,
   search,
+  searchTerms,
   categoricalApps,
   allApps,
   capabilities,
@@ -551,6 +657,7 @@ export const getLandscapeSearchMatchedApps = <
 }: {
   mode: 'network' | 'landscape' | 'app-landscape' | 'org-landscape';
   search?: string;
+  searchTerms?: string[];
   categoricalApps: TApp[];
   allApps: TApp[];
   capabilities: Capability[];
@@ -562,29 +669,30 @@ export const getLandscapeSearchMatchedApps = <
   hideOrphanApps?: boolean;
   groupingField?: string | null;
 }): TApp[] => {
-  const query = (search || '').trim().toLowerCase();
+  const queries = normalizeKeywords(searchTerms && searchTerms.length > 0 ? searchTerms : search ? [search] : [])
+    .map((term) => term.toLowerCase());
 
   if (mode === 'network') {
-    const { finalAppIds } = filterNetworkTopDown({
+    const { finalAppIds } = filterNetworkByQueries({
       allApps,
       categoricalApps,
       integrations,
       organizations,
       filters,
       hideOrphanApps,
-      query,
+      queries,
     });
     const allowed = new Set(finalAppIds);
     return allApps.filter((app) => allowed.has(app.id));
   }
 
-  if (!query) return categoricalApps;
+  if (queries.length === 0) return categoricalApps;
 
   if (mode === 'app-landscape') {
-    return filterAppLandscapeTopDown({
+    return appLandscapeForQueries({
       candidateApps: categoricalApps,
       showCapabilities,
-      query,
+      queries,
     }).matchedApps;
   }
 
@@ -648,14 +756,14 @@ export const getLandscapeSearchMatchedApps = <
     return res;
   };
 
-  return filterHierarchyTopDown({
+  return hierarchyForQueries({
     structure,
     appsByNode,
     isBaseRelevant,
     canNodeMatch: () => true,
     showApplications,
-    query,
-  }).matchedSubtreeApps;
+    queries,
+  })?.matchedSubtreeApps || [];
 };
 
 const STANDARD_DEFS: MetadataDefinition[] = [
@@ -1130,7 +1238,7 @@ const DiagramInner = ({
   showCriticality = true, 
   filters = {},
   groupingField = null,
-  relationSearch = '',
+  searchTerms = [],
   visible = false,
   containerRef,
   timeThresholds = DEFAULT_TIME_THRESHOLDS,
@@ -1488,13 +1596,15 @@ const DiagramInner = ({
 
   // A fresh organizations array each render retriggers this effect and React Flow setNodes loops.
   const organizationKey = organizations.map((org) => `${org.id}\0${org.parentId ?? ''}\0${org.name}\0${org.type ?? ''}`).join('\n');
+  const searchTermKey = normalizeKeywords(searchTerms).join('\u0001');
 
   useEffect(() => {
     if (!apps || !metaDefs || !picklists || apps.length === 0) return;
     if (mode !== 'org-landscape' && (!capabilities || capabilities.length === 0)) return;
+    const activeQueries = searchTermKey ? searchTermKey.split('\u0001').map((term) => term.toLowerCase()) : [];
     const publishDiagram = (nextNodes: Node[], nextEdges: Edge[]) => {
       const hasContent = nextNodes.some((node) => node.id !== 'filter-container');
-      setFilterMiss(!hasContent && hasActiveDiagramFilter(filters));
+      setFilterMiss(!hasContent && (hasActiveDiagramFilter(filters) || activeQueries.length > 0));
       const publishedNodes = hasContent ? nextNodes : [];
       let nextSpan = 0;
       for (const n of publishedNodes) {
@@ -1575,21 +1685,56 @@ const DiagramInner = ({
       const id = integration.infoObjectId || integration.payload?.id;
       if (id && integration.payload?.name) payloadNames.set(id, integration.payload.name);
     }
-    const showFilterFrame = filterFrame && !groupingField && describeCategoricalFilters(filters, organizations, capabilities, metaDefs, apps, payloadNames).length > 0;
+    const filterLabels = describeCategoricalFilters(filters, organizations, capabilities, metaDefs, apps, payloadNames);
+    const keywordTerms = searchTermKey ? searchTermKey.split('\u0001') : [];
+    if (keywordTerms.length > 0) filterLabels.push(`Keywords: ${keywordTerms.join(', ')}`);
+    const showFilterFrame = filterFrame && !groupingField && filterLabels.length > 0;
     const framePad = showFilterFrame ? 128 : 28;
+    const filterFrameNode = (list: Node[], fallbackW = 200, fallbackH = 80): Node | null => {
+      const b = absoluteBounds(list, fallbackW, fallbackH);
+      if (b.minX === Infinity) return null;
+      const pad = 48;
+      const title = filterLabels.join(' · ');
+      const width = (b.maxX - b.minX) + pad * 2;
+      const lineH = 18;
+      const charsPerLine = Math.max(16, Math.floor(Math.max(160, width - 36) / 6.4));
+      const lines = Math.max(1, Math.ceil(title.length / charsPerLine));
+      const titleH = 10 + lines * lineH + 8;
+      return {
+        id: 'filter-container',
+        data: {
+          label: (
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: titleH, boxSizing: 'border-box', padding: '8px 18px 0', color: 'var(--foreground)', fontSize: 13, fontWeight: 600, lineHeight: `${lineH}px`, textAlign: 'left', overflow: 'hidden' }}>
+              {title}
+            </div>
+          ),
+        },
+        position: { x: b.minX - pad, y: b.minY - pad - titleH },
+        style: {
+          width,
+          height: (b.maxY - b.minY) + pad * 2 + titleH,
+          background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+          border: '2px solid var(--primary)',
+          borderRadius: '24px',
+          padding: 0,
+          color: 'var(--foreground)',
+          pointerEvents: 'none',
+          zIndex: -100,
+        },
+      };
+    };
     const flowWidth = viewW / Math.max(reflowZoom, 0.05);
     const canvasBudget = Math.max(360, Math.floor(flowWidth - framePad));
 
     if (mode === 'network') {
-      const search = (relationSearch || '').trim().toLowerCase();
-      const { finalAppIds, filteredIntegrations } = filterNetworkTopDown({
+      const { finalAppIds, filteredIntegrations } = filterNetworkByQueries({
         allApps: apps,
         categoricalApps: categoricalFilteredApps,
         integrations,
         organizations,
         filters,
         hideOrphanApps,
-        query: search,
+        queries: activeQueries,
       });
       const adj = new Map<string, string[]>();
       finalAppIds.forEach(id => adj.set(id, []));
@@ -1672,11 +1817,8 @@ const DiagramInner = ({
 
       // --- ADD FILTER FEEDBACK TO NETWORK VIEW ---
       if (showFilterFrame && islandNodes.length > 0) {
-        const b = absoluteBounds(islandNodes, 200, 72);
-        if (b.minX !== Infinity) {
-          const pad = 48;
-          islandNodes.unshift({ id: 'filter-container', data: { label: 'Filtered Network' }, position: { x: b.minX - pad, y: b.minY - pad - 28 }, style: { width: (b.maxX - b.minX) + pad * 2, height: (b.maxY - b.minY) + pad * 2 + 28, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } });
-        }
+        const frame = filterFrameNode(islandNodes, 200, 72);
+        if (frame) islandNodes.unshift(frame);
       }
       // ------------------------------------------
 
@@ -1758,7 +1900,7 @@ const DiagramInner = ({
         if (isOrg && unassignedApps.length > 0) appsByCap.set('unassigned', unassignedApps);
         const structureMap = new Map(structure.map(node => [node.id, node]));
 
-        const searchQuery = (relationSearch || '').trim().toLowerCase();
+        const searchActive = activeQueries.length > 0;
         const { hasStructuralFilter, hasOtherAppFilter, hasAnyAppFilter } = analyzeDiagramFilterFlags(filters);
         // Organization Type and Owning Organization name the boxes. With no other
         // application filter, a matching organization stays visible without apps,
@@ -1779,7 +1921,7 @@ const DiagramInner = ({
           const matchesFilter = !capFilter || (!isOrg && capFilter(cap as Capability));
 
           let res: boolean;
-          if ((mode === 'landscape' || mode === 'org-landscape') && !capFilter && !hasAnyAppFilter && !(searchQuery && isAppGroupContainer)) {
+          if ((mode === 'landscape' || mode === 'org-landscape') && !capFilter && !hasAnyAppFilter && !(searchActive && isAppGroupContainer)) {
             // Show the full hierarchy when nothing is narrowing the inventory.
             res = true;
           } else if (structuralOnly) {
@@ -1798,8 +1940,8 @@ const DiagramInner = ({
         };
 
         const hierarchySearchResult =
-          searchQuery && (mode === 'landscape' || mode === 'org-landscape')
-            ? filterHierarchyTopDown({
+          searchActive && (mode === 'landscape' || mode === 'org-landscape')
+            ? hierarchyForQueries({
                 structure,
                 appsByNode: appsByCap,
                 isBaseRelevant,
@@ -1809,16 +1951,16 @@ const DiagramInner = ({
                   return !capFilter || (!isOrg && capFilter(cap as Capability));
                 },
                 showApplications,
-                query: searchQuery,
+                queries: activeQueries,
               })
             : null;
 
         const appLandscapeSearchResult =
           mode === 'app-landscape'
-            ? filterAppLandscapeTopDown({
+            ? appLandscapeForQueries({
                 candidateApps: targetApps,
                 showCapabilities,
-                query: searchQuery,
+                queries: activeQueries,
               })
             : null;
         const effectiveApps = appLandscapeSearchResult ? appLandscapeSearchResult.matchedApps : targetApps;
@@ -2217,7 +2359,7 @@ const DiagramInner = ({
       };
 
       if (primaryGroup) {
-        const searchActive = (relationSearch || '').trim().length > 0;
+        const searchActive = activeQueries.length > 0;
         const candidateGroupValues = primaryGroup.values.filter(val => {
           if (primaryGroup.entityType === 'Capability') {
             return capabilities.some(c => getCapFieldValue(c, primaryGroup.field).toLowerCase() === val.toLowerCase());
@@ -2329,17 +2471,14 @@ const DiagramInner = ({
       }
 
       if (showFilterFrame && allFinalNodes.length > 0) {
-        const b = absoluteBounds(allFinalNodes);
-        if (b.minX !== Infinity) {
-          const pad = 48;
-          allFinalNodes.unshift({ id: 'filter-container', data: { label: 'Filtered Inventory' }, position: { x: b.minX - pad, y: b.minY - pad - 28 }, style: { width: (b.maxX - b.minX) + pad * 2, height: (b.maxY - b.minY) + pad * 2 + 28, background: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)', border: '2px solid var(--primary)', borderRadius: '24px', pointerEvents: 'none', zIndex: -100 } });
-        }
+        const frame = filterFrameNode(allFinalNodes);
+        if (frame) allFinalNodes.unshift(frame);
       }
 
       publishDiagram(allFinalNodes, []);
     }
-  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, relationSearch, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, reflowZoom, filterFrame]);
-  const currentFitKey = `${layoutMetrics.count}-${layoutMetrics.span}-${viewportWidth}-${viewportHeight}-${mode}-${relationSearch}-${groupingField || ''}-${reflowZoom}`;
+  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, searchTermKey, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, reflowZoom, filterFrame]);
+  const currentFitKey = `${layoutMetrics.count}-${layoutMetrics.span}-${viewportWidth}-${viewportHeight}-${mode}-${searchTermKey}-${groupingField || ''}-${reflowZoom}`;
 
   useEffect(() => {
     if (layoutMetrics.count > 0 && visible && viewportWidth > 0 && nodesInitialized && lastFitKey.current !== currentFitKey) {
@@ -2559,7 +2698,7 @@ const DiagramInner = ({
           type="button"
           aria-pressed={filterFrame}
           onClick={() => setFilterFrame(on => !on)}
-          title={filterFrame ? 'Hide the frame around the filtered inventory' : 'Show a frame around the filtered inventory'}
+          title={filterFrame ? 'Hide the frame around the filtered nodes' : 'Show a frame naming the active filters'}
           style={{
             background: filterFrame ? 'var(--primary)' : 'transparent',
             color: filterFrame ? 'var(--primary-foreground)' : 'var(--muted-foreground)',
