@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Layers, Plus, PlusCircle, List, Trash2, Edit2, ChevronRight, GitBranch, Database, FileText, Filter, X } from 'lucide-react';
+import { Layers, Plus, PlusCircle, List, Trash2, Edit2, ChevronRight, GitBranch, Database, FileText, Filter, X, Eye, EyeOff, Download } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App'; // Need to export useLocalStorage from App.tsx or duplicate
 import { OrganizationDiagram } from './OrganizationDiagram';
 import { FilterDot, MultiSelect, SearchInput } from './FilterControls';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection, type TableSelection } from './TableSelection';
+import { organizationsTableCsv } from '../organizationExport';
 
 interface Organization {
   id: string;
@@ -30,10 +31,17 @@ const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, val
   return option || { label: value, color: 'var(--secondary)' };
 };
 
-const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, depth = 0 }: { node: Organization, organizations: Organization[], picklists: any[], onRefresh: () => void, selection: TableSelection, depth?: number }) => {
+const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, showApps = false, depth = 0 }: { node: Organization, organizations: Organization[], picklists: any[], onRefresh: () => void, selection: TableSelection, showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
   const hasChildren = node.children && node.children.length > 0;
   const typeInfo = getPicklistInfo(picklists, 'organization_type', node.type);
+  const directApps = useMemo(
+    () =>
+      [...(node.ownedApplications || [])].sort((a, b) =>
+        String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { numeric: true }),
+      ),
+    [node.ownedApplications],
+  );
 
   const getRecursiveCounts = (orgId: string): { apps: number; info: number } => {
     const org = organizations.find(o => o.id === orgId);
@@ -80,7 +88,40 @@ const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, dept
           </span>
         </td>
         <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
-          {recursive.apps > 0 ? (
+          {showApps ? (
+            directApps.length > 0 ? (
+              <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                {directApps.map((app: any) => (
+                  <span
+                    key={app.id}
+                    onClick={() => navigate(`/apps/${app.id}`)}
+                    title={`Open application: ${app.name}`}
+                    style={{
+                      cursor: 'pointer',
+                      background: 'var(--accent)',
+                      color: 'var(--foreground)',
+                      border: '1px solid var(--border)',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: '4px',
+                      fontSize: '0.65rem',
+                      fontWeight: 600,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
+                    <Database size={10} style={{ color: 'var(--primary)', flexShrink: 0 }} /> {app.name}
+                  </span>
+                ))}
+              </div>
+            ) : recursive.apps > 0 ? (
+              <span style={{ color: 'var(--muted-foreground)', fontSize: '0.68rem' }}>
+                {recursive.apps} in sub-orgs
+              </span>
+            ) : (
+              <span style={{ opacity: 0.3 }}>—</span>
+            )
+          ) : recursive.apps > 0 ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--primary)', fontWeight: 700 }}>
               <Database size={12} /> {recursive.apps}
             </div>
@@ -98,7 +139,7 @@ const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, dept
         </td>
       </tr>
       {hasChildren && node.children!.map(child => (
-        <OrgListRow key={child.id} node={child} organizations={organizations} picklists={picklists} onRefresh={onRefresh} selection={selection} depth={depth + 1} />
+        <OrgListRow key={child.id} node={child} organizations={organizations} picklists={picklists} onRefresh={onRefresh} selection={selection} showApps={showApps} depth={depth + 1} />
       ))}
     </>
   );
@@ -112,6 +153,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
   // are normalized to 'tree' so existing users land in the new default view.
   const [storedView, setViewMode] = useLocalStorage<string>('openea_organizations_view', 'tree');
   const viewMode: 'list' | 'tree' = storedView === 'list' ? 'list' : 'tree';
+  const [showApps, setShowApps] = useLocalStorage<boolean>('openea_organizations_show_apps', false);
   const [filters, setFilters] = useLocalStorage('openea_organizations_filters', EMPTY_ORG_FILTERS);
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
 
@@ -183,7 +225,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
       while (current && !seen.has(current)) {
         if (selectedParents.has(current)) return true;
         seen.add(current);
-        const parent = byId.get(current)?.parentId;
+        const parent: string | null | undefined = byId.get(current)?.parentId;
         current = parent && ids.has(parent) && parent !== current ? parent : undefined;
       }
       return false;
@@ -256,6 +298,20 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
   const filtersActive = isPanelFilterActive || (filters.search || '').trim().length > 0;
   const clearFilters = () => setFilters(EMPTY_ORG_FILTERS);
 
+  const exportToCSV = () => {
+    if (orgTree.length === 0) return;
+    const csvContent = organizationsTableCsv(orgTree, typeLabel);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `openea_organizations_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // In diagram mode, the page becomes a flex column so the canvas can claim
   // all remaining vertical space below the page header. Other modes flow
   // naturally so long lists/grids scroll within the main container as before.
@@ -281,6 +337,24 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
             />
           </div>
           <button
+            type="button"
+            onClick={() => setShowApps(!showApps)}
+            aria-pressed={showApps}
+            className="secondary"
+            style={{
+              height: '2.2rem',
+              padding: '0 0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+            }}
+          >
+            {showApps ? <EyeOff size={16} /> : <Eye size={16} />}
+            {showApps ? 'Hide Apps' : 'Show Apps'}
+          </button>
+          <button
             onClick={() => setShowFilters(!showFilters)}
             aria-expanded={showFilters}
             aria-label={isPanelFilterActive ? 'Filters, applied' : 'Filters'}
@@ -289,6 +363,15 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
             <Filter size={16} style={{ marginRight: '0.4rem', color: isPanelFilterActive ? 'var(--brand-focus)' : undefined }} />
             Filters
             {isPanelFilterActive && <FilterDot badge />}
+          </button>
+          <button
+            type="button"
+            onClick={exportToCSV}
+            className="secondary"
+            title="Export the organizations on screen, with names and labels and no ids"
+            style={{ height: '2.2rem', padding: '0 0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}
+          >
+            <Download size={16} /> Export CSV
           </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('tree')} title="Diagram view" style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'tree' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'tree' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><GitBranch size={14} /></button>
@@ -342,7 +425,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
                   </td>
                 </tr>
               ) : orgTree.map(org => (
-                <OrgListRow key={org.id} node={org} organizations={organizations} picklists={picklists || []} onRefresh={onRefresh} selection={selection} />
+                <OrgListRow key={org.id} node={org} organizations={organizations} picklists={picklists || []} onRefresh={onRefresh} selection={selection} showApps={showApps} />
               ))}
             </tbody>
           </table>
@@ -352,7 +435,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
       {viewMode === 'tree' && (
         visibleOrgs.length > 0 ? (
           <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-            <OrganizationDiagram organizations={visibleOrgs} picklists={picklists || []} />
+            <OrganizationDiagram organizations={visibleOrgs} picklists={picklists || []} showApps={showApps} />
           </div>
         ) : (
           <div className="card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--muted-foreground)', fontStyle: 'italic', fontSize: '0.8rem' }}>

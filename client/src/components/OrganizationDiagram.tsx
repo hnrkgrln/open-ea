@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { BoxLabel, useDiagramReveal } from '../diagramLabel';
 import ReactFlow, {
   Background,
@@ -16,7 +16,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import dagre from '@dagrejs/dagre';
 import { useNavigate } from 'react-router-dom';
-import { Layers, ExternalLink, X } from 'lucide-react';
+import { Database, Layers } from 'lucide-react';
 
 interface Organization {
   id: string;
@@ -31,9 +31,12 @@ interface PicklistOption { value: string; label: string; color?: string; }
 interface Picklist { name: string; options: PicklistOption[]; }
 
 const NODE_W = 190;
+const NODE_W_WITH_APPS = 224;
 const NODE_H = 60;
 const ROOT_NODE_W = 260;
 const ROOT_NODE_H = 84;
+const APP_CHIP_H = 22;
+const APP_CHIP_GAP = 4;
 
 const ROOT_PALETTE = [
   '#fa5252', '#228be6', '#fcc419', '#51cf66', '#be4bdb', 
@@ -95,10 +98,27 @@ const getTypeOption = (picklists: Picklist[], type?: string): PicklistOption | u
   return picklists.find(p => p.name === 'organization_type')?.options.find(o => o.value === String(type));
 };
 
-const OrgNode = ({ id, data }: NodeProps<{ org: Organization; picklists: Picklist[]; subtreeColor: string; isRoot: boolean; isStacked: boolean }>) => {
-  const { org, picklists, subtreeColor, isRoot, isStacked } = data;
+interface OrgNodeData {
+  org: Organization;
+  picklists: Picklist[];
+  subtreeColor: string;
+  isRoot: boolean;
+  isStacked: boolean;
+  showApps: boolean;
+  onSelectApp: (appId: string) => void;
+}
+
+const OrgNode = ({ id, data }: NodeProps<OrgNodeData>) => {
+  const { org, picklists, subtreeColor, isRoot, isStacked, showApps, onSelectApp } = data;
   const typeOpt = getTypeOption(picklists, org.type);
   const useColored = typeOpt?.color && typeOpt.color !== 'var(--secondary)';
+  const apps = useMemo(
+    () =>
+      showApps && org.ownedApplications?.length
+        ? [...org.ownedApplications].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+        : [],
+    [showApps, org.ownedApplications],
+  );
   
   return (
     <div
@@ -159,13 +179,82 @@ const OrgNode = ({ id, data }: NodeProps<{ org: Organization; picklists: Picklis
           {typeOpt.label}
         </span>
       )}
+      {apps.length > 0 && (
+        <div
+          style={{
+            marginTop: 8,
+            paddingTop: 6,
+            borderTop: '1px dashed var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: APP_CHIP_GAP,
+          }}
+        >
+          {apps.map((app) => (
+            <button
+              key={app.id}
+              type="button"
+              title={`Open application: ${app.name}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onSelectApp(app.id);
+              }}
+              style={{
+                width: '100%',
+                height: APP_CHIP_H,
+                padding: '0 6px',
+                borderRadius: 4,
+                border: '1px solid var(--border)',
+                background: 'var(--secondary)',
+                color: 'var(--foreground)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                gap: 5,
+                fontSize: '0.68rem',
+                fontWeight: 560,
+                cursor: 'pointer',
+                overflow: 'hidden',
+                boxSizing: 'border-box',
+              }}
+            >
+              <Database size={11} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                {app.name}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
 
 const NODE_TYPES = { org: OrgNode };
 
-const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[]; edges: Edge[] } => {
+const getOrgNodeDimensions = (org: Organization, picklists: Picklist[], isRoot: boolean, showApps: boolean) => {
+  const appsCount = showApps ? (org.ownedApplications?.length || 0) : 0;
+  if (appsCount === 0) {
+    return {
+      w: isRoot ? ROOT_NODE_W : NODE_W,
+      h: isRoot ? ROOT_NODE_H : NODE_H,
+    };
+  }
+  const hasTypeBadge = Boolean(getTypeOption(picklists, org.type));
+  const headerBaseH = isRoot ? (hasTypeBadge ? 80 : 54) : (hasTypeBadge ? 62 : 40);
+  const appsBlockH = 15 + appsCount * APP_CHIP_H + Math.max(0, appsCount - 1) * APP_CHIP_GAP + 6;
+  return {
+    w: isRoot ? ROOT_NODE_W : NODE_W_WITH_APPS,
+    h: Math.max(isRoot ? ROOT_NODE_H : NODE_H, headerBaseH + appsBlockH),
+  };
+};
+
+const layoutOrgs = (
+  orgs: Organization[],
+  picklists: Picklist[],
+  showApps: boolean,
+  onSelectApp: (appId: string) => void,
+): { nodes: Node[]; edges: Edge[] } => {
   if (!orgs.length) return { nodes: [], edges: [] };
 
   const byId = new Map(orgs.map(o => [o.id, o] as const));
@@ -231,28 +320,37 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
   });
 
   const stackedNodeIds = new Set<string>();
+  const dimsById = new Map<string, { w: number; h: number }>();
+  orgs.forEach(o => {
+    const isRoot = !o.parentId || !byId.has(o.parentId);
+    dimsById.set(o.id, getOrgNodeDimensions(o, picklists, isRoot, showApps));
+  });
 
   orgs.forEach(o => {
     if (o.parentId && stackParentIds.has(o.parentId)) {
       stackedNodeIds.add(o.id);
       return; 
     }
-    const isRoot = !o.parentId;
-    g.setNode(o.id, { width: isRoot ? ROOT_NODE_W : NODE_W, height: isRoot ? ROOT_NODE_H : NODE_H });
+    const { w, h } = dimsById.get(o.id)!;
+    g.setNode(o.id, { width: w, height: h });
   });
 
   // Placeholder for leaf stacks
   stackParentIds.forEach(pId => {
     const leaves = siblingsOf(pId);
-    const stackHeight = leaves.length * (NODE_H + 12);
-    const stackWidth = NODE_W + 30;
+    const maxLeafW = Math.max(NODE_W, ...leaves.map(l => dimsById.get(l.id)!.w));
+    const stackHeight = leaves.reduce(
+      (sum, l, idx) => sum + dimsById.get(l.id)!.h + (idx < leaves.length - 1 ? 12 : 0),
+      0,
+    );
+    const stackWidth = maxLeafW + 30;
     const placeholderId = `stack-${pId}`;
     g.setNode(placeholderId, { width: stackWidth, height: stackHeight });
     g.setEdge(pId, placeholderId);
   });
 
   orgs.forEach(o => {
-    if (o.parentId && !stackedNodeIds.has(o.id)) {
+    if (o.parentId && byId.has(o.parentId) && !stackedNodeIds.has(o.id)) {
       g.setEdge(o.parentId, o.id);
     }
   });
@@ -265,13 +363,12 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
   orgs.forEach(o => {
     if (stackedNodeIds.has(o.id)) return;
     const pos = g.node(o.id);
-    const isRoot = !o.parentId;
-    const w = isRoot ? ROOT_NODE_W : NODE_W;
-    const h = isRoot ? ROOT_NODE_H : NODE_H;
+    const isRoot = !o.parentId || !byId.has(o.parentId);
+    const { w, h } = dimsById.get(o.id)!;
     finalNodes.push({
       id: o.id, type: 'org',
       position: { x: pos.x - w/2, y: pos.y - h/2 },
-      data: { org: o, picklists, subtreeColor: colorByNode.get(o.id)!, isRoot, isStacked: false },
+      data: { org: o, picklists, subtreeColor: colorByNode.get(o.id)!, isRoot, isStacked: false, showApps, onSelectApp },
       style: { width: w, height: h },
     });
   });
@@ -283,11 +380,12 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
     const indentX = placeholderPos.x - placeholderPos.width/2 + 20;
 
     leaves.forEach(leaf => {
+      const { w: leafW, h: leafH } = dimsById.get(leaf.id)!;
       finalNodes.push({
         id: leaf.id, type: 'org',
         position: { x: indentX, y: currentY },
-        data: { org: leaf, picklists, subtreeColor: colorByNode.get(leaf.id)!, isRoot: false, isStacked: true },
-        style: { width: NODE_W, height: NODE_H },
+        data: { org: leaf, picklists, subtreeColor: colorByNode.get(leaf.id)!, isRoot: false, isStacked: true, showApps, onSelectApp },
+        style: { width: leafW, height: leafH },
       });
       
       finalEdges.push({
@@ -296,12 +394,12 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
         style: { stroke: colorByNode.get(leaf.id), strokeWidth: 2 }
       });
       
-      currentY += NODE_H + 12;
+      currentY += leafH + 12;
     });
   });
 
   orgs.forEach(o => {
-    if (o.parentId && !stackedNodeIds.has(o.id)) {
+    if (o.parentId && byId.has(o.parentId) && !stackedNodeIds.has(o.id)) {
       finalEdges.push({
         id: `${o.parentId}->${o.id}`, source: o.parentId, target: o.id,
         type: 'smoothstep',
@@ -313,14 +411,26 @@ const layoutOrgs = (orgs: Organization[], picklists: Picklist[]): { nodes: Node[
   return { nodes: finalNodes, edges: finalEdges };
 };
 
-const DiagramInner = ({ organizations, picklists }: { organizations: Organization[]; picklists: Picklist[] }) => {
+const DiagramInner = ({
+  organizations,
+  picklists,
+  showApps,
+}: {
+  organizations: Organization[];
+  picklists: Picklist[];
+  showApps: boolean;
+}) => {
   const navigate = useNavigate();
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(() => layoutOrgs(organizations, picklists), [organizations, picklists]);
+  const handleSelectApp = useCallback((appId: string) => navigate(`/apps/${appId}`), [navigate]);
+  const { nodes: initialNodes, edges: initialEdges } = useMemo(
+    () => layoutOrgs(organizations, picklists, showApps, handleSelectApp),
+    [organizations, picklists, showApps, handleSelectApp],
+  );
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   useDiagramReveal(setNodes);
   const { fitView, getNodes } = useReactFlow();
-  const graphKey = organizations.map((org) => org.id).join('\0');
+  const graphKey = `${showApps ? '1' : '0'}:${organizations.map((org) => org.id).join('\0')}`;
 
   useEffect(() => {
     setNodes(initialNodes);
@@ -354,170 +464,33 @@ const DiagramInner = ({ organizations, picklists }: { organizations: Organizatio
     };
   }, [graphKey, organizations.length, fitView, getNodes]);
 
-  const [inspectedOrgId, setInspectedOrgId] = useState<string | null>(null);
-  const inspectedOrg = useMemo(() => organizations.find(o => o.id === inspectedOrgId) || null, [organizations, inspectedOrgId]);
-
-  useEffect(() => {
-    if (!inspectedOrgId) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setInspectedOrgId(null);
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [inspectedOrgId]);
-
   return (
-    <>
-      <ReactFlow
-        nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
-        nodeTypes={NODE_TYPES}
-        onNodeClick={(_event, node) => setInspectedOrgId(node.id)}
-        onPaneClick={() => setInspectedOrgId(null)}
-        proOptions={{ hideAttribution: true }} fitView minZoom={0.1} maxZoom={1.5}
-        nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
-      >
-        <Background gap={20} size={1} color="var(--border)" />
-        <Controls showInteractive={false} />
-      </ReactFlow>
-      {inspectedOrg && (() => {
-        const parentOrg = organizations.find(o => o.id === inspectedOrg.parentId);
-        const subOrgs = organizations.filter(o => o.parentId === inspectedOrg.id);
-        const typeOpt = getTypeOption(picklists, inspectedOrg.type);
-        const accentColor = (typeOpt?.color && typeOpt.color !== 'var(--secondary)') ? typeOpt.color : 'var(--primary)';
-        const directAppsCount = inspectedOrg.ownedApplications?.length ?? 0;
-
-        return (
-          <div
-            className="state-dialog-backdrop"
-            style={{ zIndex: 1100 }}
-            onMouseDown={() => setInspectedOrgId(null)}
-          >
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Organization inspector: ${inspectedOrg.name}`}
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                width: 'min(32rem, 100%)',
-                borderRadius: '14px',
-                border: `1.5px solid ${accentColor}`,
-                background: 'var(--card)',
-                color: 'var(--foreground)',
-                boxShadow: '0 12px 32px rgba(0,0,0,0.28)',
-                padding: '1.15rem 1.3rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.85rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.6rem' }}>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
-                    <span style={{
-                      fontSize: '0.62rem',
-                      fontWeight: 800,
-                      letterSpacing: '0.06em',
-                      textTransform: 'uppercase',
-                      padding: '0.12rem 0.45rem',
-                      borderRadius: '4px',
-                      background: 'var(--secondary)',
-                      color: 'var(--muted-foreground)',
-                      border: '1px solid var(--border)',
-                    }}>
-                      Organization
-                    </span>
-                    {(typeOpt?.label || inspectedOrg.type) && (
-                      <span style={{
-                        fontSize: '0.62rem',
-                        fontWeight: 800,
-                        letterSpacing: '0.05em',
-                        textTransform: 'uppercase',
-                        padding: '0.12rem 0.45rem',
-                        borderRadius: '4px',
-                        background: 'var(--accent)',
-                        color: 'var(--foreground)',
-                      }}>
-                        {typeOpt?.label || inspectedOrg.type}
-                      </span>
-                    )}
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, lineHeight: 1.25 }}>
-                    {inspectedOrg.name}
-                  </h3>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.2rem' }}>
-                    {parentOrg ? (
-                      <>
-                        Parent:{' '}
-                        <button
-                          type="button"
-                          onClick={() => setInspectedOrgId(parentOrg.id)}
-                          style={{ background: 'none', border: 'none', padding: 0, color: 'var(--primary)', fontWeight: 600, fontSize: '0.75rem', cursor: 'pointer' }}
-                        >
-                          {parentOrg.name}
-                        </button>
-                      </>
-                    ) : (
-                      'Root organization'
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInspectedOrgId(null);
-                      navigate(`/organizations/${inspectedOrg.id}`);
-                    }}
-                    className="primary"
-                    style={{ height: '1.95rem', padding: '0 0.75rem', fontSize: '0.76rem', gap: '0.35rem', display: 'inline-flex', alignItems: 'center' }}
-                    title="Open full organization details page"
-                  >
-                    Details <ExternalLink size={12} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Close inspector"
-                    onClick={() => setInspectedOrgId(null)}
-                    style={{ height: '1.95rem', width: '1.95rem', padding: 0, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--secondary)', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', background: 'var(--secondary)', padding: '0.5rem 0.75rem', borderRadius: '8px' }}>
-                <div>
-                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Type</div>
-                  <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {typeOpt?.label || inspectedOrg.type || '—'}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Direct Apps</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--foreground)' }}>
-                    {directAppsCount}
-                  </div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Sub-Orgs</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--foreground)' }}>
-                    {subOrgs.length}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-    </>
+    <ReactFlow
+      nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgesChange}
+      nodeTypes={NODE_TYPES}
+      onNodeClick={(_event, node) => navigate(`/organizations/${node.id}`)}
+      proOptions={{ hideAttribution: true }} fitView minZoom={0.1} maxZoom={1.5}
+      nodesDraggable={false} nodesConnectable={false} elementsSelectable={false}
+    >
+      <Background gap={20} size={1} color="var(--border)" />
+      <Controls showInteractive={false} />
+    </ReactFlow>
   );
 };
 
-export const OrganizationDiagram = ({ organizations, picklists }: { organizations: Organization[]; picklists: Picklist[] }) => {
+export const OrganizationDiagram = ({
+  organizations,
+  picklists,
+  showApps = false,
+}: {
+  organizations: Organization[];
+  picklists: Picklist[];
+  showApps?: boolean;
+}) => {
   return (
     <div className="diagram-surface" style={{ width: '100%', height: '100%', minHeight: 0, background: 'var(--background)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
       <ReactFlowProvider>
-        <DiagramInner organizations={organizations} picklists={picklists} />
+        <DiagramInner organizations={organizations} picklists={picklists} showApps={showApps} />
       </ReactFlowProvider>
     </div>
   );
