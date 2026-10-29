@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
-import { ApplicationDiagram } from './components/ApplicationDiagram';
+import { ApplicationDiagram, getLandscapeSearchMatchedApps } from './components/ApplicationDiagram';
 import { StrategicGoalsView } from './components/StrategicGoalsView';
 import { StrategicGoalDetailsView } from './components/StrategicGoalDetailsView';
 import { EditStrategicGoalPage } from './components/EditStrategicGoalPage';
@@ -1877,44 +1877,28 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
         && matchPattern && matchFrequency && matchCrud && matchEndpoints;
     });
 
-    // 2. Search Filtering (Applied on top of categorical)
+    // 2. Landscape-aware Quick Search (applied top-down based on the active landscape)
     if (!filters.search) {
       return { filteredApps: catFiltered, categoricalFilteredApps: catFiltered };
     }
 
-    const query = filters.search.toLowerCase();
-    const catAppIds = new Set(catFiltered.map(a => a.id));
-
-    const finalFiltered = catFiltered.filter(app => {
-      const appMatches = app.name.toLowerCase().includes(query) || 
-        app.description?.toLowerCase().includes(query) ||
-        app.owner?.toLowerCase().includes(query) ||
-        app.lifecycle?.toLowerCase().includes(query) ||
-        app.type?.toLowerCase().includes(query) ||
-        app.capabilities?.some(c => c.name.toLowerCase().includes(query)) ||
-        app.ownerOrg?.name?.toLowerCase().includes(query) ||
-        app.metadata?.toLowerCase().includes(query);
-      
-      // Also match if any of the app's integrations match the query 
-      // AND those integrations connect to other apps in the categorical set
-      const integrationMatches = integrations?.some(i => {
-        const isSource = i.sourceAppId === app.id;
-        const isTarget = i.targetAppId === app.id;
-        if (!isSource && !isTarget) return false;
-
-        const otherId = isSource ? i.targetAppId : i.sourceAppId;
-        if (!catAppIds.has(otherId)) return false;
-
-        const infoName = i.payload?.name || '';
-        const intName = i.name || '';
-        return infoName.toLowerCase().includes(query) || intName.toLowerCase().includes(query);
-      }) || false;
-
-      return appMatches || integrationMatches;
+    const finalFiltered = getLandscapeSearchMatchedApps({
+      mode,
+      search: filters.search,
+      categoricalApps: catFiltered,
+      allApps: apps,
+      capabilities: capabilities || [],
+      organizations: organizations || [],
+      integrations: integrations || [],
+      filters,
+      showApplications,
+      showCapabilities,
+      hideOrphanApps: false,
+      groupingField,
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, capabilities, integrations, organizations, informationObjects, timeThresholds]);
+  }, [apps, filters, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, groupingField]);
 
   const diagramFiltersActive = useMemo(() => {
     const lists = [
@@ -1948,7 +1932,15 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
             <SearchInput
               value={filters.search}
               onChange={(val) => updateFilters({ search: val })}
-              placeholder="Search nodes and flows..."
+              placeholder={
+                mode === 'org-landscape'
+                  ? 'Search organizations...'
+                  : mode === 'landscape'
+                    ? 'Search capabilities...'
+                    : mode === 'app-landscape'
+                      ? 'Search applications...'
+                      : 'Search apps and flows...'
+              }
               style={{ height: '2.2rem', fontSize: '0.9rem' }}
             />
           </div>

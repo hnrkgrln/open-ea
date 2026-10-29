@@ -224,6 +224,450 @@ interface Props {
   timeThresholds?: TimeThresholds;
 }
 
+const analyzeDiagramFilterFlags = (filters: any = {}) => {
+  const hasFilterList = (values?: string[]) => Array.isArray(values) && values.length > 0;
+  const hasCustomFilter = !!(filters?.custom && Object.values(filters.custom).some((values: any) => Array.isArray(values) && values.length > 0));
+  const hasStructuralFilter = hasFilterList(filters?.ownerOrgId) || hasFilterList(filters?.orgType);
+  const hasOtherAppFilter = hasFilterList(filters?.owner) ||
+    hasFilterList(filters?.lifecycle) ||
+    hasFilterList(filters?.type) ||
+    hasFilterList(filters?.criticality) ||
+    hasFilterList(filters?.cost) ||
+    hasFilterList(filters?.functionalFit) ||
+    hasFilterList(filters?.technicalFit) ||
+    hasFilterList(filters?.time) ||
+    hasFilterList(filters?.capabilityId) ||
+    hasFilterList(filters?.infoType) ||
+    hasFilterList(filters?.pii) ||
+    hasFilterList(filters?.confidentiality) ||
+    hasFilterList(filters?.integrity) ||
+    hasFilterList(filters?.availability) ||
+    hasFilterList(filters?.pattern) ||
+    hasFilterList(filters?.frequency) ||
+    hasFilterList(filters?.crud) ||
+    hasFilterList(filters?.sourceAppId) ||
+    hasFilterList(filters?.targetAppId) ||
+    hasFilterList(filters?.payloadId) ||
+    hasCustomFilter;
+  return {
+    hasStructuralFilter,
+    hasOtherAppFilter,
+    hasAnyAppFilter: hasStructuralFilter || hasOtherAppFilter,
+  };
+};
+
+interface HierarchyNodeLike {
+  id: string;
+  name: string;
+  parentId?: string | null;
+}
+
+const filterHierarchyTopDown = <TApp extends { id: string; name: string }>({
+  structure,
+  appsByNode,
+  isBaseRelevant,
+  canNodeMatch,
+  showApplications,
+  query,
+}: {
+  structure: HierarchyNodeLike[];
+  appsByNode: Map<string, TApp[]>;
+  isBaseRelevant: (nodeId: string) => boolean;
+  canNodeMatch: (nodeId: string) => boolean;
+  showApplications: boolean;
+  query: string;
+}): {
+  allowedNodeIds: Set<string>;
+  allowedAppsByNode: Map<string, TApp[]>;
+  matchedSubtreeApps: TApp[];
+} => {
+  const structureMap = new Map(structure.map((node) => [node.id, node]));
+  const allowedNodeIds = new Set<string>();
+  const allowedAppsByNode = new Map<string, TApp[]>();
+  const matchedAppMap = new Map<string, TApp>();
+
+  const childrenOf = (nodeId: string) =>
+    structure.filter((c) => c.parentId === nodeId && c.id !== nodeId && isBaseRelevant(c.id));
+
+  const roots = structure.filter(
+    (c) => (!c.parentId || !structureMap.has(c.parentId)) && isBaseRelevant(c.id),
+  );
+
+  for (const root of roots) {
+    const levels: string[][] = [];
+    const seenInBranch = new Set<string>([root.id]);
+    const parentInBranch = new Map<string, string | null>([[root.id, null]]);
+    let frontier: string[] = [root.id];
+
+    while (frontier.length > 0) {
+      levels.push(frontier);
+      const nextFrontier: string[] = [];
+      for (const id of frontier) {
+        for (const child of childrenOf(id)) {
+          if (seenInBranch.has(child.id)) continue;
+          seenInBranch.add(child.id);
+          parentInBranch.set(child.id, id);
+          nextFrontier.push(child.id);
+        }
+      }
+      frontier = nextFrontier;
+    }
+
+    let matchedAtTreeLevel = false;
+    for (const level of levels) {
+      const matchingIds = level.filter((id) => {
+        const node = structureMap.get(id);
+        return Boolean(node && canNodeMatch(id) && node.name.toLowerCase().includes(query));
+      });
+
+      if (matchingIds.length > 0) {
+        matchedAtTreeLevel = true;
+        for (const matchedId of matchingIds) {
+          // Keep ancestor wrapper boxes up to the root of this branch for context
+          let ancestor = parentInBranch.get(matchedId) ?? null;
+          while (ancestor) {
+            allowedNodeIds.add(ancestor);
+            ancestor = parentInBranch.get(ancestor) ?? null;
+          }
+
+          // Include the matched node and its full base-relevant subtree
+          const includeSubtree = (subId: string) => {
+            allowedNodeIds.add(subId);
+            const appsHere = appsByNode.get(subId);
+            if (appsHere && appsHere.length > 0) {
+              allowedAppsByNode.set(subId, appsHere);
+              for (const app of appsHere) matchedAppMap.set(app.id, app);
+            }
+            for (const child of childrenOf(subId)) {
+              if (parentInBranch.get(child.id) === subId) {
+                includeSubtree(child.id);
+              }
+            }
+          };
+          includeSubtree(matchedId);
+        }
+        break;
+      }
+    }
+
+    // If no container node at any depth in this branch matched, fall through to leaf applications
+    if (!matchedAtTreeLevel && showApplications) {
+      for (const level of levels) {
+        for (const id of level) {
+          if (!canNodeMatch(id)) continue;
+          const matchingApps = (appsByNode.get(id) || []).filter((app) =>
+            app.name.toLowerCase().includes(query),
+          );
+          if (matchingApps.length > 0) {
+            allowedNodeIds.add(id);
+            allowedAppsByNode.set(id, matchingApps);
+            for (const app of matchingApps) matchedAppMap.set(app.id, app);
+            let ancestor = parentInBranch.get(id) ?? null;
+            while (ancestor) {
+              allowedNodeIds.add(ancestor);
+              ancestor = parentInBranch.get(ancestor) ?? null;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    allowedNodeIds,
+    allowedAppsByNode,
+    matchedSubtreeApps: Array.from(matchedAppMap.values()),
+  };
+};
+
+const filterAppLandscapeTopDown = <
+  TCap extends { id: string; name: string },
+  TApp extends { id: string; name: string; capabilities?: TCap[] },
+>({
+  candidateApps,
+  showCapabilities,
+  query,
+}: {
+  candidateApps: TApp[];
+  showCapabilities: boolean;
+  query: string;
+}): {
+  matchedApps: TApp[];
+  allowedCapsByApp: Map<string, TCap[]> | null;
+} => {
+  if (!query) {
+    return { matchedApps: candidateApps, allowedCapsByApp: null };
+  }
+  const matchedApps: TApp[] = [];
+  const allowedCapsByApp = new Map<string, TCap[]>();
+
+  for (const app of candidateApps) {
+    if (app.name.toLowerCase().includes(query)) {
+      matchedApps.push(app);
+      allowedCapsByApp.set(app.id, app.capabilities || []);
+    } else if (showCapabilities) {
+      const matchingCaps = (app.capabilities || []).filter((c) =>
+        c.name.toLowerCase().includes(query),
+      );
+      if (matchingCaps.length > 0) {
+        matchedApps.push(app);
+        allowedCapsByApp.set(app.id, matchingCaps);
+      }
+    }
+  }
+
+  return { matchedApps, allowedCapsByApp };
+};
+
+const filterNetworkTopDown = <
+  TApp extends { id: string; name: string },
+  TInt extends {
+    id: string;
+    sourceAppId: string;
+    targetAppId: string;
+    name?: string;
+    infoObjectId?: string | null;
+    pattern?: string;
+    frequency?: string;
+    crud?: string;
+    payload?: InformationObject;
+  },
+>({
+  allApps,
+  categoricalApps,
+  integrations,
+  filters,
+  hideOrphanApps,
+  query,
+}: {
+  allApps: TApp[];
+  categoricalApps: TApp[];
+  integrations: TInt[];
+  filters: any;
+  hideOrphanApps: boolean;
+  query: string;
+}): {
+  finalAppIds: string[];
+  filteredIntegrations: TInt[];
+} => {
+  const catAppIds = new Set(categoricalApps.map((a) => a.id));
+  const appById = new Map(allApps.map((a) => [a.id, a]));
+
+  const baseIntegrations = integrations.filter((i) => {
+    if (!catAppIds.has(i.sourceAppId) || !catAppIds.has(i.targetAppId)) return false;
+    if (!appById.has(i.sourceAppId) || !appById.has(i.targetAppId)) return false;
+    return integrationMatchesFilters(i, filters);
+  });
+
+  const appsWithBaseIntegrations = new Set(
+    baseIntegrations.flatMap((i) => [i.sourceAppId, i.targetAppId]),
+  );
+  const baseAppIds = Array.from(
+    new Set([
+      ...Array.from(appsWithBaseIntegrations),
+      ...(hideOrphanApps ? [] : categoricalApps.map((a) => a.id)),
+    ]),
+  );
+
+  if (!query) {
+    return { finalAppIds: baseAppIds, filteredIntegrations: baseIntegrations };
+  }
+
+  const adj = new Map<string, string[]>();
+  baseAppIds.forEach((id) => adj.set(id, []));
+  baseIntegrations.forEach((i) => {
+    adj.get(i.sourceAppId)?.push(i.targetAppId);
+    adj.get(i.targetAppId)?.push(i.sourceAppId);
+  });
+
+  const visited = new Set<string>();
+  const keptAppIdSet = new Set<string>();
+  const keptIntegrationIdSet = new Set<string>();
+
+  for (const startId of baseAppIds) {
+    if (visited.has(startId)) continue;
+    const islandAppIds: string[] = [];
+    const stack = [startId];
+    visited.add(startId);
+    while (stack.length > 0) {
+      const curr = stack.pop()!;
+      islandAppIds.push(curr);
+      adj.get(curr)?.forEach((neighbor) => {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          stack.push(neighbor);
+        }
+      });
+    }
+    const islandSet = new Set(islandAppIds);
+    const islandIntegrations = baseIntegrations.filter((i) => islandSet.has(i.sourceAppId));
+
+    // Check top-level Application nodes in this island first
+    const matchingAppIds = islandAppIds.filter((id) =>
+      appById.get(id)?.name.toLowerCase().includes(query),
+    );
+
+    if (matchingAppIds.length > 0) {
+      const matchingSet = new Set(matchingAppIds);
+      matchingAppIds.forEach((id) => keptAppIdSet.add(id));
+      for (const i of islandIntegrations) {
+        if (matchingSet.has(i.sourceAppId) || matchingSet.has(i.targetAppId)) {
+          keptIntegrationIdSet.add(i.id);
+          keptAppIdSet.add(i.sourceAppId);
+          keptAppIdSet.add(i.targetAppId);
+        }
+      }
+    } else {
+      // Fall back to integration flows if no Application node in this island matched
+      for (const i of islandIntegrations) {
+        const flowMatches =
+          i.name?.toLowerCase().includes(query) ||
+          i.payload?.name?.toLowerCase().includes(query) ||
+          i.pattern?.toLowerCase().includes(query) ||
+          i.crud?.toLowerCase().includes(query);
+        if (flowMatches) {
+          keptIntegrationIdSet.add(i.id);
+          keptAppIdSet.add(i.sourceAppId);
+          keptAppIdSet.add(i.targetAppId);
+        }
+      }
+    }
+  }
+
+  return {
+    finalAppIds: baseAppIds.filter((id) => keptAppIdSet.has(id)),
+    filteredIntegrations: baseIntegrations.filter((i) => keptIntegrationIdSet.has(i.id)),
+  };
+};
+
+export const getLandscapeSearchMatchedApps = <
+  TApp extends {
+    id: string;
+    name: string;
+    ownerOrgId?: string | null;
+    capabilities?: { id: string; name: string }[];
+  },
+>({
+  mode,
+  search,
+  categoricalApps,
+  allApps,
+  capabilities,
+  organizations,
+  integrations,
+  filters,
+  showApplications = true,
+  showCapabilities = true,
+  hideOrphanApps = false,
+  groupingField = null,
+}: {
+  mode: 'network' | 'landscape' | 'app-landscape' | 'org-landscape';
+  search?: string;
+  categoricalApps: TApp[];
+  allApps: TApp[];
+  capabilities: Capability[];
+  organizations: Organization[];
+  integrations: Integration[];
+  filters?: any;
+  showApplications?: boolean;
+  showCapabilities?: boolean;
+  hideOrphanApps?: boolean;
+  groupingField?: string | null;
+}): TApp[] => {
+  const query = (search || '').trim().toLowerCase();
+  if (!query) return categoricalApps;
+
+  if (mode === 'app-landscape') {
+    return filterAppLandscapeTopDown({
+      candidateApps: categoricalApps,
+      showCapabilities,
+      query,
+    }).matchedApps;
+  }
+
+  if (mode === 'network') {
+    const { finalAppIds } = filterNetworkTopDown({
+      allApps,
+      categoricalApps,
+      integrations,
+      filters,
+      hideOrphanApps,
+      query,
+    });
+    const allowed = new Set(finalAppIds);
+    return categoricalApps.filter((a) => allowed.has(a.id));
+  }
+
+  const isOrg = mode === 'org-landscape';
+  const appsByNode = new Map<string, TApp[]>();
+  const unassignedApps: TApp[] = [];
+  const orgIds = new Set(organizations.map((org) => org.id));
+
+  for (const app of categoricalApps) {
+    if (isOrg) {
+      if (app.ownerOrgId && orgIds.has(app.ownerOrgId)) {
+        if (!appsByNode.has(app.ownerOrgId)) appsByNode.set(app.ownerOrgId, []);
+        appsByNode.get(app.ownerOrgId)!.push(app);
+      } else {
+        unassignedApps.push(app);
+      }
+    } else if (app.capabilities && app.capabilities.length > 0) {
+      for (const capRef of app.capabilities) {
+        if (!appsByNode.has(capRef.id)) appsByNode.set(capRef.id, []);
+        appsByNode.get(capRef.id)!.push(app);
+      }
+    }
+  }
+
+  const structure: HierarchyNodeLike[] = isOrg
+    ? [
+        ...organizations,
+        ...(unassignedApps.length > 0 ? [{ id: 'unassigned', name: 'Unassigned', parentId: null }] : []),
+      ]
+    : capabilities;
+  if (isOrg && unassignedApps.length > 0) appsByNode.set('unassigned', unassignedApps);
+  const structureMap = new Map(structure.map((node) => [node.id, node]));
+
+  const { hasStructuralFilter, hasOtherAppFilter, hasAnyAppFilter } = analyzeDiagramFilterFlags(filters);
+  const structuralOnly = isOrg && !groupingField && hasStructuralFilter && !hasOtherAppFilter;
+
+  const memoBase = new Map<string, boolean>();
+  const isBaseRelevant = (nodeId: string, seen = new Set<string>()): boolean => {
+    if (memoBase.has(nodeId)) return memoBase.get(nodeId)!;
+    if (seen.has(nodeId)) return false;
+    const node = structureMap.get(nodeId);
+    if (!node) return false;
+    const nextSeen = new Set(seen);
+    nextSeen.add(nodeId);
+    const children = structure.filter((c) => c.parentId === nodeId && c.id !== nodeId);
+    const hasApps = (appsByNode.get(nodeId)?.length || 0) > 0;
+
+    let res: boolean;
+    if (!hasAnyAppFilter) {
+      res = true;
+    } else if (structuralOnly) {
+      const direct =
+        nodeId !== 'unassigned' &&
+        listSelected(filters?.orgType, (node as Organization).type) &&
+        listSelected(filters?.ownerOrgId, nodeId);
+      res = direct || children.some((c) => isBaseRelevant(c.id, nextSeen));
+    } else {
+      res = hasApps || children.some((c) => isBaseRelevant(c.id, nextSeen));
+    }
+    memoBase.set(nodeId, res);
+    return res;
+  };
+
+  return filterHierarchyTopDown({
+    structure,
+    appsByNode,
+    isBaseRelevant,
+    canNodeMatch: () => true,
+    showApplications,
+    query,
+  }).matchedSubtreeApps;
+};
+
 const STANDARD_DEFS: MetadataDefinition[] = [
   { id: 'crit-app', entityType: 'Application', fieldName: 'criticality', fieldType: 'range', label: 'Business Criticality', min: 1, max: 5, scaleType: 'importance' },
   { id: 'crit-cap', entityType: 'Capability', fieldName: 'criticality', fieldType: 'range', label: 'Business Criticality', min: 1, max: 5, scaleType: 'importance' },
@@ -1147,48 +1591,15 @@ const DiagramInner = ({
     const canvasBudget = Math.max(360, Math.floor(flowWidth - framePad));
 
     if (mode === 'network') {
-      const search = (relationSearch || '').toLowerCase();
-      const visibleAppIds = new Set(filteredApps.map(a => a.id));
-      const catAppIds = new Set(categoricalFilteredApps.map(a => a.id));
-
-      const filteredIntegrations = integrations.filter(i => {
-        // Categorical filters are applied first: both apps must be in the categorical set
-        if (!catAppIds.has(i.sourceAppId) || !catAppIds.has(i.targetAppId)) return false;
-
-        const sourceApp = apps.find(a => a.id === i.sourceAppId);
-        const targetApp = apps.find(a => a.id === i.targetAppId);
-        if (!sourceApp || !targetApp) return false;
-
-        if (!integrationMatchesFilters(i, filters)) return false;
-
-        if (search) {
-          const iMatches = i.payload?.name?.toLowerCase().includes(search) || 
-                          i.pattern?.toLowerCase().includes(search) ||
-                          i.crud?.toLowerCase().includes(search);
-                          
-          const appMatchesSearch = (app: Application) => {
-            return app.name.toLowerCase().includes(search) || 
-              app.description?.toLowerCase().includes(search) ||
-              app.owner?.toLowerCase().includes(search) ||
-              app.lifecycle?.toLowerCase().includes(search) ||
-              app.type?.toLowerCase().includes(search) ||
-              app.capabilities?.some(c => c.name.toLowerCase().includes(search)) ||
-              app.metadata?.toLowerCase().includes(search);
-          };
-
-          const sMatches = appMatchesSearch(sourceApp);
-          const tMatches = appMatchesSearch(targetApp);
-          
-          return iMatches || sMatches || tMatches;
-        }
-
-        return visibleAppIds.has(i.sourceAppId) && visibleAppIds.has(i.targetAppId);
+      const search = (relationSearch || '').trim().toLowerCase();
+      const { finalAppIds, filteredIntegrations } = filterNetworkTopDown({
+        allApps: apps,
+        categoricalApps: categoricalFilteredApps,
+        integrations,
+        filters,
+        hideOrphanApps,
+        query: search,
       });
-      const appsWithIntegrations = new Set(filteredIntegrations.flatMap(i => [i.sourceAppId, i.targetAppId]));
-      const finalAppIds = Array.from(new Set([
-        ...Array.from(appsWithIntegrations),
-        ...(hideOrphanApps ? [] : filteredApps.map(a => a.id))
-      ]));
       const adj = new Map<string, string[]>();
       finalAppIds.forEach(id => adj.set(id, []));
       filteredIntegrations.forEach(i => {
@@ -1297,7 +1708,7 @@ const DiagramInner = ({
           
           activeFilterGroups.push({ field: groupingField, values: uniqueValues, entityType: 'Capability' });
         } else {
-          const uniqueValues = Array.from(new Set(filteredApps.map(app => getFieldValue(app, groupingField))));
+          const uniqueValues = Array.from(new Set(categoricalFilteredApps.map(app => getFieldValue(app, groupingField))));
 
           uniqueValues.sort((a, b) => {
             if (groupingField === 'lifecycle') {
@@ -1356,71 +1767,85 @@ const DiagramInner = ({
         if (isOrg && unassignedApps.length > 0) appsByCap.set('unassigned', unassignedApps);
         const structureMap = new Map(structure.map(node => [node.id, node]));
 
-        const hasFilterList = (values?: string[]) => Array.isArray(values) && values.length > 0;
-        const hasCustomFilter = !!(filters.custom && Object.values(filters.custom).some((values: any) => Array.isArray(values) && values.length > 0));
-        const hasStructuralFilter = hasFilterList(filters.ownerOrgId) || hasFilterList(filters.orgType);
-        const hasOtherAppFilter = hasFilterList(filters.owner) ||
-          hasFilterList(filters.lifecycle) ||
-          hasFilterList(filters.type) ||
-          hasFilterList(filters.criticality) ||
-          hasFilterList(filters.cost) ||
-          hasFilterList(filters.functionalFit) ||
-          hasFilterList(filters.technicalFit) ||
-          hasFilterList(filters.time) ||
-          hasFilterList(filters.capabilityId) ||
-          hasFilterList(filters.infoType) ||
-          hasFilterList(filters.pii) ||
-          hasFilterList(filters.confidentiality) ||
-          hasFilterList(filters.integrity) ||
-          hasFilterList(filters.availability) ||
-          hasFilterList(filters.pattern) ||
-          hasFilterList(filters.frequency) ||
-          hasFilterList(filters.crud) ||
-          hasFilterList(filters.sourceAppId) ||
-          hasFilterList(filters.targetAppId) ||
-          hasFilterList(filters.payloadId) ||
-          hasCustomFilter;
-        const hasAnyAppFilter = hasStructuralFilter || hasOtherAppFilter;
+        const searchQuery = (relationSearch || '').trim().toLowerCase();
+        const { hasStructuralFilter, hasOtherAppFilter, hasAnyAppFilter } = analyzeDiagramFilterFlags(filters);
         // Organization Type and Owning Organization name the boxes. With no other
         // application filter, a matching organization stays visible without apps,
         // and its ancestors stay so the tree still connects.
-        const structuralOnly = isOrg && !groupingField && !relationSearch && !capFilter && hasStructuralFilter && !hasOtherAppFilter;
+        const structuralOnly = isOrg && !groupingField && !capFilter && hasStructuralFilter && !hasOtherAppFilter;
+        const isAppGroupContainer = Boolean(containerId && !capFilter);
 
-        const memoRelevant = new Map<string, boolean>();
-        const isRelevant = (capId: string): boolean => {
-          if (memoRelevant.has(capId)) return memoRelevant.get(capId)!;
-          const hasApps = appsByCap.has(capId) && appsByCap.get(capId)!.length > 0;
-          const children = structure.filter(c => c.parentId === capId);
-          
+        const memoBaseRelevant = new Map<string, boolean>();
+        const isBaseRelevant = (capId: string, seen = new Set<string>()): boolean => {
+          if (memoBaseRelevant.has(capId)) return memoBaseRelevant.get(capId)!;
+          if (seen.has(capId)) return false;
           const cap = structureMap.get(capId);
           if (!cap) return false;
+          const nextSeen = new Set(seen);
+          nextSeen.add(capId);
+          const hasApps = appsByCap.has(capId) && appsByCap.get(capId)!.length > 0;
+          const children = structure.filter(c => c.parentId === capId && c.id !== capId);
           const matchesFilter = !capFilter || (!isOrg && capFilter(cap as Capability));
-          
-          // Match if capability name matches search query
-          const nameMatches = relationSearch && cap.name.toLowerCase().includes(relationSearch.toLowerCase());
 
           let res: boolean;
-          if ((mode === 'landscape' || mode === 'org-landscape') && !relationSearch && !capFilter && !hasAnyAppFilter) {
+          if ((mode === 'landscape' || mode === 'org-landscape') && !capFilter && !hasAnyAppFilter && !(searchQuery && isAppGroupContainer)) {
             // Show the full hierarchy when nothing is narrowing the inventory.
             res = true;
           } else if (structuralOnly) {
             const direct = capId !== 'unassigned'
               && listSelected(filters.orgType, (cap as Organization).type)
               && listSelected(filters.ownerOrgId, capId);
-            res = direct || children.some(c => isRelevant(c.id));
+            res = direct || children.some(c => isBaseRelevant(c.id, nextSeen));
+          } else if (capFilter && !hasAnyAppFilter) {
+            res = matchesFilter || children.some(c => isBaseRelevant(c.id, nextSeen));
           } else {
-            res = (matchesFilter && (hasApps || nameMatches)) || children.some(c => isRelevant(c.id));
+            res = (matchesFilter && hasApps) || children.some(c => isBaseRelevant(c.id, nextSeen));
           }
 
-          memoRelevant.set(capId, res); return res;
+          memoBaseRelevant.set(capId, res);
+          return res;
+        };
+
+        const hierarchySearchResult =
+          searchQuery && (mode === 'landscape' || mode === 'org-landscape')
+            ? filterHierarchyTopDown({
+                structure,
+                appsByNode: appsByCap,
+                isBaseRelevant,
+                canNodeMatch: (capId) => {
+                  const cap = structureMap.get(capId);
+                  if (!cap) return false;
+                  return !capFilter || (!isOrg && capFilter(cap as Capability));
+                },
+                showApplications,
+                query: searchQuery,
+              })
+            : null;
+
+        const appLandscapeSearchResult =
+          mode === 'app-landscape'
+            ? filterAppLandscapeTopDown({
+                candidateApps: targetApps,
+                showCapabilities,
+                query: searchQuery,
+              })
+            : null;
+        const effectiveApps = appLandscapeSearchResult ? appLandscapeSearchResult.matchedApps : targetApps;
+        const allowedCapsByApp = appLandscapeSearchResult?.allowedCapsByApp ?? null;
+
+        const isRelevant = (capId: string): boolean => {
+          if (hierarchySearchResult) return hierarchySearchResult.allowedNodeIds.has(capId);
+          return isBaseRelevant(capId);
         };
 
         const renderCap = (capId: string, parentNodeId: string | undefined, depth = 0, rootX = 0, rootY = 0, targetWidth?: number, fontScale = 1): { width: number; height: number } => {
           const cap = structureMap.get(capId);
           if (!cap || !isRelevant(capId)) return { width: 0, height: 0 };
 
-          const children = structure.filter(c => c.parentId === capId && isRelevant(c.id));
-          const associatedApps = showApplications ? (appsByCap.get(capId) || []) : [];
+          const children = structure.filter(c => c.parentId === capId && c.id !== capId && isRelevant(c.id));
+          const associatedApps = showApplications
+            ? (hierarchySearchResult ? (hierarchySearchResult.allowedAppsByNode.get(capId) || []) : (appsByCap.get(capId) || []))
+            : [];
 
           const tighten = fontScale < 0.99;
           const scale = (n: number, floor = 11) => tighten ? Math.max(floor, Math.round(n * fontScale)) : n;
@@ -1532,7 +1957,7 @@ const DiagramInner = ({
         };
 
         const renderAppInGrid = (app: Application, columnWidth: number, fontScale = 1, fixed?: { w: number; h: number }) => {
-          const associatedCaps = showCapabilities ? (app.capabilities || []) : [];
+          const associatedCaps = showCapabilities ? (allowedCapsByApp?.get(app.id) ?? (app.capabilities || [])) : [];
           const showingCaps = associatedCaps.length > 0;
           const paintApp = () => {
             let colors = { bg: 'var(--card)', text: 'var(--foreground)' };
@@ -1656,7 +2081,7 @@ const DiagramInner = ({
         };
 
         if (mode === 'landscape' || mode === 'org-landscape') {
-          const roots = structure.filter(c => !c.parentId);
+          const roots = structure.filter(c => !c.parentId || !structureMap.has(c.parentId));
           const relevantRoots = roots.filter(r => isRelevant(r.id));
           if (cell) {
             const headerH = containerId ? GROUP_HEADER : 0;
@@ -1742,8 +2167,8 @@ const DiagramInner = ({
           const insetY = containerId ? headerH + 12 : 12;
           const gap = 10;
           const roomW = Math.max(cell.w, budget - insetX * 2);
-          const cols = Math.max(1, Math.min(Math.max(targetApps.length, 1), Math.floor((roomW + gap) / (cell.w + gap)) || 1));
-          targetApps.forEach((app, i) => {
+          const cols = Math.max(1, Math.min(Math.max(effectiveApps.length, 1), Math.floor((roomW + gap) / (cell.w + gap)) || 1));
+          effectiveApps.forEach((app, i) => {
             const c = i % cols;
             const r = Math.floor(i / cols);
             renderAppInGrid(app, cell.w, 1, { w: cell.w, h: cell.h });
@@ -1752,8 +2177,8 @@ const DiagramInner = ({
               groupNodes[nIdx].position = { x: insetX + c * (cell.w + gap), y: insetY + r * (cell.h + gap) };
             }
           });
-          const rows = Math.max(1, Math.ceil(targetApps.length / cols));
-          const used = targetApps.length > 0 ? rows * cell.h + (rows - 1) * gap : 0;
+          const rows = Math.max(1, Math.ceil(effectiveApps.length / cols));
+          const used = effectiveApps.length > 0 ? rows * cell.h + (rows - 1) * gap : 0;
           const contentW = insetX + cols * cell.w + Math.max(0, cols - 1) * gap + insetX;
           return {
             nodes: groupNodes,
@@ -1762,18 +2187,18 @@ const DiagramInner = ({
             headerH
           };
         } else {
-          const gap = containerId && targetApps.length > 8 ? 10 : 18;
+          const gap = containerId && effectiveApps.length > 8 ? 10 : 18;
           const insetX = 16;
           const room = Math.max(200, budget - insetX * 2);
           const packed = containerId
-            ? packedColumns(targetApps.length, room, 300, gap)
-            : { ...flowColumns(targetApps.length, room, 300, gap, room), fontScale: 1 };
+            ? packedColumns(effectiveApps.length, room, 300, gap)
+            : { ...flowColumns(effectiveApps.length, room, 300, gap, room), fontScale: 1 };
           const { cols, size: colW, fontScale } = packed;
           const headerH = containerId ? groupHeaderHeight(fontScale) : 0;
           const insetY = containerId ? headerH + 12 : 12;
           const colHeights = new Array(cols).fill(0);
 
-          const appAssignments = targetApps.map(app => {
+          const appAssignments = effectiveApps.map(app => {
             const minH = Math.min(...colHeights);
             const cIdx = colHeights.indexOf(minH);
             const layout = renderAppInGrid(app, colW, fontScale);
@@ -1789,7 +2214,7 @@ const DiagramInner = ({
             }
           });
 
-          const used = targetApps.length > 0 ? Math.max(...colHeights) - gap : 0;
+          const used = effectiveApps.length > 0 ? Math.max(...colHeights) - gap : 0;
           const contentW = insetX + cols * colW + Math.max(0, cols - 1) * gap + insetX;
           return {
             nodes: groupNodes,
@@ -1801,22 +2226,37 @@ const DiagramInner = ({
       };
 
       if (primaryGroup) {
-        const validValues = primaryGroup.values.filter(val => {
+        const searchActive = (relationSearch || '').trim().length > 0;
+        const candidateGroupValues = primaryGroup.values.filter(val => {
           if (primaryGroup.entityType === 'Capability') {
             return capabilities.some(c => getCapFieldValue(c, primaryGroup.field).toLowerCase() === val.toLowerCase());
           }
-          return filteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase());
+          return categoricalFilteredApps.some(app => getFieldValue(app, primaryGroup.field).toLowerCase() === val.toLowerCase());
         });
 
+        const validValues = searchActive
+          ? candidateGroupValues.filter(groupVal => {
+              let groupApps = categoricalFilteredApps;
+              let capFilter: ((c: Capability) => boolean) | undefined = undefined;
+              if (primaryGroup.entityType === 'Capability') {
+                capFilter = (c: Capability) => getCapFieldValue(c, primaryGroup.field).toLowerCase() === groupVal.toLowerCase();
+              } else {
+                groupApps = categoricalFilteredApps.filter(app => getFieldValue(app, primaryGroup.field).toLowerCase() === groupVal.toLowerCase());
+              }
+              const probe = renderGroupContentNodes(groupApps, `group-${primaryGroup.field}-${groupVal}`, capFilter, canvasBudget);
+              return probe.nodes.length > 0;
+            })
+          : candidateGroupValues;
+
         const groupGap = 20;
-        const { cols, size: groupW } = masonryFrameColumns(validValues.length, canvasBudget, groupGap);
+        const { cols, size: groupW } = masonryFrameColumns(Math.max(validValues.length, 1), canvasBudget, groupGap);
         const measuredGroups = validValues.map(groupVal => {
-          let groupApps = filteredApps;
+          let groupApps = categoricalFilteredApps;
           let capFilter: ((c: Capability) => boolean) | undefined = undefined;
           if (primaryGroup.entityType === 'Capability') {
             capFilter = (c: Capability) => getCapFieldValue(c, primaryGroup.field).toLowerCase() === groupVal.toLowerCase();
           } else {
-            groupApps = filteredApps.filter(app => getFieldValue(app, primaryGroup.field).toLowerCase() === groupVal.toLowerCase());
+            groupApps = categoricalFilteredApps.filter(app => getFieldValue(app, primaryGroup.field).toLowerCase() === groupVal.toLowerCase());
           }
           const containerId = `group-${primaryGroup.field}-${groupVal}`;
           const natural = renderGroupContentNodes(groupApps, containerId, capFilter, groupW);
@@ -1877,7 +2317,7 @@ const DiagramInner = ({
         });
 
       } else {
-        const natural = renderGroupContentNodes(filteredApps, undefined, undefined, canvasBudget);
+        const natural = renderGroupContentNodes(categoricalFilteredApps, undefined, undefined, canvasBudget);
         let sharedCell: { w: number; h: number } | undefined;
         if (mode === 'app-landscape') {
           natural.nodes.forEach(node => {
@@ -1892,7 +2332,7 @@ const DiagramInner = ({
         }
         const varied = !!sharedCell && natural.nodes.some(node => !node.parentNode && (node.style?.width !== sharedCell!.w || node.style?.height !== sharedCell!.h));
         const content = varied && sharedCell
-          ? renderGroupContentNodes(filteredApps, undefined, undefined, canvasBudget, sharedCell)
+          ? renderGroupContentNodes(categoricalFilteredApps, undefined, undefined, canvasBudget, sharedCell)
           : natural;
         allFinalNodes.push(...content.nodes);
       }
