@@ -2648,7 +2648,7 @@ const DiagramInner = ({
 
         {(isLegendExpanded || isExporting) && (
           <>
-          {mode !== 'org-landscape' && <div>
+          {(mode === 'landscape' || mode === 'app-landscape') && <div>
             <div style={{ fontWeight: 600, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.025em', fontSize: '10px', color: 'var(--muted-foreground)' }}>Business Criticality</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {mode === 'landscape' && !showCriticality ? ( 
