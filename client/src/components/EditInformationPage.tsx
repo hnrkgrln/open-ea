@@ -18,6 +18,14 @@ const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   }
 };
 
+const scaleBounds = (options: { value: string }[]) => {
+  const numeric = options
+    .map(option => Number.parseInt(option.value, 10))
+    .filter(value => Number.isFinite(value));
+  if (numeric.length === 0) return { min: 1, max: 4 };
+  return { min: Math.min(...numeric), max: Math.max(...numeric) };
+};
+
 const getScaleGradient = (scaleType: string) => {
   switch (scaleType) {
     case 'good-bad': return 'linear-gradient(to right, #2b8a3e, #fab005, #c92a2a)';
@@ -37,6 +45,7 @@ export const EditInformationPage = () => {
 
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(isNew);
+  const [scaleReady, setScaleReady] = useState(!isNew);
   const [formData, setFormData] = useState({
     name: '',
     aliases: '',
@@ -44,7 +53,7 @@ export const EditInformationPage = () => {
     confidentiality: '1',
     integrity: '1',
     availability: '1',
-    piiCategory: 'None',
+    piiCategory: '1',
     type: 'Master Data',
     businessOwnerId: '' as string | null,
     appOwnerId: '' as string | null
@@ -73,15 +82,17 @@ export const EditInformationPage = () => {
   // they mount once with the correct DB-backed value, avoiding the case where
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
-    if (item && !isNew && !hydrated) {
+    if (item && !isNew && !hydrated && picklists) {
+      const cia = scaleBounds(picklists.find(p => p.name === 'cia_scale')?.options || []);
+      const pii = scaleBounds(picklists.find(p => p.name === 'pii_category')?.options || []);
       setFormData({
         name: item.name || '',
         aliases: item.aliases || '',
         description: item.description || '',
-        confidentiality: String(item.confidentiality || '1'),
-        integrity: String(item.integrity || '1'),
-        availability: String(item.availability || '1'),
-        piiCategory: item.piiCategory || 'None',
+        confidentiality: item.confidentiality ? String(item.confidentiality) : String(cia.min),
+        integrity: item.integrity ? String(item.integrity) : String(cia.min),
+        availability: item.availability ? String(item.availability) : String(cia.min),
+        piiCategory: item.piiCategory ? String(item.piiCategory) : String(pii.min),
         type: item.type || 'Master Data',
         businessOwnerId: item.businessOwnerId || '',
         appOwnerId: item.appOwnerId || ''
@@ -90,7 +101,20 @@ export const EditInformationPage = () => {
       setReferences(parseReferences(item.references));
       setHydrated(true);
     }
-  }, [item, isNew, hydrated]);
+  }, [item, isNew, hydrated, picklists]);
+
+  if (isNew && picklists && !scaleReady) {
+    const cia = scaleBounds(ciaOptions);
+    const pii = scaleBounds(piiOptions);
+    setScaleReady(true);
+    setFormData(current => ({
+      ...current,
+      confidentiality: String(cia.min),
+      integrity: String(cia.min),
+      availability: String(cia.min),
+      piiCategory: String(pii.min),
+    }));
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -242,62 +266,40 @@ export const EditInformationPage = () => {
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 {[
-                  { label: 'Confidentiality', key: 'confidentiality' },
-                  { label: 'Integrity', key: 'integrity' },
-                  { label: 'Availability', key: 'availability' }
-                ].map(cia => {
-                   const currentVal = (formData as any)[cia.key];
-                   const opt = ciaOptions.find((o:any) => o.value === String(currentVal));
-                   // Find the max numeric value from options, or fallback to 4
-                   const maxVal = ciaOptions.length > 0 
-                    ? Math.max(...ciaOptions.map((o: any) => parseInt(o.value)).filter((v: any) => !isNaN(v))) 
-                    : 4;
-                   
+                  { label: 'Confidentiality', key: 'confidentiality' as const, options: ciaOptions, scale: 'good-bad' },
+                  { label: 'Integrity', key: 'integrity' as const, options: ciaOptions, scale: 'good-bad' },
+                  { label: 'Availability', key: 'availability' as const, options: ciaOptions, scale: 'good-bad' },
+                  { label: 'PII Category', key: 'piiCategory' as const, options: piiOptions, scale: 'pii' },
+                ].map(field => {
+                   const currentVal = formData[field.key];
+                   const bounds = scaleBounds(field.options);
+                   const parsed = Number.parseInt(String(currentVal), 10);
+                   const sliderValue = Number.isNaN(parsed)
+                     ? bounds.min
+                     : Math.min(bounds.max, Math.max(bounds.min, parsed));
+                   const opt = field.options.find((o: any) => String(o.value) === String(currentVal));
+
                    return (
-                    <div key={cia.key} className="field">
+                    <div key={field.key} className="field">
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                        <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{cia.label}</label>
+                        <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>{field.label}</label>
                         <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                             {opt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color }} />}
                             {opt?.label || `${currentVal} - Not Set`}
                         </div>
                         </div>
-                        <input 
-                            type="range" 
-                            min="1" 
-                            max={maxVal} 
-                            step="1" 
-                            style={{ background: getScaleGradient('good-bad') }} 
-                            value={currentVal} 
-                            onChange={e => setFormData({...formData, [cia.key]: e.target.value})} 
+                        <input
+                            type="range"
+                            min={bounds.min}
+                            max={bounds.max}
+                            step="1"
+                            style={{ background: getScaleGradient(field.scale) }}
+                            value={sliderValue}
+                            onChange={e => setFormData({...formData, [field.key]: e.target.value})}
                         />
                     </div>
                    );
                 })}
-
-                <div className="field" style={{ marginTop: '0.75rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <label className="label" style={{ fontSize: '0.85rem', fontWeight: 700 }}>PII Category</label>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      {piiOptions.find((o:any) => o.value === formData.piiCategory)?.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: piiOptions.find((o:any) => o.value === formData.piiCategory)?.color }} />}
-                      {piiOptions.find((o:any) => o.value === formData.piiCategory)?.label || `${formData.piiCategory} - Not Set`}
-                    </div>
-                  </div>
-                  <input 
-                    type="range" 
-                    min="0" 
-                    max={Math.max(0, piiOptions.length - 1)} 
-                    step="1" 
-                    style={{ background: getScaleGradient('pii') }} 
-                    value={piiOptions.findIndex((o: { value: string }) => o.value === formData.piiCategory)}
-                    onChange={e => {
-                        const idx = parseInt(e.target.value);
-                        if (piiOptions[idx]) {
-                            setFormData({...formData, piiCategory: piiOptions[idx].value});
-                        }
-                    }} 
-                  />
-                </div>
               </div>
             </section>
 

@@ -6,7 +6,7 @@ OpenEA is a modern, high-density enterprise architecture tool designed for organ
 
 We have recently expanded the core architecture to support a more rigorous Enterprise Architecture practice:
 
-- **🔐 Information Model & CIA Triad:** Define conceptual business data objects with specialized **Confidentiality, Integrity, and Availability** (1-4) scoring and **PII Category** tracking.
+- **🔐 Information Model & CIA Triad:** Define conceptual business data objects with **Confidentiality, Integrity, Availability, and PII** scores on the same 1-4 scale.
 - **🏢 Organization Units:** Map hierarchical accountability structures from top-level Divisions down to specific Teams and Roles.
 - **🔌 Structured Integrations:** Move beyond freetext relations with a dedicated Integration artifact supporting multi-select **CRUD operations**, delivery patterns (REST, Event, Batch), and exchange frequencies.
 - **⚙️ Artifact-Based Configuration:** A redesigned settings engine that groups picklists and dynamic metadata by artifact type for intuitive governance.

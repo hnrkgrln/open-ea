@@ -42,7 +42,7 @@ interface MetadataDefinition {
   scaleType?: string;
 }
 
-const STRATEGIC_FIELD_NAMES = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale'];
+const STRATEGIC_FIELD_NAMES = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale', 'pii_category'];
 
 const SETTINGS_TABS = ['artifact', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt'] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];

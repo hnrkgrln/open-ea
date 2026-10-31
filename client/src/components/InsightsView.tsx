@@ -82,9 +82,16 @@ interface PickOption {
   order?: number;
 }
 
+const TOP_SCORE = 4;
+
 const score = (value: string | null | undefined) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+};
+
+const atTop = (value: string | null | undefined) => {
+  const parsed = score(value);
+  return parsed !== null && parsed >= TOP_SCORE;
 };
 
 const isDecommissioned = (app: InsightApp) => (app.lifecycle || '').toLowerCase() === 'decommissioned';
@@ -95,14 +102,8 @@ const isContractDue = (app: InsightApp) => {
   return days !== null && days <= CONTRACT_WINDOW_DAYS;
 };
 
-const isHighSensitivity = (info: InsightInformation) => {
-  const cia = [info.confidentiality, info.integrity, info.availability].some((value) => {
-    const parsed = score(value);
-    return parsed !== null && parsed >= 4;
-  });
-  const pii = score(info.piiCategory);
-  return cia || (pii !== null && pii >= 3);
-};
+const isHighSensitivity = (info: InsightInformation) =>
+  [info.confidentiality, info.integrity, info.availability, info.piiCategory].some(atTop);
 
 const recordedScore = (value: string | null | undefined) => {
   const parsed = Number(value);
@@ -248,11 +249,8 @@ export const InsightsView = ({
       if (signals > 0) riskAny += 1;
       if (signals > 1) riskMulti += 1;
     }
-    const sensitive = informationObjects.filter((info) => {
-      const confidentiality = score(info.confidentiality);
-      const pii = score(info.piiCategory);
-      return (confidentiality !== null && confidentiality >= 4) || (pii !== null && pii >= 3);
-    }).sort((a, b) => (score(b.confidentiality) ?? 0) - (score(a.confidentiality) ?? 0) || a.name.localeCompare(b.name));
+    const sensitive = informationObjects.filter((info) => atTop(info.confidentiality) || atTop(info.piiCategory))
+      .sort((a, b) => (score(b.confidentiality) ?? 0) - (score(a.confidentiality) ?? 0) || a.name.localeCompare(b.name));
     const unsupported = capabilities
       .filter((capability) => (capability.applications?.length ?? 0) === 0)
       .sort((a, b) => (score(b.criticality) ?? 0) - (score(a.criticality) ?? 0) || a.name.localeCompare(b.name, undefined, { numeric: true }));
@@ -451,7 +449,7 @@ export const InsightsView = ({
               />
               <RiskMeter
                 label="High PII or CIA"
-                detail="Processes or owns information with CIA at 4, or PII at 3 or higher."
+                detail="Processes or owns information with a CIA or PII score of 4 or higher."
                 value={model.dataRisk}
                 total={timeTotal}
                 color="#c92a2a"
@@ -565,7 +563,7 @@ export const InsightsView = ({
         </section>
 
         <section className="card">
-          {cardTitle('Sensitive information', 'Confidentiality of 4 or higher, or a PII score of 3 or higher.')}
+          {cardTitle('Sensitive information', 'Confidentiality or PII of 4 or higher.')}
           {model.sensitive.length === 0 ? (
             <Empty>No information object is at this sensitivity.</Empty>
           ) : model.sensitive.map((info) => (
