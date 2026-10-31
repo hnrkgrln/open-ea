@@ -62,6 +62,37 @@ cd server
 npm run setup
 ```
 
+### Switching datasets
+
+The PostgreSQL server in `server/.env` stays as it is. Only the database name changes. `npm run dev` starts the API on the database already named in `DATABASE_URL`. The process keeps running while you switch.
+
+```bash
+cd server
+npm run dev                  # start on the current database
+npm run dev -- openea        # start on that database
+npm run db                   # list databases and switch
+npm run db -- openea         # switch a running dev server to that database
+```
+
+You can also type a database name in the `npm run dev` terminal. The API reconnects to that database on the same server. The dev server syncs the chosen database to the current schema and seeds any missing standard picklists. Refresh the browser to see the other dataset.
+
+### Adding a database
+
+Create the database on the PostgreSQL server already named in `DATABASE_URL`. Run this as a superuser, and use the user from that URL as the owner. The name starts with a letter and contains only letters, numbers, hyphens, and underscores.
+
+```bash
+psql -d postgres -c 'CREATE DATABASE "openea-demo" OWNER openea;'
+```
+
+Point the dev server at it. That syncs the schema and seeds the standard picklists. The portfolio is empty.
+
+```bash
+cd server
+npm run db -- openea-demo
+```
+
+Refresh the browser. If the API is not running, `npm run dev -- openea-demo` starts on the new database. When the role in `DATABASE_URL` is allowed to create databases, typing the new name in the `npm run dev` terminal creates it and switches to it.
+
 ### 3. Start Development Servers
 Run these in separate terminals or use a task runner:
 ```bash

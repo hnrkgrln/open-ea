@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://openea:openea@localhost:5432/openea-attendo?schema=public"
+  url      = env("DATABASE_URL")
 }
 
 model Application {

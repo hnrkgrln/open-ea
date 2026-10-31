@@ -3,8 +3,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execSync } from 'child_process';
 import dotenv from 'dotenv';
+import { databaseLabel } from './databases.mjs';
 
-// Load .env
+// Load .env. An already exported DATABASE_URL, including the one chosen by npm run dev, wins.
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +18,7 @@ const OUTPUT_SCHEMA = path.join(PRISMA_DIR, 'schema.prisma');
 const databaseUrl = process.env.DATABASE_URL || 'file:./dev.db';
 const isPostgres = databaseUrl.startsWith('postgresql://') || databaseUrl.startsWith('postgres://');
 
-console.log(`Setting up database for: ${isPostgres ? 'PostgreSQL' : 'SQLite'}`);
+console.log(`Setting up ${isPostgres ? 'PostgreSQL' : 'SQLite'} database ${databaseLabel(databaseUrl)}`);
 
 const provider = isPostgres ? 'postgresql' : 'sqlite';
 
@@ -27,7 +28,7 @@ const header = `generator client {
 
 datasource db {
   provider = "${provider}"
-  url      = "${databaseUrl}"
+  url      = env("DATABASE_URL")
 }
 
 `;

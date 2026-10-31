@@ -9,6 +9,7 @@ import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
 import { createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
+import { watchDevDatabase } from './devDatabase.js';
 import { applyTransformation, createTransformation, deleteTransformation, getStateDiffPreview, getTransformationDetail, listTransformations, TRANSFORMATION_ACTIONS, TRANSFORMATION_ENTITY_TYPES, TRANSFORMATION_STATUSES, updateTransformation } from './transformations.js';
 
 const server = fastify().withTypeProvider<ZodTypeProvider>();
@@ -2053,11 +2054,24 @@ server.get('/search', {
   };
 });
 
+function devDatabaseLabel(): string {
+  const url = process.env.DATABASE_URL || '';
+  if (url.startsWith('file:')) return url;
+  try {
+    const parsed = new URL(url);
+    const name = decodeURIComponent(parsed.pathname.replace(/^\//, ''));
+    return name ? `${name} on ${parsed.host}` : 'configured database';
+  } catch {
+    return 'configured database';
+  }
+}
+
 const start = async () => {
   try {
+    watchDevDatabase();
     await refreshStates();
     await server.listen({ port: 3001, host: '0.0.0.0' });
-    console.log('Server is running on http://localhost:3001');
+    console.log(`Server is running on http://localhost:3001, database ${devDatabaseLabel()}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

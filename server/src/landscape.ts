@@ -13,8 +13,6 @@ export class LandscapeStateError extends Error {
   }
 }
 
-export const basePrisma = new PrismaClient();
-
 const PORTFOLIO = new Set([
   'Application',
   'Capability',
@@ -39,18 +37,6 @@ type Delegate = {
   findUnique: (args: { where: { id: string }; select: { stateId: true } }) => Promise<{ stateId: string } | null>;
 };
 
-function delegate(model: string): Delegate | null {
-  switch (model) {
-    case 'Application': return basePrisma.application;
-    case 'Capability': return basePrisma.capability;
-    case 'StrategicGoal': return basePrisma.strategicGoal;
-    case 'Organization': return basePrisma.organization;
-    case 'InformationObject': return basePrisma.informationObject;
-    case 'Integration': return basePrisma.integration;
-    default: return null;
-  }
-}
-
 export function activeStateId() {
   return landscapeContext.getStore() || CURRENT_STATE_ID;
 }
@@ -62,24 +48,6 @@ function notFound(model: string): never {
   });
 }
 
-async function ownsRecord(model: string, id: unknown, stateId: string) {
-  if (typeof id !== 'string' || !id) return false;
-  const row = await delegate(model)?.findUnique({ where: { id }, select: { stateId: true } });
-  return !!row && row.stateId === stateId;
-}
-
-async function stampCreate(model: string, data: unknown, stateId: string): Promise<unknown> {
-  if (Array.isArray(data)) return Promise.all(data.map((row) => stampCreate(model, row, stateId)));
-  if (!data || typeof data !== 'object') return data;
-  const next = { ...(data as Record<string, unknown>), stateId };
-  delete next.state;
-  if (typeof next.id === 'string' && next.id) {
-    const row = await delegate(model)?.findUnique({ where: { id: next.id }, select: { stateId: true } });
-    if (row && row.stateId !== stateId) delete next.id;
-  }
-  return next;
-}
-
 function stripState(data: unknown) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
   const next = { ...(data as Record<string, unknown>) };
@@ -88,59 +56,137 @@ function stripState(data: unknown) {
   return next;
 }
 
-export const prisma = basePrisma.$extends({
-  query: {
-    $allModels: {
-      async $allOperations({ model, operation, args, query }) {
-        if (!model || !PORTFOLIO.has(model)) return query(args);
-        const stateId = activeStateId();
-        const next = { ...(args as Record<string, unknown> | undefined) };
+function extendClient(client: PrismaClient): PrismaClient {
+  function delegate(model: string): Delegate | null {
+    switch (model) {
+      case 'Application': return client.application;
+      case 'Capability': return client.capability;
+      case 'StrategicGoal': return client.strategicGoal;
+      case 'Organization': return client.organization;
+      case 'InformationObject': return client.informationObject;
+      case 'Integration': return client.integration;
+      default: return null;
+    }
+  }
 
-        if (READ_SCOPED.has(operation)) {
-          next.where = { AND: [next.where ?? {}, { stateId }] };
-          return query(next);
-        }
+  async function ownsRecord(model: string, id: unknown, stateId: string) {
+    if (typeof id !== 'string' || !id) return false;
+    const row = await delegate(model)?.findUnique({ where: { id }, select: { stateId: true } });
+    return !!row && row.stateId === stateId;
+  }
 
-        if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
-          const where = (next.where ?? {}) as { id?: string };
-          const owned = await ownsRecord(model, where.id, stateId);
-          if (!owned) {
-            if (operation === 'findUnique') return null;
-            notFound(model);
+  async function stampCreate(model: string, data: unknown, stateId: string): Promise<unknown> {
+    if (Array.isArray(data)) return Promise.all(data.map((row) => stampCreate(model, row, stateId)));
+    if (!data || typeof data !== 'object') return data;
+    const next: Record<string, unknown> = { ...(data as Record<string, unknown>), stateId };
+    delete next.state;
+    if (typeof next.id === 'string' && next.id) {
+      const row = await delegate(model)?.findUnique({ where: { id: next.id }, select: { stateId: true } });
+      if (row && row.stateId !== stateId) delete next.id;
+    }
+    return next;
+  }
+
+  return client.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          if (!model || !PORTFOLIO.has(model)) return query(args);
+          const stateId = activeStateId();
+          const next = { ...(args as Record<string, unknown> | undefined) };
+
+          if (READ_SCOPED.has(operation)) {
+            next.where = { AND: [next.where ?? {}, { stateId }] };
+            return query(next);
           }
+
+          if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
+            const where = (next.where ?? {}) as { id?: string };
+            const owned = await ownsRecord(model, where.id, stateId);
+            if (!owned) {
+              if (operation === 'findUnique') return null;
+              notFound(model);
+            }
+            return query(args);
+          }
+
+          if (operation === 'update' || operation === 'delete') {
+            const where = (next.where ?? {}) as { id?: string };
+            if (!(await ownsRecord(model, where.id, stateId))) notFound(model);
+            if (operation === 'update') next.data = stripState(next.data);
+            return query(next);
+          }
+
+          if (operation === 'create') {
+            next.data = await stampCreate(model, next.data, stateId);
+            return query(next);
+          }
+
+          if (operation === 'createMany') {
+            next.data = await stampCreate(model, next.data, stateId);
+            return query(next);
+          }
+
+          if (operation === 'upsert') {
+            const where = (next.where ?? {}) as { id?: string };
+            if (!(await ownsRecord(model, where.id, stateId))) notFound(model);
+            next.update = stripState(next.update);
+            next.create = await stampCreate(model, next.create, stateId);
+            return query(next);
+          }
+
           return query(args);
-        }
-
-        if (operation === 'update' || operation === 'delete') {
-          const where = (next.where ?? {}) as { id?: string };
-          if (!(await ownsRecord(model, where.id, stateId))) notFound(model);
-          if (operation === 'update') next.data = stripState(next.data);
-          return query(next);
-        }
-
-        if (operation === 'create') {
-          next.data = await stampCreate(model, next.data, stateId);
-          return query(next);
-        }
-
-        if (operation === 'createMany') {
-          next.data = await stampCreate(model, next.data, stateId);
-          return query(next);
-        }
-
-        if (operation === 'upsert') {
-          const where = (next.where ?? {}) as { id?: string };
-          if (!(await ownsRecord(model, where.id, stateId))) notFound(model);
-          next.update = stripState(next.update);
-          next.create = await stampCreate(model, next.create, stateId);
-          return query(next);
-        }
-
-        return query(args);
+        },
       },
     },
-  },
-}) as unknown as PrismaClient;
+  }) as unknown as PrismaClient;
+}
+
+function clientFor(url?: string) {
+  return url ? new PrismaClient({ datasources: { db: { url } } }) : new PrismaClient();
+}
+
+let activeBase = clientFor();
+let activePrisma = extendClient(activeBase);
+
+function currentClient<T extends object>(read: () => T): T {
+  return new Proxy({} as T, {
+    get(_target, property) {
+      const client = read() as Record<PropertyKey, unknown>;
+      const value = client[property];
+      if (typeof value === 'function') return value.bind(client);
+      return value;
+    },
+  });
+}
+
+export const basePrisma: PrismaClient = currentClient(() => activeBase);
+export const prisma: PrismaClient = currentClient(() => activePrisma);
+
+// Reconnect this process to another database on the same PostgreSQL server.
+export async function switchDatabase(url: string) {
+  const nextBase = clientFor(url);
+  try {
+    await nextBase.$queryRawUnsafe('SELECT 1');
+  } catch (error) {
+    await nextBase.$disconnect();
+    throw error;
+  }
+  const nextPrisma = extendClient(nextBase);
+  const previousBase = activeBase;
+  const previousPrisma = activePrisma;
+  activeBase = nextBase;
+  activePrisma = nextPrisma;
+  try {
+    await refreshStates();
+  } catch (error) {
+    activeBase = previousBase;
+    activePrisma = previousPrisma;
+    await nextBase.$disconnect();
+    throw error;
+  }
+  void previousBase.$disconnect();
+}
 
 let knownStateIds = new Set<string>([CURRENT_STATE_ID]);
 
