@@ -117,6 +117,7 @@ export type PortfolioSnapshot = {
     name: string | null;
     description: string | null;
     pattern: string | null;
+    type: string | null;
     frequency: string | null;
     crud: string | null;
     references: string | null;
@@ -344,6 +345,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
 
   const integrationLines = integrations.map((integration) => line(`${integration.sourceApp.name} → ${integration.targetApp.name}`, [
     integration.name,
+    field('type', integration.type),
     field('pattern', integration.pattern),
     field('frequency', integration.frequency),
     field('CRUD', integration.crud),
@@ -459,6 +461,7 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
         name: true,
         description: true,
         pattern: true,
+        type: true,
         frequency: true,
         crud: true,
         references: true,

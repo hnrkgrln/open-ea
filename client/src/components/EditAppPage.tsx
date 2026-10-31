@@ -1005,7 +1005,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{otherApp?.name || 'Unknown System'}</div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
-                              Payload: <strong>{int.payload?.name || 'Generic Object'}</strong> • {int.pattern || 'API'}
+                              Payload: <strong>{int.payload?.name || 'Generic Object'}</strong> • {picklists?.find(p => p.name === 'integration_type')?.options?.find((o: any) => o.value === int.type)?.label || int.type || '—'}
                             </div>
                           </div>
                           <ArrowUpRight size={14} style={{ opacity: 0.3 }} />

@@ -1803,7 +1803,7 @@ const DiagramInner = ({
           if (islandAppIds.includes(i.sourceAppId)) {
             islandEdges.push({
               id: `e-${i.id}`, source: i.sourceAppId, target: i.targetAppId,
-              label: i.payload?.name ? `${i.payload.name} (${i.pattern || 'API'})` : (i.pattern || 'API'),
+              label: i.payload?.name ? (i.pattern ? `${i.payload.name} (${i.pattern})` : i.payload.name) : (i.pattern || ''),
               type: 'centered',
               data: { original: i },
               style: { stroke: isDark ? '#ced4da' : '#495057', strokeWidth: 2.25, cursor: 'pointer' },

@@ -1544,6 +1544,7 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               sourceAppId: srcId,
               targetAppId: tgtId,
               pattern: toInt.pattern,
+              type: toInt.type,
               frequency: toInt.frequency,
               crud: toInt.crud,
               references: toInt.references,

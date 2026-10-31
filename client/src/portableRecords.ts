@@ -20,7 +20,7 @@ export const CSV_HEADERS: Record<ArtifactType, string[]> = {
     'id', 'name', 'aliases', 'description', 'confidentiality', 'integrity', 'availability',
     'piiCategory', 'type', 'businessOwnerId', 'appOwnerId', 'metadata', 'references',
   ],
-  integrations: ['id', 'name', 'description', 'sourceAppId', 'targetAppId', 'infoObjectId', 'pattern', 'frequency', 'crud', 'references'],
+  integrations: ['id', 'name', 'description', 'sourceAppId', 'targetAppId', 'infoObjectId', 'pattern', 'type', 'frequency', 'crud', 'references'],
 };
 
 const DATE_FIELDS = new Set(['lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate']);
@@ -35,7 +35,7 @@ const NULLABLE_FIELDS: Record<ArtifactType, string[]> = {
   capabilities: ['parentId', 'references'],
   organizations: ['parentId', 'references'],
   'information-objects': ['businessOwnerId', 'appOwnerId', 'references'],
-  integrations: ['infoObjectId', 'references'],
+  integrations: ['infoObjectId', 'type', 'references'],
 };
 
 const ID_LIST_FIELDS: Record<ArtifactType, string[]> = {

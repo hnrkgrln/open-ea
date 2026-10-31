@@ -279,7 +279,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                     const bg = hasColor ? patternInfo!.color : 'var(--secondary)';
                     const text = hasColor ? getContrastColor(patternInfo!.color) : 'var(--secondary-foreground)';
                     return (
-                      <span style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{patternInfo?.label || i.pattern || 'API'}</span>
+                      <span style={{ fontSize: '0.6rem', fontWeight: 800, background: bg, color: text, padding: '0.15rem 0.5rem', borderRadius: '4px', textTransform: 'uppercase' }}>{patternInfo?.label || i.pattern || '—'}</span>
                     );
                   })()}
                   {i.crud?.split(',').filter(Boolean).map((op: string) => {
@@ -316,6 +316,10 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
               <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em' }}>Technical Details</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                 <div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Integration Type</div>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{getPicklistInfo('integration_type', i.type)?.color && getPicklistInfo('integration_type', i.type)?.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('integration_type', i.type)?.color }} />}{getPicklistInfo('integration_type', i.type)?.label || i.type || '—'}</div>
+                </div>
+                <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Integration Pattern</div>
                   <div style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{getPicklistInfo('integration_pattern', i.pattern)?.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('integration_pattern', i.pattern)?.color }} />}{getPicklistInfo('integration_pattern', i.pattern)?.label || i.pattern || '—'}</div>
                 </div>
@@ -323,7 +327,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Frequency</div>
                   <div style={{ fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{getPicklistInfo('integration_frequency', i.frequency)?.color !== 'var(--secondary)' && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: getPicklistInfo('integration_frequency', i.frequency)?.color }} />}{getPicklistInfo('integration_frequency', i.frequency)?.label || i.frequency || '—'}</div>
                 </div>
-                <div style={{ gridColumn: 'span 2' }}>
+                <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase', marginBottom: '0.5rem' }}>CRUD Operations</div>
                   <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                     {i.crud?.split(',').filter(Boolean).map((op: string) => {

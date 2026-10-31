@@ -273,7 +273,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                         const hasColor = patternInfo?.color && patternInfo.color !== 'var(--secondary)';
                         const bg = hasColor ? patternInfo!.color : 'var(--secondary)';
                         const text = hasColor ? getContrastColor(patternInfo!.color) : 'var(--secondary-foreground)';
-                        return <span style={{ fontSize: '0.55rem', fontWeight: 800, textTransform: 'uppercase', background: bg, color: text, padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{patternInfo?.label || i.pattern || 'API'}</span>;
+                        return <span style={{ fontSize: '0.55rem', fontWeight: 800, textTransform: 'uppercase', background: bg, color: text, padding: '0.1rem 0.4rem', borderRadius: '4px' }}>{patternInfo?.label || i.pattern || '—'}</span>;
                       })()}
                       <ArrowRight size={12} style={{ opacity: 0.3 }} />
                       <div style={{ display: 'flex', gap: '0.2rem' }}>

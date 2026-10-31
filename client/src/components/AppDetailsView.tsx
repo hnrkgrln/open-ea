@@ -510,10 +510,11 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                       return <div style={{ color: 'var(--muted-foreground)', fontSize: '0.8rem', fontStyle: 'italic' }}>No integrations recorded for this system.</div>;
                     }
                     const q = flowFilter.trim().toLowerCase();
+                    const typeLabel = (i: any) => i.type ? getPicklistInfo('integration_type', i.type).label : '';
                     const matches = (i: any, otherName: string) => {
                       if (!q) return true;
-                      const pat = (i.pattern || '').toLowerCase();
-                      return otherName.toLowerCase().includes(q) || pat.includes(q);
+                      const type = `${i.type || ''} ${typeLabel(i)}`.toLowerCase();
+                      return otherName.toLowerCase().includes(q) || type.includes(q);
                     };
                     const outgoing = (app.sourceOf || []).filter((i: any) => matches(i, i.targetApp?.name || ''));
                     const incoming = (app.targetOf || []).filter((i: any) => matches(i, i.sourceApp?.name || ''));
@@ -530,7 +531,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                               <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{i.targetApp?.name}</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{i.pattern || 'API'}</div>
+                              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{typeLabel(i) || '—'}</div>
                             </div>
                           </div>
                         ))}
@@ -542,7 +543,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                               <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{i.sourceApp?.name}</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{i.pattern || 'API'}</div>
+                              <div style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{typeLabel(i) || '—'}</div>
                             </div>
                           </div>
                         ))}

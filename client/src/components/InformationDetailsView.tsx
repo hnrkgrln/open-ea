@@ -198,7 +198,7 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
                           <ArrowRight size={16} style={{ opacity: 0.3 }} />
-                          <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{i.pattern || 'API'}</span>
+                          <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'var(--primary)', background: 'var(--secondary)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{i.pattern || '—'}</span>
                         </div>
                         <div onClick={() => navigate(`/apps/${i.targetAppId}`)} style={{ cursor: 'pointer', flex: 1 }} className="row-hover">
                           <div style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>TARGET</div>

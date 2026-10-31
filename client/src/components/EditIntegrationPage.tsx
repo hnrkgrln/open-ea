@@ -23,6 +23,7 @@ export const EditIntegrationPage = () => {
     targetAppId: '',
     infoObjectId: '' as string | null,
     pattern: 'REST API',
+    type: '',
     frequency: 'Real-time',
     crud: [] as string[]
   });
@@ -40,17 +41,9 @@ export const EditIntegrationPage = () => {
   const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   const patternOptions = picklists?.find(p => p.name === 'integration_pattern')?.options || [];
+  const typeOptions = picklists?.find(p => p.name === 'integration_type')?.options || [];
   const freqOptions = picklists?.find(p => p.name === 'integration_frequency')?.options || [];
-  let crudOptions = picklists?.find(p => p.name === 'integration_crud')?.options || [];
-  
-  if (crudOptions.length === 0) {
-    crudOptions = [
-      { value: 'CREATE', label: 'CREATE' },
-      { value: 'READ', label: 'READ' },
-      { value: 'UPDATE', label: 'UPDATE' },
-      { value: 'DELETE', label: 'DELETE' },
-    ];
-  }
+  const crudOptions = picklists?.find(p => p.name === 'integration_crud')?.options || [];
 
   // Handle pre-population for new integrations
   useEffect(() => {
@@ -80,6 +73,7 @@ export const EditIntegrationPage = () => {
         targetAppId: item.targetAppId || '',
         infoObjectId: item.infoObjectId || '',
         pattern: item.pattern || 'REST API',
+        type: item.type || '',
         frequency: item.frequency || 'Real-time',
         crud: item.crud ? item.crud.split(',').filter(Boolean) : []
       });
@@ -108,6 +102,7 @@ export const EditIntegrationPage = () => {
         body: JSON.stringify({ 
           ...formData,
           infoObjectId: formData.infoObjectId === '' ? null : formData.infoObjectId,
+          type: formData.type || null,
           crud: formData.crud.join(','),
           references: serializeReferences(references)
         }),
@@ -247,6 +242,15 @@ export const EditIntegrationPage = () => {
               </h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                 <div className="field">
+                  <label className="label">Integration Type</label>
+                  <ColoredSelect
+                    value={formData.type}
+                    onChange={(val) => setFormData({ ...formData, type: val })}
+                    options={[{ value: '', label: 'Select type...' }, ...typeOptions]}
+                    style={{ height: '2rem', fontSize: '0.85rem' }}
+                  />
+                </div>
+                <div className="field">
                   <label className="label">Integration Pattern</label>
                   <ColoredSelect
                     value={formData.pattern}
@@ -264,18 +268,15 @@ export const EditIntegrationPage = () => {
                     style={{ height: '2rem', fontSize: '0.85rem' }}
                   />
                 </div>
-                <div className="field" style={{ gridColumn: 'span 2' }}>
-                  <label className="label">CRUD Operations</label>
-                  <MultiSelect
-                    label="CRUD Operations"
-                    options={crudOptions}
-                    selectedValues={formData.crud}
-                    onChange={(vals) => setFormData({...formData, crud: vals})}
-                    markApplied={false}
-                    placeholder="Select operations..."
-                    style={{ height: '2rem', fontSize: '0.85rem' }}
-                  />
-                </div>
+                <MultiSelect
+                  label="CRUD Operations"
+                  options={crudOptions}
+                  selectedValues={formData.crud}
+                  onChange={(vals) => setFormData({...formData, crud: vals})}
+                  markApplied={false}
+                  placeholder="Select operations..."
+                  style={{ height: '2rem', fontSize: '0.85rem' }}
+                />
               </div>
             </section>
 

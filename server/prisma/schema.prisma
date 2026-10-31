@@ -136,6 +136,7 @@ model Integration {
   targetAppId   String
   infoObjectId  String?
   pattern       String?
+  type          String?
   frequency     String?
   crud          String?
   references    String?
