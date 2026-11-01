@@ -12,6 +12,19 @@ const SUGGESTIONS = [
   'Which capabilities have no application supporting them?',
 ];
 
+// A plain click on an in-app path closes the dialog. Modified clicks open
+// another tab, and external links already do, so those keep the overlay open.
+function clickedInAppLink(event: React.MouseEvent) {
+  // Router links call preventDefault before this bubbles, so that flag is not a skip.
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
+  const target = event.target;
+  if (!(target instanceof Element)) return false;
+  const anchor = target.closest('a');
+  if (!(anchor instanceof HTMLAnchorElement) || anchor.target === '_blank') return false;
+  const href = anchor.getAttribute('href') ?? '';
+  return href.startsWith('/') && !href.startsWith('//');
+}
+
 function SearchAskResult({
   rowRef,
   inputRef,
@@ -507,6 +520,9 @@ export const UnifiedSearch = () => {
           <Dialog.Overlay className="unified-search-overlay" />
           <Dialog.Content
             className={`unified-search-dialog${askOpen ? ' is-ai' : ''}`}
+            onClick={(event) => {
+              if (clickedInAppLink(event)) closeSearch();
+            }}
             onOpenAutoFocus={(event) => {
               event.preventDefault();
               inputRef.current?.focus({ preventScroll: true });
