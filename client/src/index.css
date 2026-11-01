@@ -776,7 +776,7 @@ body {
 .search-ask-result .md-answer h4 { font-size: 1rem; }
 
 .search-ask-result .chat-thread-bar {
-  background: var(--card);
+  background: transparent;
 }
 
 .unified-search-suggestions {
@@ -1945,9 +1945,18 @@ button.target-state-return:hover {
   top: 0;
   z-index: 1;
   display: flex;
+  align-self: flex-end;
   justify-content: flex-end;
-  margin: 0 0 0.15rem;
-  padding-bottom: 0.15rem;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 0 0.15rem auto;
+  padding: 0;
+  background: transparent;
+}
+
+.chat-thread-bar .chat-copy {
+  width: auto;
+  flex: 0 0 auto;
   background: var(--card);
 }
 
