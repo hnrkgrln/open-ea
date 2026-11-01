@@ -305,7 +305,8 @@ const layoutOrgs = (
 
   // HYBRID LAYOUT LOGIC
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: 'TB', nodesep: 60, ranksep: 80, marginx: 40, marginy: 40 });
+  // Top-align each rank so shorter siblings start with the taller ones and grow downward.
+  g.setGraph({ rankdir: 'TB', rankalign: 'top', nodesep: 60, ranksep: 80, marginx: 40, marginy: 40 });
   g.setDefaultEdgeLabel(() => ({}));
 
   // Rule: Stack children if ALL of them are leaves.
