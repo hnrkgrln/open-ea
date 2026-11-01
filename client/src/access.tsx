@@ -17,7 +17,20 @@ export const ACCESS_AREAS = [
 export type AccessArea = (typeof ACCESS_AREAS)[number];
 export type AccessLevel = 'none' | 'view' | 'edit';
 
-export type AccessUser = { id: string; name: string; email: string };
+export type AccessUser = { id: string; name: string; email: string; picture: string | null };
+
+function httpsPicture(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > 2048) return null;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
 
 export type AccessState = {
   required: boolean;
@@ -89,7 +102,12 @@ function parseAccess(body: unknown): AccessState {
     if (isLevel(level)) areas[area] = level;
   }
   const user = record.user && typeof record.user === 'object' && typeof record.user.id === 'string'
-    ? { id: record.user.id, name: String(record.user.name || ''), email: String(record.user.email || '') }
+    ? {
+      id: record.user.id,
+      name: String(record.user.name || ''),
+      email: String(record.user.email || ''),
+      picture: httpsPicture(record.user.picture),
+    }
     : null;
   return {
     required: Boolean(record.required),
@@ -199,10 +217,27 @@ export function useRequireEdit(area: AccessArea, options: { record?: boolean; ow
 }
 
 function SignIn({ onSuccess }: { onSuccess: () => Promise<void> }) {
+  const providers = useQuery({
+    queryKey: ['sso-providers'],
+    queryFn: async () => {
+      const res = await fetch('/api/access/sso/providers');
+      if (!res.ok) return [] as { id: string; name: string }[];
+      const body = await res.json().catch(() => null);
+      if (!Array.isArray(body)) return [];
+      return body.filter((item): item is { id: string; name: string } => (
+        Boolean(item) && typeof item === 'object' && typeof item.id === 'string' && typeof item.name === 'string'
+      ));
+    },
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => (
+    new URLSearchParams(window.location.search).get('sso_error') === 'denied'
+      ? 'Your organization is not allowed to sign in.'
+      : ''
+  ));
   const [pending, setPending] = useState(false);
+  const configured = providers.data ?? [];
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -220,6 +255,11 @@ function SignIn({ onSuccess }: { onSuccess: () => Promise<void> }) {
         setError(body?.error || 'Email or password is not valid.');
         return;
       }
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('sso_error')) {
+        url.searchParams.delete('sso_error');
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      }
       await onSuccess();
     } catch {
       setError('Sign-in could not reach the server.');
@@ -233,8 +273,36 @@ function SignIn({ onSuccess }: { onSuccess: () => Promise<void> }) {
       <form onSubmit={(event) => void submit(event)} className="card" style={{ width: 'min(420px, 100%)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Sign in</h1>
-          <p style={{ margin: '0.35rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>Use the email and password for this workspace.</p>
+          <p style={{ margin: '0.35rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
+            {configured.length > 0 ? 'Use your organization\'s sign-in, or the email and password for this workspace.' : 'Use the email and password for this workspace.'}
+          </p>
         </div>
+        {configured.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            {configured.map((provider) => (
+              <a
+                key={provider.id}
+                href={`/api/access/sso/${provider.id}/start`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '2.4rem',
+                  padding: '0 0.75rem',
+                  borderRadius: 'var(--radius)',
+                  border: '1px solid var(--border)',
+                  background: 'var(--secondary)',
+                  color: 'var(--foreground)',
+                  fontWeight: 650,
+                  textDecoration: 'none',
+                }}
+              >
+                {provider.name}
+              </a>
+            ))}
+            <p style={{ margin: '0.2rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>The email and password below still work.</p>
+          </div>
+        )}
         <div className="field" style={{ margin: 0 }}>
           <label className="label" htmlFor="sign-in-email">Email</label>
           <input id="sign-in-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />

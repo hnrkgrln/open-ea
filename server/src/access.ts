@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
 import { CURRENT_STATE_ID, basePrisma, prisma } from './landscape.js';
+import { registerSsoRoutes } from './sso.js';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_MS = 14 * 24 * 60 * 60 * 1000;
@@ -23,7 +24,24 @@ export const AREAS = [
 export type Area = (typeof AREAS)[number];
 export type Level = 'none' | 'view' | 'edit';
 
-export type AccessUser = { id: string; name: string; email: string };
+export type AccessUser = { id: string; name: string; email: string; picture: string | null };
+
+const PICTURE_MAX = 2048;
+
+// Only an https URL is a profile picture. Anything else is treated as absent.
+export function httpsPicture(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > PICTURE_MAX) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) return null;
+  return url.href;
+}
 
 export type Principal = {
   required: boolean;
@@ -129,7 +147,8 @@ export async function hashPassword(password: string) {
   return `scrypt$${salt}$${derived.toString('hex')}`;
 }
 
-export async function verifyPassword(password: string, stored: string) {
+export async function verifyPassword(password: string, stored: string | null) {
+  if (!stored) return false;
   const [kind, salt, hex] = stored.split('$');
   if (kind !== 'scrypt' || !salt || !hex) return false;
   const derived = await scryptAsync(password, salt, 32) as Buffer;
@@ -209,7 +228,7 @@ async function loadPrincipal(userId: string, stateId: string): Promise<Principal
     required: true,
     open: false,
     admin,
-    user: { id: user.id, name: user.name, email: user.email },
+    user: { id: user.id, name: user.name, email: user.email, picture: httpsPicture(user.pictureUrl) },
     areas,
     applicationOrgs: await resolveApplicationOrgs(orgGrants, stateId),
   };
@@ -431,11 +450,14 @@ const forbid = (): Decision => ({ allow: false, status: 403, body: { error: 'You
 function isPublic(method: string, url: string) {
   if (method === 'POST' && (url === '/access/login' || url === '/access/logout' || url === '/access/bootstrap')) return true;
   if (method === 'GET' && url === '/access/me') return true;
+  if (method === 'GET' && (url === '/access/sso/providers' || url === '/access/sso/:id/start' || url === '/access/sso/:id/callback' || url === '/access/sso/:id/metadata')) return true;
+  if (method === 'POST' && url === '/access/sso/:id/acs') return true;
   return false;
 }
 
 function isAdminRoute(method: string, url: string) {
   if (url.startsWith('/access/users') || url.startsWith('/access/groups') || url === '/access/organizations') return true;
+  if (url.startsWith('/access/identity-providers') || url === '/access/sso/settings') return true;
   if (url.startsWith('/landscape-states')) return !(method === 'GET' && url === '/landscape-states');
   if (url.startsWith('/picklists') || url.startsWith('/picklist-options')) return method !== 'GET';
   if (url.startsWith('/metadata-definitions')) return method !== 'GET';
@@ -722,6 +744,7 @@ export function registerAccessRoutes(server: FastifyInstance) {
       id: user.id,
       name: user.name,
       email: user.email,
+      hasPassword: Boolean(user.passwordHash),
       groupIds: user.memberships.map((membership) => membership.groupId),
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -753,6 +776,7 @@ export function registerAccessRoutes(server: FastifyInstance) {
         id: created.id,
         name: created.name,
         email: created.email,
+        hasPassword: Boolean(created.passwordHash),
         groupIds: created.memberships.map((membership) => membership.groupId),
       };
     } catch (err) {
@@ -798,6 +822,7 @@ export function registerAccessRoutes(server: FastifyInstance) {
         id: updated.id,
         name: updated.name,
         email: updated.email,
+        hasPassword: Boolean(updated.passwordHash),
         groupIds: updated.memberships.map((membership) => membership.groupId),
       };
     } catch (err) {
@@ -904,5 +929,12 @@ export function registerAccessRoutes(server: FastifyInstance) {
       if (catchAccess(err, reply)) return;
       throw err;
     }
+  });
+
+  registerSsoRoutes(server, {
+    beginSession: async (userId) => {
+      const session = await createSession(userId);
+      return sessionCookie(session.id);
+    },
   });
 }

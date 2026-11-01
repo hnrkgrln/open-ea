@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows, LogOut } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram, getLandscapeSearchMatchedApps, organizationTypeSelected } from './components/ApplicationDiagram';
 import { StrategicGoalsView } from './components/StrategicGoalsView';
@@ -31,6 +31,7 @@ import { TimeDashboardView } from './components/TimeDashboardView';
 import { InsightsView } from './components/InsightsView';
 import { PortfolioChatProvider } from './components/PortfolioChat';
 import { ModelMenu } from './components/ModelMenu';
+import { AccountMenu } from './components/AccountMenu';
 import { StateMenu, TargetStateBanner, useLandscapeStateController } from './components/StateMenu';
 import { TransformationsView } from './components/TransformationsView';
 import { TransformationDetailsView } from './components/TransformationDetailsView';
@@ -346,7 +347,7 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
         <div className="header-end">
           <StateMenu />
           {access.admin && <NavLink to="/settings" title="Settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /><span className="header-label">Settings</span></NavLink>}
-          {access.user && <button type="button" className="nav-link" title={`Signed in as ${access.user.name.trim() || access.user.email}. Sign out.`} onClick={() => void access.signOut()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', background: 'transparent', border: 'none', cursor: 'pointer' }}><LogOut size={16} /><span className="header-label">Sign out</span></button>}
+          <AccountMenu />
           <ThemeToggle />
         </div>
       </header>}

@@ -1551,6 +1551,90 @@ button.target-state-return:hover {
   background: var(--border);
 }
 
+button.account-menu-trigger {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: 999px;
+  overflow: hidden;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+button.account-menu-trigger img,
+.account-menu-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+button.account-menu-trigger:hover,
+button.account-menu-trigger[data-state="open"] {
+  border-color: color-mix(in srgb, var(--foreground) 28%, var(--border));
+}
+
+button.account-menu-trigger:focus-visible {
+  outline: 2px solid var(--brand-focus);
+  outline-offset: 2px;
+}
+
+.account-menu-panel {
+  min-width: 15.5rem;
+  max-width: 18rem;
+}
+
+.account-menu-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.4rem 0.45rem 0.55rem;
+  min-width: 0;
+}
+
+.account-menu-avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--secondary);
+  color: var(--foreground);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.account-menu-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.account-menu-name,
+.account-menu-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-menu-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.account-menu-email {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+}
+
 .state-dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -2595,6 +2679,80 @@ input:focus, textarea:focus, select:focus {
   outline: 2px solid var(--brand-focus) !important;
   outline-offset: 1px;
   border-color: var(--brand-focus) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 auto;
+  accent-color: var(--brand-focus);
+  vertical-align: middle;
+}
+
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--muted) 45%, var(--card));
+  cursor: pointer;
+  line-height: 1.35;
+}
+
+.check-row > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.check-row-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1rem;
+}
+
+.check-row-hint {
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.signin-addresses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--brand-focus) 32%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--brand-focus) 6%, var(--card));
+}
+
+.signin-address-note {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.signin-address-row {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.signin-address-row input {
+  flex: 1;
+  min-width: 0;
+  margin-top: 0;
+  font-size: 0.8rem;
 }
 
 @media (prefers-reduced-motion: reduce) {

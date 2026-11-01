@@ -17,6 +17,7 @@ type UserRecord = {
   id: string;
   name: string;
   email: string;
+  hasPassword?: boolean;
   groupIds: string[];
 };
 
@@ -201,7 +202,7 @@ export function UsersSettings() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1rem' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.35rem' }}>Users</h2>
-          <p style={{ margin: '0.3rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>An account is an email address and has a display name. A person can belong to more than one group, and the most permissive group wins.</p>
+          <p style={{ margin: '0.3rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>An account is an email address and has a display name. A person can belong to more than one group, and the most permissive group wins. An account from an identity provider has no password until you set one.</p>
         </div>
         <button type="button" className="primary" onClick={() => { setError(''); setPassword(''); setDraft({ id: '', name: '', email: '', groupIds: [] }); }}>New user</button>
       </div>
@@ -211,6 +212,7 @@ export function UsersSettings() {
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Email</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Display name</th>
+              <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Password</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Groups</th>
               <th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}></th>
             </tr>
@@ -220,6 +222,7 @@ export function UsersSettings() {
               <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '0.6rem 1rem', fontWeight: 650 }}>{user.email}</td>
                 <td style={{ padding: '0.6rem 1rem' }}>{user.name.trim() || '—'}</td>
+                <td style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>{user.hasPassword === false ? 'No' : 'Yes'}</td>
                 <td style={{ padding: '0.6rem 1rem', fontSize: '0.85rem' }}>{user.groupIds.map(groupName).join(', ') || '—'}</td>
                 <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
                   <button type="button" className="secondary" onClick={() => { setError(''); setPassword(''); setDraft(user); }}>Edit</button>
@@ -228,7 +231,7 @@ export function UsersSettings() {
               </tr>
             ))}
             {users.data && users.data.length === 0 && (
-              <tr><td colSpan={4} style={{ padding: '1rem', color: 'var(--muted-foreground)' }}>No users yet.</td></tr>
+              <tr><td colSpan={5} style={{ padding: '1rem', color: 'var(--muted-foreground)' }}>No users yet.</td></tr>
             )}
           </tbody>
         </table>
@@ -247,7 +250,7 @@ export function UsersSettings() {
             </div>
             <div className="field" style={{ margin: 0 }}>
               <label className="label">{creating ? 'Password' : 'New password'}</label>
-              <input type="password" autoComplete="new-password" required={creating} minLength={creating || password ? 8 : undefined} value={password} placeholder={creating ? '' : 'Leave blank to keep the current password'} onChange={(event) => setPassword(event.target.value)} />
+              <input type="password" autoComplete="new-password" required={creating} minLength={creating || password ? 8 : undefined} value={password} placeholder={creating ? '' : draft.hasPassword === false ? 'Set a password to allow email sign-in' : 'Leave blank to keep the current password'} onChange={(event) => setPassword(event.target.value)} />
             </div>
           </div>
           <div className="field" style={{ marginTop: '1rem' }}>

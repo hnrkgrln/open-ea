@@ -286,6 +286,8 @@ model WorkspaceSettings {
   id                   String   @id
   brandName            String
   disabledNativeFields String   @default("[]")
+  // Address of this workspace, used to build sign-in callbacks. Empty until an administrator saves it.
+  publicBaseUrl        String   @default("")
   updatedAt            DateTime @updatedAt
 }
 
@@ -294,7 +296,10 @@ model User {
   id           String            @id @default(uuid())
   name         String
   email        String            @unique
-  passwordHash String
+  // Empty when the account was created by just-in-time sign-in and has no local password.
+  passwordHash String?
+  // https profile image from the identity provider. Empty until one is sent.
+  pictureUrl   String?
   createdAt    DateTime          @default(now())
   updatedAt    DateTime          @updatedAt
   memberships  GroupMembership[]
@@ -341,4 +346,43 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Identity providers and sign-in state are workspace-wide. They are not copied with a landscape state.
+// clientSecret and idpCert stay on the server and are never returned by the API.
+model IdentityProvider {
+  id                String   @id @default(uuid())
+  name              String
+  protocol          String
+  kind              String
+  enabled           Boolean  @default(false)
+  domains           String   @default("[]")
+  issuer            String?
+  clientId          String?
+  clientSecret      String?
+  tenantId          String?
+  entryPoint        String?
+  idpEntityId       String?
+  idpCert           String?
+  emailAttribute    String?
+  nameAttribute     String?
+  allowIdpInitiated Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// One row is an OIDC state, a SAML relay state, or a node-saml request or assertion cache entry.
+// codeVerifier holds the PKCE verifier for an OIDC state, or the cache value for a SAML row.
+model SsoLogin {
+  id           String   @id @default(uuid())
+  providerId   String
+  kind         String
+  key          String   @unique
+  nonce        String?
+  codeVerifier String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([providerId])
 }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, Puzzle, Users, Shield, type LucideIcon } from 'lucide-react';
+import { Plus, Trash2, Settings2, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, Puzzle, Users, Shield, KeyRound, type LucideIcon } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { AttributeHint } from './AttributeHint';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
@@ -15,6 +15,7 @@ import { isLockedNativeField, nativeFieldEnabled, type NativeFieldId } from '../
 import { fetchWorkspaceSettings, parseDisabledNativeFields, type WorkspaceSettings } from '../workspaceSettings';
 import { useAccess } from '../access';
 import { AccessBootstrap, GroupsSettings, UsersSettings } from './AccessSettings';
+import { SignInSettings } from './SignInSettings';
 
 interface PicklistOption {
   id: string;
@@ -47,7 +48,7 @@ interface MetadataDefinition {
 
 const STRATEGIC_FIELD_NAMES = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale', 'pii_category'];
 
-const SETTINGS_TABS = ['artifact', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt', 'ai-skills', 'users', 'groups', 'access-setup'] as const;
+const SETTINGS_TABS = ['artifact', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt', 'ai-skills', 'users', 'groups', 'sign-in', 'access-setup'] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 function isSettingsTab(value: string): value is SettingsTab {
@@ -717,6 +718,7 @@ export const PicklistsView = ({
                 <>
                   <SettingsNavButton active={activeTab === 'users'} onClick={() => setActiveTab('users')} icon={<Users size={16} />} label="Users" />
                   <SettingsNavButton active={activeTab === 'groups'} onClick={() => setActiveTab('groups')} icon={<Shield size={16} />} label="Groups" />
+                  <SettingsNavButton active={activeTab === 'sign-in'} onClick={() => setActiveTab('sign-in')} icon={<KeyRound size={16} />} label="Sign-in" />
                 </>
               ) : (
                 <SettingsNavButton active={activeTab === 'access-setup'} onClick={() => setActiveTab('access-setup')} icon={<Shield size={16} />} label="Administrator" />
@@ -1085,6 +1087,8 @@ export const PicklistsView = ({
             <UsersSettings />
           ) : activeTab === 'groups' && access.admin && access.required ? (
             <GroupsSettings />
+          ) : activeTab === 'sign-in' && access.admin && access.required ? (
+            <SignInSettings />
           ) : activeTab === 'access-setup' && access.admin && !access.required ? (
             <AccessBootstrap />
           ) : (
