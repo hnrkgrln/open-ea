@@ -161,8 +161,10 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh, timeThreshol
   const orgTypeInfo = org.type ? getPicklistInfo('organization_type', org.type) : null;
 
   const relatedByType = (() => {
+    const showParent = showField('organization.parent') && parent;
+    const parentType = showParent && parent.type ? String(parent.type) : '';
     const related = [
-      ...(showField('organization.parent') && parent ? [parent] : []),
+      ...(showParent ? [parent] : []),
       ...children,
     ];
     const typeOptions = picklists?.find((list) => list.name === 'organization_type')?.options || [];
@@ -177,12 +179,13 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh, timeThreshol
     return [...groups.entries()]
       .map(([type, orgs]) => {
         const info = type ? getPicklistInfo('organization_type', type) : null;
+        const isParentType = showParent && type === parentType;
         return {
           type,
           label: info?.label || '',
           color: info?.color,
           orgs: [...orgs].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
-          order: type ? (order.get(type) ?? 1000) : 1001,
+          order: isParentType ? -1 : (type ? (order.get(type) ?? 1000) : 1001),
         };
       })
       .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
