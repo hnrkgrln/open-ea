@@ -4,14 +4,16 @@ import { Check } from 'lucide-react';
 interface CustomCheckboxProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
+  ariaLabel?: string;
 }
 
-export const CustomCheckbox = ({ checked, onChange }: CustomCheckboxProps) => {
+export const CustomCheckbox = ({ checked, onChange, ariaLabel }: CustomCheckboxProps) => {
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={checked}
+      aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
       style={{
         width: '1.25rem',

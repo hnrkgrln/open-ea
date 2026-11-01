@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Network, PlusCircle, ArrowRight, Trash2, Edit2, Map as MapIcon, Filter, X } from 'lucide-react';
+import { Network, PlusCircle, ArrowRight, Trash2, Edit2, Map as MapIcon, Filter, X, List } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 import { getContrastColor } from '../utils/colors';
 import { FilterDot, MultiSelect, SearchInput } from './FilterControls';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, useTableSelection } from './TableSelection';
+import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
 
 interface Integration {
   id: string;
@@ -65,6 +66,7 @@ const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, val
 export const IntegrationsView = ({ integrations, onRefresh }: { integrations: Integration[], onRefresh: () => void }) => {
   const navigate = useNavigate();
   const [filters, setFilters] = useLocalStorage<IntegrationFilters>('openea_integrations_filters', EMPTY_INTEGRATION_FILTERS);
+  const [viewMode, setViewMode] = useLocalStorage<'list' | 'edit'>('openea_integrations_view', 'list');
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const rows = useMemo(() => Array.isArray(integrations) ? integrations : [], [integrations]);
 
@@ -207,6 +209,10 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
             Filters
             {isPanelFilterActive && <FilterDot badge />}
           </button>
+          <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
+            <button type="button" title="Table view" onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={16} /></button>
+            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+          </div>
           <button
             type="button"
             onClick={openDiagram}
@@ -237,6 +243,19 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
         </div>
       )}
 
+      {viewMode === 'edit' ? (
+        <AdvancedEditView
+          kind="integration"
+          rows={visible}
+          onRefresh={onRefresh}
+          selection={selection}
+          singular="integration"
+          plural="integrations"
+          deletePath={(id) => `/api/integrations/${id}`}
+          editPath={(id) => `/integrations/${id}/edit`}
+          openPath={(id) => `/integrations/${id}`}
+        />
+      ) : (
       <div className="card" style={{ padding: '0.5rem', overflow: 'hidden' }}>
         <SelectionBar
           selection={selection}
@@ -308,6 +327,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
           </tbody>
         </table>
       </div>
+      )}
     </div>
   );
 };

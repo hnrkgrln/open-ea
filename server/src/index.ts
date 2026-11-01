@@ -978,10 +978,11 @@ server.post('/organizations', {
       parentId: z.string().optional().nullable(),
       references: z.string().optional().nullable(),
       capabilityIds: z.array(z.string()).optional(),
+      applicationIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request) => {
-  const { capabilityIds, ...data } = request.body;
+  const { capabilityIds, applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -991,12 +992,14 @@ server.post('/organizations', {
     });
     validIds = existing.map(capability => capability.id);
   }
-  return prisma.organization.create({
+  const created = await prisma.organization.create({
     data: {
       ...data,
       supportedCapabilities: validIds.length > 0 ? { connect: validIds.map(id => ({ id })) } : undefined,
     },
   });
+  await setOrganizationApplications(created.id, applicationIds);
+  return created;
 });
 
 server.put('/organizations/:id', {
@@ -1009,10 +1012,11 @@ server.put('/organizations/:id', {
       parentId: z.string().optional().nullable(),
       references: z.string().optional().nullable(),
       capabilityIds: z.array(z.string()).optional(),
+      applicationIds: z.array(z.string()).optional(),
     }),
   },
 }, async (request, reply) => {
-  const { capabilityIds, ...data } = request.body;
+  const { capabilityIds, applicationIds, ...data } = request.body;
   if (data.parentId === '') data.parentId = null;
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -1023,18 +1027,50 @@ server.put('/organizations/:id', {
     validIds = existing.map(capability => capability.id);
   }
   try {
-    return await prisma.organization.update({
+    const updated = await prisma.organization.update({
       where: { id: request.params.id },
       data: {
         ...data,
         supportedCapabilities: capabilityIds ? { set: validIds.map(id => ({ id })) } : undefined,
       }
     });
+    await setOrganizationApplications(updated.id, applicationIds);
+    return updated;
   } catch (err: any) {
     if (err.code === 'P2025' || err.code === 'P2023') return reply.status(404).send({ error: 'Organization not found' });
     throw err;
   }
 });
+
+// applicationIds replaces the applications this organization owns directly.
+// Omit it and ownerOrgId stays as it is. An empty array clears ownership.
+// An application has one owner, so claiming it moves it off the previous organization.
+async function setOrganizationApplications(orgId: string, applicationIds: string[] | undefined) {
+  if (applicationIds === undefined) return;
+  const existing = applicationIds.length === 0
+    ? []
+    : await prisma.application.findMany({
+        where: { id: { in: applicationIds } },
+        select: { id: true },
+      });
+  const validIds = existing.map((app) => app.id);
+  const writes = [
+    prisma.application.updateMany({
+      where: {
+        ownerOrgId: orgId,
+        ...(validIds.length > 0 ? { id: { notIn: validIds } } : {}),
+      },
+      data: { ownerOrgId: null },
+    }),
+  ];
+  if (validIds.length > 0) {
+    writes.push(prisma.application.updateMany({
+      where: { id: { in: validIds } },
+      data: { ownerOrgId: orgId },
+    }));
+  }
+  await prisma.$transaction(writes);
+}
 
 server.delete('/organizations/:id', {
   schema: { params: z.object({ id: z.string() }) },
@@ -1608,6 +1644,7 @@ const NATIVE_FIELD_IDS = [
   'organization.description',
   'organization.parent',
   'organization.capabilities',
+  'organization.applications',
   'organization.references',
   'information.aliases',
   'information.description',

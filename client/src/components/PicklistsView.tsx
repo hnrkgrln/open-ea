@@ -250,6 +250,7 @@ const ORGANIZATION_FIELDS: ArtifactField[] = [
   { kind: 'picklist', section: 'Definition', name: 'organization_type', label: 'Type' },
   { kind: 'builtin', id: 'organization.parent', section: 'Definition', label: 'Parent Organization / Manager', typeLabel: 'Relation', detail: 'Organization this one reports to.' },
   { kind: 'builtin', id: 'organization.capabilities', section: 'Relations', label: 'Supported Capabilities', typeLabel: 'Relation', detail: 'Capabilities this organization supports.' },
+  { kind: 'builtin', id: 'organization.applications', section: 'Relations', label: 'Owned Applications', typeLabel: 'Relation', detail: 'Applications this organization owns. Choosing one moves it from its current owner.' },
   { kind: 'builtin', id: 'organization.references', section: 'Resources', label: 'Resources', typeLabel: 'Links', detail: 'Titles and links attached to the organization.' },
   { kind: 'custom', section: 'Custom attributes', entityType: 'Organization' },
 ];

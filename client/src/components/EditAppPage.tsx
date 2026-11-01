@@ -215,19 +215,30 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
 
   const filteredCaps = useMemo(() => {
     if (!capabilities) return [];
-    if (!capSearch) return capabilities;
-    return capabilities.filter(c => c.name.toLowerCase().includes(capSearch.toLowerCase()));
-  }, [capabilities, capSearch]);
+    const query = capSearch.trim().toLowerCase();
+    const rows = query ? capabilities.filter(c => c.name.toLowerCase().includes(query)) : capabilities;
+    const selected = new Set(selectedCapIds);
+    return [
+      ...rows.filter((capability) => selected.has(capability.id)),
+      ...rows.filter((capability) => !selected.has(capability.id)),
+    ];
+  }, [capabilities, capSearch, selectedCapIds]);
 
   const filteredInfoObjects = useMemo(() => {
     if (!informationObjects) return [];
     const q = infoSearch.trim().toLowerCase();
-    if (!q) return informationObjects;
-    return informationObjects.filter(io =>
-      io.name.toLowerCase().includes(q) ||
-      (io.aliases || '').toLowerCase().includes(q)
-    );
-  }, [informationObjects, infoSearch]);
+    const rows = q
+      ? informationObjects.filter(io =>
+        io.name.toLowerCase().includes(q) ||
+        (io.aliases || '').toLowerCase().includes(q)
+      )
+      : informationObjects;
+    const selected = new Set(selectedInfoIds);
+    return [
+      ...rows.filter((io) => selected.has(io.id)),
+      ...rows.filter((io) => !selected.has(io.id)),
+    ];
+  }, [informationObjects, infoSearch, selectedInfoIds]);
 
   const effectiveCriticality = useMemo(() => {
     return inheritedValue ? Number(inheritedValue) : Number(formData.criticality || 3);

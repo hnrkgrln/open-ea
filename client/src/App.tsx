@@ -35,6 +35,7 @@ import { StateMenu, TargetStateBanner, useLandscapeStateController } from './com
 import { TransformationsView } from './components/TransformationsView';
 import { TransformationDetailsView } from './components/TransformationDetailsView';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection } from './components/TableSelection';
+import { AdvancedEditButton, AdvancedEditView } from './components/AdvancedEditView';
 import { AspectsMenu } from './components/AspectsMenu';
 import { ApplicationGridCard, applicationRangeFields } from './components/ApplicationGridCard';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
@@ -675,7 +676,7 @@ const AppContent = () => {
 };
 const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp, onRefresh, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode, onRefresh: () => void, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard'>('openea_inventory_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard' | 'edit'>('openea_inventory_view', 'grid');
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
     owner: [] as string[], 
@@ -959,6 +960,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             <button title="TIME Dashboard" onClick={() => setViewMode('dashboard')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'dashboard' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'dashboard' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutDashboard size={16} /></button>
             <button title="Grid View" onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button title="Table View" onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
+            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
           </div>
           {React.cloneElement(onNewApp as React.ReactElement<any>, { style: { ...(onNewApp as React.ReactElement<any>).props?.style, height: '2.2rem', fontSize: '0.9rem' } })}
         </div>
@@ -1015,6 +1017,20 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             const next = current.includes(val) ? current.filter(x => x !== val) : [...current, val];
             setFilters({ ...filters, time: next });
           }}
+          thresholds={timeThresholds}
+        />
+      ) : viewMode === 'edit' ? (
+        <AdvancedEditView
+          kind="application"
+          rows={filteredApps}
+          onRefresh={onRefresh}
+          selection={selection}
+          singular="application"
+          plural="applications"
+          detail={(count) => `Integrations that use ${count === 1 ? 'it are' : 'them are'} removed too.`}
+          deletePath={(id) => `/api/applications/${id}`}
+          editPath={(id) => `/apps/${id}/edit`}
+          openPath={(id) => `/apps/${id}`}
           thresholds={timeThresholds}
         />
       ) : viewMode === 'grid' ? (
@@ -1310,7 +1326,7 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
 
 const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabilities: Capability[], onRefresh: () => void, onSelectApp: (id: string) => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_capabilities_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_capabilities_view', 'grid');
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
   const [isPending, startTransition] = useTransition();
   const [forceExpandState, setForceExpandState] = useState({ state: true, timestamp: 0 });
@@ -1408,6 +1424,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
+            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
           </div>
           <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
             <PlusCircle size={16} />
@@ -1466,7 +1483,20 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
         </div>
       )}
 
-      {viewMode === 'grid' ? (
+      {viewMode === 'edit' ? (
+        <AdvancedEditView
+          kind="capability"
+          rows={capabilities || []}
+          onRefresh={onRefresh}
+          selection={selection}
+          singular="capability"
+          plural="capabilities"
+          detail={() => 'Sub-capabilities are removed with a selected parent.'}
+          deletePath={(id) => `/api/capabilities/${id}`}
+          editPath={(id) => `/capabilities/${id}/edit`}
+          openPath={(id) => `/capabilities/${id}`}
+        />
+      ) : viewMode === 'grid' ? (
         <div className="masonry-grid">
           {capabilityTree.map(cap => (
             <div key={cap.id} className="masonry-item">

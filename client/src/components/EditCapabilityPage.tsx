@@ -189,10 +189,18 @@ export const EditCapabilityPage = () => {
 
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
-  const filteredApps = (allApps || []).filter(app => 
-    app.name.toLowerCase().includes(appSearch.toLowerCase()) || 
-    selectedAppIds.includes(app.id)
-  );
+  const filteredApps = (() => {
+    const query = appSearch.trim().toLowerCase();
+    const rows = (allApps || []).filter(app =>
+      app.name.toLowerCase().includes(query) ||
+      selectedAppIds.includes(app.id)
+    );
+    const selected = new Set(selectedAppIds);
+    return [
+      ...rows.filter((app) => selected.has(app.id)),
+      ...rows.filter((app) => !selected.has(app.id)),
+    ];
+  })();
 
   const capMetaDefs = metaDefs?.filter(d => d.entityType === 'Capability') || [];
   const standardFieldNames = ['criticality'];

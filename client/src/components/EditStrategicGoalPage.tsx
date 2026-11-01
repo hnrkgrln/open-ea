@@ -49,8 +49,13 @@ export const EditStrategicGoalPage = () => {
     if (!capabilities) return [];
     const query = capSearch.trim().toLowerCase();
     const rows = query ? capabilities.filter((capability) => capability.name.toLowerCase().includes(query)) : capabilities;
-    return [...rows].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  }, [capabilities, capSearch]);
+    const ordered = [...rows].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    const selected = new Set(selectedCapIds);
+    return [
+      ...ordered.filter((capability) => selected.has(capability.id)),
+      ...ordered.filter((capability) => !selected.has(capability.id)),
+    ];
+  }, [capabilities, capSearch, selectedCapIds]);
 
   useLayoutEffect(() => {
     if (goal?.id && !isNew && !hydrated) {

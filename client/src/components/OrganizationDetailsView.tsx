@@ -17,7 +17,7 @@ interface Props {
   timeThresholds?: TimeThresholds;
 }
 
-export const OrganizationDetailsView = ({ orgId, onBack, onRefresh, timeThresholds = DEFAULT_TIME_THRESHOLDS }: Props) => {
+export const OrganizationDetailsView = ({ orgId, onBack, timeThresholds = DEFAULT_TIME_THRESHOLDS }: Props) => {
   const navigate = useNavigate();
 
   const { data: allOrgs, isLoading: isAllLoading } = useQuery<any[]>({ 
@@ -238,7 +238,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh, timeThreshol
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '3rem' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3rem' }}>
               
-              <section>
+              {showField('organization.applications') && <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Database size={16} /> Owned Applications
                 </h3>
@@ -263,7 +263,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh, timeThreshol
                 ) : (
                   <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No applications currently owned by this organization.</div>
                 )}
-              </section>
+              </section>}
 
               {showField('organization.capabilities') && <section>
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>

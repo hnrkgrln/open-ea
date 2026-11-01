@@ -4,6 +4,7 @@ import { FileText, PlusCircle, LayoutGrid, List, Trash2, Edit2, ShieldCheck } fr
 import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, useTableSelection } from './TableSelection';
+import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
 
 interface InformationObject {
   id: string;
@@ -71,7 +72,7 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
 
 export const InformationView = ({ informationObjects, onRefresh }: { informationObjects: InformationObject[], onRefresh: () => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_information_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_information_view', 'grid');
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const rows = useMemo(() => Array.isArray(informationObjects) ? informationObjects : [], [informationObjects]);
   const visibleIds = useMemo(() => rows.map((item) => item.id), [rows]);
@@ -93,6 +94,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><LayoutGrid size={14} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={14} /></button>
+            <AdvancedEditButton compact active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
           </div>
           <button onClick={() => navigate('/information/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
             <PlusCircle size={14} />
@@ -101,7 +103,19 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
         </div>
       </div>
 
-      {viewMode === 'grid' ? (
+      {viewMode === 'edit' ? (
+        <AdvancedEditView
+          kind="information"
+          rows={rows}
+          onRefresh={onRefresh}
+          selection={selection}
+          singular="information object"
+          plural="information objects"
+          deletePath={(id) => `/api/information-objects/${id}`}
+          editPath={(id) => `/information/${id}/edit`}
+          openPath={(id) => `/information/${id}`}
+        />
+      ) : viewMode === 'grid' ? (
         <div className="grid">
           {rows.map(io => (
             <InfoCard key={io.id} item={io} onRefresh={onRefresh} picklists={picklists || []} />

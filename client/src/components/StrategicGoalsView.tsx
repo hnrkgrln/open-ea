@@ -4,6 +4,8 @@ import { Boxes, ChevronDown, ChevronRight, ChevronsDown, ChevronsUp, Edit2, Layo
 import { useLocalStorage } from '../App';
 import { SearchInput } from './FilterControls';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection, type TableSelection } from './TableSelection';
+import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
+import { flattenTree } from '../advancedEdit';
 
 interface RequiredCapability {
   id: string;
@@ -144,7 +146,7 @@ const GoalListRow = ({ goal, onRefresh, selection, depth = 0 }: { goal: Strategi
 
 export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[]; onRefresh: () => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list'>('openea_strategic_goals_view', 'grid');
+  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_strategic_goals_view', 'grid');
   const [search, setSearch] = useLocalStorage('openea_strategic_goals_search', '');
   const [forceExpand, setForceExpand] = useState({ state: true, timestamp: 0 });
   const query = search.trim().toLowerCase();
@@ -195,6 +197,7 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button type="button" onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }} title="Cards"><LayoutGrid size={14} /></button>
             <button type="button" onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }} title="List"><List size={14} /></button>
+            <AdvancedEditButton compact active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
           </div>
           <button type="button" onClick={() => navigate('/strategic-goals/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
             <PlusCircle size={14} />
@@ -207,6 +210,19 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
         <div className="card" style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--muted-foreground)' }}>
           {query ? 'No strategic goals match the filter.' : 'No strategic goals yet.'}
         </div>
+      ) : viewMode === 'edit' ? (
+        <AdvancedEditView
+          kind="strategicGoal"
+          rows={flattenTree(visible)}
+          onRefresh={onRefresh}
+          selection={selection}
+          singular="strategic goal"
+          plural="strategic goals"
+          detail={() => 'Sub-goals are removed with a selected parent.'}
+          deletePath={(id) => `/api/strategic-goals/${id}`}
+          editPath={(id) => `/strategic-goals/${id}/edit`}
+          openPath={(id) => `/strategic-goals/${id}`}
+        />
       ) : viewMode === 'grid' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {visible.map((goal) => <GoalNode key={goal.id} goal={goal} onRefresh={onRefresh} forceExpand={forceExpand} />)}

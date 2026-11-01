@@ -29,6 +29,7 @@ export const NATIVE_FIELD_IDS = [
   'organization.description',
   'organization.parent',
   'organization.capabilities',
+  'organization.applications',
   'organization.references',
   'information.name',
   'information.aliases',

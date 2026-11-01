@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
 import { InlineFilter } from './FilterControls';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
+import { OwnedApplicationsPicker } from './OwnedApplicationsPicker';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
@@ -27,6 +28,7 @@ export const EditOrganizationPage = () => {
   });
   const [references, setReferences] = useState<Reference[]>([]);
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
+  const [selectedAppIds, setSelectedAppIds] = useState<string[]>([]);
   const [capSearch, setCapSearch] = useState('');
 
   const { data: org, isLoading: isOrgLoading, error: orgError } = useQuery({
@@ -50,15 +52,46 @@ export const EditOrganizationPage = () => {
     queryKey: ['capabilities'],
     queryFn: () => fetch('/api/capabilities').then(res => res.json())
   });
+  const { data: applications } = useQuery<any[]>({
+    queryKey: ['applications'],
+    queryFn: () => fetch('/api/applications').then(res => res.json())
+  });
   const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
 
   const orgTypeOptions = picklists?.find(p => p.name === 'organization_type')?.options || [];
+  const childOwnedLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    if (isNew || !id || !allOrgs) return labels;
+    const byParent = new Map<string, any[]>();
+    for (const row of allOrgs) {
+      if (!row?.parentId) continue;
+      const list = byParent.get(row.parentId) || [];
+      list.push(row);
+      byParent.set(row.parentId, list);
+    }
+    const walk = (parentId: string) => {
+      for (const child of byParent.get(parentId) || []) {
+        for (const app of child.ownedApplications || []) {
+          if (labels.has(app.id)) continue;
+          if (String(app.lifecycle || '').toLowerCase() === 'decommissioned') continue;
+          labels.set(app.id, String(child.name || ''));
+        }
+        walk(child.id);
+      }
+    };
+    walk(id);
+    return labels;
+  }, [allOrgs, id, isNew]);
   const filteredCaps = useMemo(() => {
     if (!capabilities) return [];
     const query = capSearch.trim().toLowerCase();
-    if (!query) return capabilities;
-    return capabilities.filter(capability => capability.name.toLowerCase().includes(query));
-  }, [capabilities, capSearch]);
+    const rows = query ? capabilities.filter(capability => capability.name.toLowerCase().includes(query)) : capabilities;
+    const selected = new Set(selectedCapIds);
+    return [
+      ...rows.filter((capability) => selected.has(capability.id)),
+      ...rows.filter((capability) => !selected.has(capability.id)),
+    ];
+  }, [capabilities, capSearch, selectedCapIds]);
 
   // Populate formData from the DB before the form mounts. We gate rendering on
   // `hydrated` below so Radix Select instances never see stale default values —
@@ -74,6 +107,7 @@ export const EditOrganizationPage = () => {
       });
       setReferences(parseReferences(org.references));
       setSelectedCapIds((org.supportedCapabilities || []).map((capability: { id: string }) => capability.id));
+      setSelectedAppIds((org.ownedApplications || []).map((app: { id: string }) => app.id));
       setHydrated(true);
     }
   }, [org, isNew, hydrated]);
@@ -96,6 +130,7 @@ export const EditOrganizationPage = () => {
           parentId: formData.parentId === '' ? null : formData.parentId,
           references: serializeReferences(references),
           capabilityIds: selectedCapIds,
+          applicationIds: selectedAppIds,
         }),
       });
 
@@ -141,7 +176,7 @@ export const EditOrganizationPage = () => {
   // default values that then get committed back, overwriting real DB values.
   if (!isNew && recordIsMissing(org, orgError)) return <MissingRecord noun="organization" onBack={() => navigate('/organizations')} />;
   if (!isNew && (isOrgLoading || !org)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
-  if (!picklists || !allOrgs || !capabilities) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
+  if (!picklists || !allOrgs || !capabilities || !applications) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
 
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
@@ -243,6 +278,16 @@ export const EditOrganizationPage = () => {
                 ))}
               </div>
             </section>}
+
+            {showField('organization.applications') && (
+              <OwnedApplicationsPicker
+                applications={applications}
+                selectedIds={selectedAppIds}
+                currentOrgId={isNew ? null : id}
+                childOwnedLabels={childOwnedLabels}
+                onToggle={(appId) => setSelectedAppIds((prev) => prev.includes(appId) ? prev.filter((item) => item !== appId) : [...prev, appId])}
+              />
+            )}
 
             {showField('organization.references') && <ReferencesEditor value={references} onChange={setReferences} />}
 

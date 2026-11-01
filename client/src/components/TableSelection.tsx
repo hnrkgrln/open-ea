@@ -143,9 +143,9 @@ export function SelectionHeader({ selection, style }: { selection: TableSelectio
   );
 }
 
-export function SelectionRowCheck({ selection, id, label }: { selection: TableSelection; id: string; label: string }) {
+export function SelectionRowCheck({ selection, id, label, className, style }: { selection: TableSelection; id: string; label: string; className?: string; style?: React.CSSProperties }) {
   return (
-    <td className="table-select-cell" onClick={(event) => toggleFromCell(event, () => selection.toggle(id))}>
+    <td className={className ? `table-select-cell ${className}` : 'table-select-cell'} style={style} onClick={(event) => toggleFromCell(event, () => selection.toggle(id))}>
       <SelectionCheck checked={selection.has(id)} label={`Select ${label}`} onChange={() => selection.toggle(id)} />
     </td>
   );
