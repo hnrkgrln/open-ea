@@ -259,6 +259,7 @@ interface Props {
   groupingField?: string | null;
   searchTerms?: string[];
   visible?: boolean;
+  embed?: boolean;
   containerRef?: React.RefObject<HTMLDivElement | null>;
   timeThresholds?: TimeThresholds;
 }
@@ -1281,6 +1282,7 @@ const DiagramInner = ({
   groupingField = null,
   searchTerms = [],
   visible = false,
+  embed = false,
   containerRef,
   timeThresholds = DEFAULT_TIME_THRESHOLDS,
 }: Props) => {
@@ -1491,8 +1493,8 @@ const DiagramInner = ({
     return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
-  const [legendPos, setLegendPos] = useState({ x: 20, y: 20 });
-  const [isLegendExpanded, setIsLegendExpanded] = useState(true);
+  const [legendPos, setLegendPos] = useState({ x: embed ? 12 : 20, y: embed ? 12 : 20 });
+  const [isLegendExpanded, setIsLegendExpanded] = useState(!embed);
   const isDraggingLegend = useRef(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
@@ -2591,8 +2593,8 @@ const DiagramInner = ({
       {(mode === 'landscape' || mode === 'app-landscape' || mode === 'org-landscape') && <LandscapeArt isDark={isDark} />}
       {mode === 'network' && <NetworkArt isDark={isDark} />}
       <Background color="transparent" />
-      <Controls showInteractive={false} />
-      <Panel position="top-right" style={{ 
+      {!embed && <Controls showInteractive={false} />}
+      {!embed && <Panel position="top-right" style={{ 
         background: 'var(--card)', 
         padding: toolsOpen ? '10px 14px' : '6px', 
         borderRadius: '10px', 
@@ -2769,7 +2771,7 @@ const DiagramInner = ({
           {reflow ? 'Zoom reflows the columns to this view' : lockNodes ? 'Click objects to inspect • Drag to pan' : 'Drag nodes to reposition • Selection enabled'}
         </div>
         </>}
-      </Panel>
+      </Panel>}
       <Panel position="top-left" style={{ 
         margin: 0,
         padding: 0,

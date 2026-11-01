@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, Trash2, Settings2, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, type LucideIcon } from 'lucide-react';
+import { Plus, Trash2, Settings2, Palette, Database, Boxes, Layers, FileText, Network, Sliders, RotateCcw, Sparkles, Target, Puzzle, type LucideIcon } from 'lucide-react';
 import { EditMetadataDialog } from './EditMetadataDialog';
 import { AttributeHint } from './AttributeHint';
 import { EditRangePicklistDialog } from './EditRangePicklistDialog';
@@ -10,6 +10,7 @@ import { ColoredSelect } from './ColoredSelect';
 import { TimeMatrix } from './TimeMatrix';
 import { AiProvidersSettings } from './AiProvidersSettings';
 import { AiSystemPromptSettings } from './AiSystemPromptSettings';
+import { AiSkillsSettings } from './AiSkillsSettings';
 import { isLockedNativeField, nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings, parseDisabledNativeFields, type WorkspaceSettings } from '../workspaceSettings';
 
@@ -44,7 +45,7 @@ interface MetadataDefinition {
 
 const STRATEGIC_FIELD_NAMES = ['criticality', 'application_cost', 'functional_fit', 'technical_fit', 'cia_scale', 'pii_category'];
 
-const SETTINGS_TABS = ['artifact', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt'] as const;
+const SETTINGS_TABS = ['artifact', 'branding', 'import-export', 'time_thresholds', 'ai', 'ai-prompt', 'ai-skills'] as const;
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 
 function isSettingsTab(value: string): value is SettingsTab {
@@ -683,6 +684,12 @@ export const PicklistsView = ({
               icon={<FileText size={16} />}
               label="System prompt"
             />
+            <SettingsNavButton
+              active={activeTab === 'ai-skills'}
+              onClick={() => setActiveTab('ai-skills')}
+              icon={<Puzzle size={16} />}
+              label="Skills"
+            />
           </SettingsGroup>
 
           <SettingsGroup title="Workspace">
@@ -1055,6 +1062,8 @@ export const PicklistsView = ({
             <AiProvidersSettings />
           ) : activeTab === 'ai-prompt' ? (
             <AiSystemPromptSettings />
+          ) : activeTab === 'ai-skills' ? (
+            <AiSkillsSettings />
           ) : (
             <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
               Select a configuration category from the sidebar.

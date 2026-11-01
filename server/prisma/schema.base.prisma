@@ -193,6 +193,16 @@ model LlmSettings {
   updatedAt    DateTime @updatedAt
 }
 
+model LlmSkill {
+  id        String   @id
+  name      String
+  body      String
+  enabled   Boolean  @default(true)
+  builtin   Boolean  @default(false)
+  sortOrder Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
 model LandscapeState {
   id            String   @id
   name          String

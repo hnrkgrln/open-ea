@@ -8,6 +8,7 @@ import { suggestApplicationCapabilities } from './capabilityMapping.js';
 import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
+import { builtinSkill, cleanSkillBody, cleanSkillName, MAX_LLM_SKILLS, MAX_SKILL_BODY, MAX_SKILL_NAME, presentSkills, skillInstructions, type StoredSkill } from './llmSkills.js';
 import { createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
 import { watchDevDatabase } from './devDatabase.js';
 import { applyTransformation, createTransformation, deleteTransformation, getStateDiffPreview, getTransformationDetail, listTransformations, TRANSFORMATION_ACTIONS, TRANSFORMATION_ENTITY_TYPES, TRANSFORMATION_STATUSES, updateTransformation } from './transformations.js';
@@ -1734,6 +1735,108 @@ server.put('/llm/settings', {
   return llmSettingsView(row.systemPrompt);
 });
 
+const skillWriteBody = z.object({
+  name: z.string().trim().min(1).max(MAX_SKILL_NAME),
+  body: z.string().max(MAX_SKILL_BODY),
+  enabled: z.boolean(),
+});
+
+function skillFields(body: { name: string; body: string; enabled: boolean }) {
+  return {
+    name: cleanSkillName(body.name),
+    body: cleanSkillBody(body.body),
+    enabled: body.enabled,
+  };
+}
+
+async function loadStoredSkills(): Promise<StoredSkill[]> {
+  return prisma.llmSkill.findMany({ orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'asc' }] });
+}
+
+async function skillPromptText() {
+  return skillInstructions(presentSkills(await loadStoredSkills()));
+}
+
+server.get('/llm/skills', async () => {
+  return presentSkills(await loadStoredSkills());
+});
+
+server.post('/llm/skills', {
+  schema: { body: skillWriteBody },
+}, async (request, reply) => {
+  const existing = presentSkills(await loadStoredSkills());
+  if (existing.length >= MAX_LLM_SKILLS) {
+    return reply.status(400).send({ error: `At most ${MAX_LLM_SKILLS} skills can be saved.` });
+  }
+  const fields = skillFields(request.body);
+  if (!fields.name) return reply.status(400).send({ error: 'A skill name is required.' });
+  const created = await prisma.llmSkill.create({
+    data: {
+      id: crypto.randomUUID(),
+      ...fields,
+      builtin: false,
+      sortOrder: existing.length + 1,
+    },
+  });
+  return presentSkills([created]).find((skill) => skill.id === created.id);
+});
+
+server.put('/llm/skills/:id', {
+  schema: {
+    params: z.object({ id: z.string().min(1) }),
+    body: skillWriteBody,
+  },
+}, async (request, reply) => {
+  const id = request.params.id;
+  const builtin = builtinSkill(id);
+  const fields = skillFields(request.body);
+  if (!fields.name) return reply.status(400).send({ error: 'A skill name is required.' });
+  if (builtin) {
+    const unchanged = fields.name === builtin.name && fields.body === builtin.body && fields.enabled;
+    if (unchanged) {
+      await prisma.llmSkill.deleteMany({ where: { id } });
+    } else {
+      await prisma.llmSkill.upsert({
+        where: { id },
+        create: { id, ...fields, builtin: true, sortOrder: 0 },
+        update: { ...fields, builtin: true },
+      });
+    }
+    const saved = presentSkills(await loadStoredSkills()).find((skill) => skill.id === id);
+    return saved ?? reply.status(404).send({ error: 'Skill not found' });
+  }
+
+  const existing = await prisma.llmSkill.findUnique({ where: { id } });
+  if (!existing || existing.builtin) return reply.status(404).send({ error: 'Skill not found' });
+  const updated = await prisma.llmSkill.update({ where: { id }, data: fields });
+  return presentSkills([updated]).find((skill) => skill.id === id);
+});
+
+server.delete('/llm/skills/:id', {
+  schema: { params: z.object({ id: z.string().min(1) }) },
+}, async (request, reply) => {
+  if (builtinSkill(request.params.id)) {
+    return reply.status(400).send({ error: 'A built-in skill can be turned off or restored. It cannot be deleted.' });
+  }
+  try {
+    await prisma.llmSkill.delete({ where: { id: request.params.id } });
+    return { ok: true };
+  } catch (err: any) {
+    if (err.code === 'P2025') return reply.status(404).send({ error: 'Skill not found' });
+    throw err;
+  }
+});
+
+server.post('/llm/skills/:id/restore', {
+  schema: { params: z.object({ id: z.string().min(1) }) },
+}, async (request, reply) => {
+  const builtin = builtinSkill(request.params.id);
+  if (!builtin) return reply.status(400).send({ error: 'Only a built-in skill can be restored.' });
+  await prisma.llmSkill.deleteMany({ where: { id: builtin.id } });
+  const restored = presentSkills([]).find((skill) => skill.id === builtin.id);
+  return restored ?? reply.status(404).send({ error: 'Skill not found' });
+});
+
 server.get('/llm/providers', async () => {
   const rows = await prisma.llmProvider.findMany({ orderBy: { createdAt: 'asc' } });
   return rows.map(toPublicLlmProvider);
@@ -1846,17 +1949,18 @@ server.post('/llm/ask', {
   const provider = await prisma.llmProvider.findFirst({ where: { isActive: true }, orderBy: { updatedAt: 'desc' } });
   if (!provider) return reply.status(400).send({ error: 'No AI provider is active. Add one in Settings.' });
   try {
-    const [systemPrompt, workspaceContext, applications] = await Promise.all([
+    const [systemPrompt, workspaceContext, applications, skills] = await Promise.all([
       currentSystemPrompt(),
       buildPortfolioContext(prisma, request.body.timeThresholds),
       prisma.application.findMany({ select: { id: true, name: true } }),
+      skillPromptText(),
     ]);
     const prepared = messages.map((message) => (
       message.role === 'assistant'
         ? { ...message, content: linkApplicationMentions(message.content, applications) }
         : message
     ));
-    const text = await completeConversation(provider, prepared, systemPrompt, workspaceContext, 2048);
+    const text = await completeConversation(provider, prepared, systemPrompt, workspaceContext, 2048, skills);
     return { text: linkApplicationMentions(text, applications), providerName: provider.name, model: provider.model };
   } catch (err) {
     return sendLlmError(reply, err);
@@ -1934,8 +2038,12 @@ server.post('/llm/providers/:id/test', {
   if (!existing) return reply.status(404).send({ error: 'LLM provider not found' });
   const prompt = request.body?.prompt?.trim() || defaultTestPrompt();
   try {
-    const workspaceContext = questionNeedsPortfolio(prompt) ? await buildPortfolioContext(prisma, request.body?.timeThresholds) : undefined;
-    const text = await completeLlm(existing, prompt, await currentSystemPrompt(), workspaceContext);
+    const withPortfolio = questionNeedsPortfolio(prompt);
+    const [workspaceContext, skills] = await Promise.all([
+      withPortfolio ? buildPortfolioContext(prisma, request.body?.timeThresholds) : Promise.resolve(undefined),
+      withPortfolio ? skillPromptText() : Promise.resolve(undefined),
+    ]);
+    const text = await completeLlm(existing, prompt, await currentSystemPrompt(), workspaceContext, skills);
     return { text };
   } catch (err) {
     return sendLlmError(reply, err);

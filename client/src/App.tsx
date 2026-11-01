@@ -244,6 +244,7 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const navigate = useNavigate();
   const location = useLocation();
   const isFullWidth = location.pathname.startsWith('/diagrams');
+  const diagramEmbed = isFullWidth && new URLSearchParams(location.search).get('embed') === '1';
   const headerRef = useRef<HTMLElement>(null);
   const { isTarget } = useLandscapeStateController();
 
@@ -308,12 +309,12 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
       cancelled = true;
       observer.disconnect();
     };
-  }, [brandName]);
+  }, [brandName, diagramEmbed]);
 
   return (
     <PortfolioChatProvider>
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }} data-landscape-state={isTarget ? 'target' : 'current'}>
-      <header ref={headerRef} className="header" data-landscape-state={isTarget ? 'target' : 'current'} style={{ flexShrink: 0, position: 'relative' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }} data-landscape-state={isTarget ? 'target' : 'current'} data-diagram-embed={diagramEmbed ? 'true' : undefined}>
+      {!diagramEmbed && <header ref={headerRef} className="header" data-landscape-state={isTarget ? 'target' : 'current'} style={{ flexShrink: 0, position: 'relative' }}>
         <div className="header-start">
           <Link to="/insights" className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav">
@@ -331,8 +332,8 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
           <NavLink to="/settings" title="Settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /><span className="header-label">Settings</span></NavLink>
           <ThemeToggle />
         </div>
-      </header>
-      <TargetStateBanner />
+      </header>}
+      {!diagramEmbed && <TargetStateBanner />}
       <main className={isFullWidth ? "main-full" : "main-container"}>
         {children}
       </main>
@@ -1637,6 +1638,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     setSearchParams(params, { replace: true });
   };
 
+  const embed = searchParams.get('embed') === '1';
   const mode = (searchParams.get('mode') as any) || 'landscape';
   const setMode = (m: string) => { const p = new URLSearchParams(searchParams); p.set('mode', m); setSearchParams(p, { replace: true }); };
 
@@ -1885,7 +1887,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
-      <div className="diagram-toolbar" style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+      {!embed && <div className="diagram-toolbar" style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
         <div className="diagram-title"><h1 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}><MapIcon size={18} /> Landscape Diagrams</h1><p style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)' }}>Viewing {filteredApps.length} applications</p></div>
         <div role="group" aria-label="Landscape" className="diagram-landscape" style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem', alignItems: 'center', position: 'relative' }}>
             <span className="diagram-landscape-label" style={{ fontSize: '8.5px', fontWeight: 700, textTransform: 'uppercase', padding: '0 0.35rem', opacity: 0.6 }}>Landscape</span>
@@ -1999,8 +2001,8 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
             {diagramFiltersActive && <FilterDot badge />}
           </button>
           </div>
-      </div>
-      {showFilters && (
+      </div>}
+      {!embed && showFilters && (
         <div style={{ padding: '0.6rem 1.25rem', borderBottom: '1px solid var(--border)', background: 'var(--card)', flexShrink: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: '0.75rem', alignItems: 'flex-end' }}>
             {[
@@ -2113,7 +2115,8 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
           metaDefs={metaDefs || []}
           picklists={picklists || []}
 
-          mode={mode} 
+          mode={mode}
+          embed={embed}
           activeOverlay={activeOverlay} 
           activeCustomOverlays={activeCustomOverlays}
           showApplications={showApplications} 

@@ -739,6 +739,14 @@ body {
   max-height: min(36rem, 56vh);
 }
 
+.unified-search-dialog.is-ai .search-ask-result .chat-thread:has(.md-diagram) {
+  max-height: min(44rem, 70vh);
+}
+
+.search-ask-result .md-answer .md-answer-block {
+  margin: 0.7rem 0;
+}
+
 .search-ask-result .chat-bubble,
 .search-ask-result .md-answer,
 .unified-search-composer textarea {
@@ -2344,6 +2352,72 @@ textarea.app-ai-suggested {
   color: var(--brand-focus);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+.md-answer-block {
+  margin: 0.45rem 0;
+}
+
+.md-diagram {
+  position: relative;
+  display: block;
+  height: 300px;
+  margin: 0.75rem 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--background);
+}
+
+.md-diagram-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+  background: var(--background);
+}
+
+.md-diagram-hit {
+  position: absolute;
+  inset: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.md-diagram-caption,
+.md-diagram-open {
+  position: absolute;
+  max-width: calc(100% - 1.4rem);
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.md-diagram-caption {
+  top: 0.55rem;
+  left: 0.55rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+}
+
+.md-diagram-open {
+  right: 0.55rem;
+  bottom: 0.55rem;
+  padding: 0.28rem 0.7rem;
+  border-radius: 999px;
+}
+
+.md-diagram-hit:hover .md-diagram-open {
+  border-color: var(--brand-focus);
+  color: var(--brand-focus);
 }
 
 .md-answer blockquote {
