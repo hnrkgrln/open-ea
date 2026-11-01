@@ -11,6 +11,7 @@ import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 import { AuditActorName } from './AuditActor';
+import { BrandLogo } from './BrandLogo';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -54,7 +55,7 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
   if (isLoading || !item) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
-        <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+        <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
         <div className="loading-text" style={{ fontSize: '0.75rem' }}>Retrieving data concept details...</div>
       </div>
     );

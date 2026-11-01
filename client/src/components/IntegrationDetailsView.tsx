@@ -10,6 +10,7 @@ import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
+import { BrandLogo } from './BrandLogo';
 
 interface Props {
   integrationId: string | null;
@@ -114,7 +115,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
   if (isLoading || !i) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
-        <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+        <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
         <div className="loading-text" style={{ fontSize: '0.75rem' }}>Retrieving integration details...</div>
       </div>
     );

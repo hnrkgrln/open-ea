@@ -1,24 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
-
-type Theme = 'light' | 'dark' | 'system';
+import { readThemeChoice, storeTheme, type ThemeChoice } from '../theme';
 
 export const ThemeToggle = () => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('openea-theme') as Theme) || 'system';
-  });
+  const [theme, setTheme] = useState<ThemeChoice>(readThemeChoice);
 
   useEffect(() => {
-    const root = window.document.documentElement;
-    
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.setAttribute('data-theme', systemTheme);
-    } else {
-      root.setAttribute('data-theme', theme);
-    }
-
-    localStorage.setItem('openea-theme', theme);
+    storeTheme(theme);
   }, [theme]);
 
   const toggle = () => {

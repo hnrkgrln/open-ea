@@ -1067,7 +1067,7 @@ export const PicklistsView = ({
                     </button>
                   </div>
                   <p style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.5rem', margin: 0 }}>
-                    Saved for this workspace. The name appears in the header and the browser title on every computer.
+                    Saved for this workspace. The header shows the OpenEA logo. This name is the browser title on every computer.
                   </p>
                   {brandError && (
                     <p style={{ fontSize: '0.72rem', color: 'var(--destructive, #c92a2a)', marginTop: '0.45rem', marginBottom: 0 }}>{brandError}</p>

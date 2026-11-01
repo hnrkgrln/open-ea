@@ -2,11 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#343a40" />
     <meta name="description" content="OpenEA - Open Enterprise Architecture & Application Portfolio Management" />
     <title>OpenEA</title>
+    <script>
+      (function () {
+        var choice = 'system';
+        try {
+          var stored = localStorage.getItem('openea-theme');
+          if (stored === 'light' || stored === 'dark' || stored === 'system') choice = stored;
+        } catch (e) {}
+        var dark = choice === 'dark' || (choice !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var theme = dark ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', theme);
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', dark ? '#1a1b1e' : '#f8f9fa');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

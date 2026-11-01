@@ -38,6 +38,7 @@ import { TransformationDetailsView } from './components/TransformationDetailsVie
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection } from './components/TableSelection';
 import { AdvancedEditButton, AdvancedEditView } from './components/AdvancedEditView';
 import { AspectsMenu } from './components/AspectsMenu';
+import { BrandLogo } from './components/BrandLogo';
 import { ApplicationGridCard, applicationRangeFields } from './components/ApplicationGridCard';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 import { fetchWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
@@ -256,7 +257,7 @@ function EditRoute({ area, children }: { area: AccessArea; children: React.React
   return children;
 }
 
-const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode, brandName: string, onRefresh: () => void }) => {
+const Layout = ({ children }: { children: React.ReactNode }) => {
   const access = useAccess();
   const navigate = useNavigate();
   const location = useLocation();
@@ -266,9 +267,9 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const { isTarget } = useLandscapeStateController();
 
   // The search control stays 360px and centered on the header when that fits.
-  // A narrower window, or a long brand name, would otherwise cover Diagrams, so
-  // place it in the gap between the nav and Settings, narrow it if that gap is
-  // tight, and only then collapse the labels to icons.
+  // A narrower window would otherwise cover Diagrams, so place it in the gap
+  // between the nav and Settings, narrow it if that gap is tight, and only
+  // then collapse the labels to icons.
   useLayoutEffect(() => {
     const header = headerRef.current;
     if (!header) return;
@@ -326,14 +327,14 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
       cancelled = true;
       observer.disconnect();
     };
-  }, [brandName, diagramEmbed]);
+  }, [diagramEmbed]);
 
   return (
     <PortfolioChatProvider>
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }} data-landscape-state={isTarget ? 'target' : 'current'} data-diagram-embed={diagramEmbed ? 'true' : undefined}>
       {!diagramEmbed && <header ref={headerRef} className="header" data-landscape-state={isTarget ? 'target' : 'current'} style={{ flexShrink: 0, position: 'relative' }}>
         <div className="header-start">
-          <Link to={access.homePath} className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
+          <Link to={access.homePath} className="logo" title="OpenEA" aria-label="OpenEA"><BrandLogo /></Link>
           <nav className="nav">
             {access.canView('insights') && <NavLink to="/insights" title="Insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /><span className="header-label">Insights</span></NavLink>}
             <ModelMenu />
@@ -581,14 +582,14 @@ const AppContent = () => {
   if (isInitialLoading) {
     return (
       <div className="loading-overlay">
-        <div className="loading-logo">{brandName}</div>
+        <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
         <div className="loading-text">Architecting your enterprise...</div>
       </div>
     );
   }
 
   return (
-    <Layout brandName={brandName} onRefresh={handleRefresh}>
+    <Layout>
       <Routes>
         <Route path="/" element={<Navigate to={access.homePath} replace />} />
         <Route path="/no-access" element={<div className="card" style={{ padding: '1.5rem' }}><h1 style={{ marginTop: 0 }}>No access</h1><p>You do not have access to any part of this workspace.</p></div>} />
@@ -1504,7 +1505,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
 
       {isPending && (
         <div className="loading-overlay" style={{ background: 'rgba(var(--background-rgb), 0.8)', backdropFilter: 'blur(4px)' }}>
-          <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+          <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
           <div className="loading-text" style={{ fontSize: '0.75rem' }}>Organizing supporting applications...</div>
         </div>
       )}

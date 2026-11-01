@@ -10,6 +10,7 @@ import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { ApplicationGridCard, applicationRangeFields } from './ApplicationGridCard';
 import { AuditActorName } from './AuditActor';
+import { BrandLogo } from './BrandLogo';
 import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../timeAssessment';
 
 interface Props {
@@ -149,7 +150,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, timeThresholds = DEFAUL
   if (isLoading || !org) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
-        <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>
+        <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
         <div className="loading-text" style={{ fontSize: '0.75rem' }}>Retrieving organization details...</div>
       </div>
     );

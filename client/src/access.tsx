@@ -2,6 +2,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { landscapeStateHeader, subscribeLandscapeState } from './landscapeState';
+import { LandscapeArt, NetworkArt, pickDiagramArt, type DiagramArtKind } from './components/DiagramArt';
+import { BrandLogo } from './components/BrandLogo';
 
 export const ACCESS_AREAS = [
   'applications',
@@ -175,7 +177,7 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
   if (query.isLoading) {
     return (
       <div className="loading-overlay">
-        <div className="loading-logo">OpenEA</div>
+        <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
         <div className="loading-text">Checking access...</div>
       </div>
     );
@@ -216,7 +218,21 @@ export function useRequireEdit(area: AccessArea, options: { record?: boolean; ow
   }, [ready, allowed, navigate, options.redirectTo]);
 }
 
+function useDarkTheme() {
+  const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => setIsDark(root.getAttribute('data-theme') === 'dark');
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+  return isDark;
+}
+
 function SignIn({ onSuccess }: { onSuccess: () => Promise<void> }) {
+  const [art] = useState<DiagramArtKind>(pickDiagramArt);
+  const isDark = useDarkTheme();
   const providers = useQuery({
     queryKey: ['sso-providers'],
     queryFn: async () => {
@@ -269,50 +285,50 @@ function SignIn({ onSuccess }: { onSuccess: () => Promise<void> }) {
   };
 
   return (
-    <div style={{ minHeight: '100%', display: 'grid', placeItems: 'center', padding: '2rem' }}>
-      <form onSubmit={(event) => void submit(event)} className="card" style={{ width: 'min(420px, 100%)', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800 }}>Sign in</h1>
-          <p style={{ margin: '0.35rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.9rem' }}>
-            {configured.length > 0 ? 'Use your organization\'s sign-in, or the email and password for this workspace.' : 'Use the email and password for this workspace.'}
-          </p>
+    <div data-diagram-art={art} className="sign-in-screen">
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          opacity: 0.5,
+          maskImage: 'radial-gradient(ellipse at center, #000 68%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse at center, #000 68%, transparent 100%)',
+        }}
+      >
+        {art === 'network' ? <NetworkArt isDark={isDark} opacity={1} /> : <LandscapeArt isDark={isDark} opacity={1} />}
+      </div>
+      <form onSubmit={(event) => void submit(event)} className="card sign-in-card">
+        <div className="sign-in-intro">
+          <BrandLogo size="splash" label="OpenEA" />
+          <div className="sign-in-copy">
+            <h1>Sign in</h1>
+            <p>
+              {configured.length > 0 ? 'Use your organization\'s sign-in, or the email and password for this workspace.' : 'Use the email and password for this workspace.'}
+            </p>
+          </div>
         </div>
         {configured.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+          <div className="sign-in-sso">
             {configured.map((provider) => (
-              <a
-                key={provider.id}
-                href={`/api/access/sso/${provider.id}/start`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  height: '2.4rem',
-                  padding: '0 0.75rem',
-                  borderRadius: 'var(--radius)',
-                  border: '1px solid var(--border)',
-                  background: 'var(--secondary)',
-                  color: 'var(--foreground)',
-                  fontWeight: 650,
-                  textDecoration: 'none',
-                }}
-              >
-                {provider.name}
-              </a>
+              <a key={provider.id} href={`/api/access/sso/${provider.id}/start`}>{provider.name}</a>
             ))}
-            <p style={{ margin: '0.2rem 0 0', color: 'var(--muted-foreground)', fontSize: '0.8rem' }}>The email and password below still work.</p>
           </div>
         )}
-        <div className="field" style={{ margin: 0 }}>
-          <label className="label" htmlFor="sign-in-email">Email</label>
-          <input id="sign-in-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+        <div className="sign-in-credentials">
+          {configured.length > 0 && <p className="sign-in-note">The email and password below still work.</p>}
+          <div className="field">
+            <label className="label" htmlFor="sign-in-email">Email</label>
+            <input id="sign-in-email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="sign-in-password">Password</label>
+            <input id="sign-in-password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
+          </div>
+          {error && <p className="sign-in-error">{error}</p>}
+          <button type="submit" className="primary" disabled={pending}>{pending ? 'Signing in…' : 'Sign in'}</button>
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label className="label" htmlFor="sign-in-password">Password</label>
-          <input id="sign-in-password" type="password" autoComplete="current-password" required value={password} onChange={(event) => setPassword(event.target.value)} />
-        </div>
-        {error && <p style={{ margin: 0, color: 'var(--destructive, #c92a2a)', fontSize: '0.85rem' }}>{error}</p>}
-        <button type="submit" className="primary" disabled={pending} style={{ height: '2.4rem' }}>{pending ? 'Signing in…' : 'Sign in'}</button>
       </form>
     </div>
   );

@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-diagram: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
   
@@ -40,6 +41,7 @@
 }
 
 [data-theme='dark'] {
+  color-scheme: dark;
   --background: #1a1b1e;
   --foreground: #ced4da;
   --card: #25262b;
@@ -133,10 +135,39 @@ body {
 }
 
 .logo {
-  font-weight: 700;
-  font-size: 1.25rem;
+  display: inline-flex;
+  align-items: center;
   color: var(--foreground);
   text-decoration: none;
+  line-height: 0;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+}
+
+.brand-logo-img {
+  display: block;
+  height: 2.25rem;
+  width: auto;
+  aspect-ratio: 640 / 200;
+}
+
+.brand-logo-splash .brand-logo-img {
+  height: 4.25rem;
+}
+
+.brand-logo-dark {
+  display: none;
+}
+
+[data-theme='dark'] .brand-logo-light {
+  display: none;
+}
+
+[data-theme='dark'] .brand-logo-dark {
+  display: block;
 }
 
 .nav {
@@ -924,12 +955,7 @@ body {
   gap: 0.5rem;
 }
 
-.header[data-header-fit="compact"] .logo {
-  max-width: 8.5rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+
 
 .diagram-surface {
   font-family: var(--font-diagram);
@@ -1856,6 +1882,137 @@ button.account-menu-trigger:focus-visible {
   padding: 1.5rem;
   transition: background-color 0.3s, border-color 0.3s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.sign-in-screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: safe center;
+  padding: 2.5rem 1.25rem;
+  overflow: auto;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.sign-in-card {
+  position: relative;
+  z-index: 1;
+  width: min(28rem, 100%);
+  padding: 2.35rem 2.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.55rem;
+  border-radius: 0.9rem;
+  box-shadow: 0 16px 40px rgba(24, 37, 52, 0.07);
+}
+
+[data-theme='dark'] .sign-in-card {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+}
+
+.sign-in-intro {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.05rem;
+}
+
+.sign-in-card .brand-logo-splash .brand-logo-img {
+  height: 3.4rem;
+}
+
+.sign-in-copy {
+  text-align: center;
+}
+
+.sign-in-copy h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sign-in-copy p {
+  margin: 0.45rem auto 0;
+  max-width: 34ch;
+  color: var(--muted-foreground);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.sign-in-sso {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sign-in-sso a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2.6rem;
+  padding: 0 0.9rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--foreground);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.sign-in-sso a:hover {
+  background: var(--accent);
+}
+
+.sign-in-credentials {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+
+.sign-in-note {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 0.2rem;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.sign-in-note::before {
+  content: "";
+  width: 100%;
+  height: 1px;
+  background: var(--border);
+}
+
+.sign-in-card .field {
+  margin: 0;
+}
+
+.sign-in-card .field input {
+  height: 2.55rem;
+  margin-top: 0.4rem;
+  padding: 0 0.8rem;
+  font-size: 0.95rem;
+}
+
+.sign-in-card button.primary {
+  height: 2.65rem;
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sign-in-error {
+  margin: 0;
+  color: var(--destructive);
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .grid {
@@ -2989,10 +3146,9 @@ input[type="range"]::-moz-range-thumb:hover {
 }
 
 .loading-logo {
-  font-size: 1.5rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   animation: pulse 2s infinite ease-in-out;
 }
 

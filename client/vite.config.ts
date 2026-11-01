@@ -8,7 +8,19 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'icons.svg'],
+      includeAssets: [
+        'favicon.svg',
+        'favicon.ico',
+        'favicon-16x16.png',
+        'favicon-32x32.png',
+        'favicon-48x48.png',
+        'apple-touch-icon.png',
+        'android-chrome-192x192.png',
+        'android-chrome-512x512.png',
+        'brand/logo-light.svg',
+        'brand/logo-dark.svg',
+        'icons.svg',
+      ],
       devOptions: {
         enabled: true // Allows testing PWA features in dev mode
       },
@@ -16,27 +28,21 @@ export default defineConfig({
         name: 'OpenEA - Open Enterprise Architecture',
         short_name: 'OpenEA',
         description: 'Modern Application Portfolio Management & Capability Mapping',
-        theme_color: '#343a40',
-        background_color: '#f8f9fa',
+        theme_color: '#182534',
+        background_color: '#182534',
         display: 'standalone',
         start_url: '/',
         scope: '/',
         icons: [
           {
-            src: 'favicon.svg',
+            src: 'android-chrome-192x192.png',
             sizes: '192x192',
-            type: 'image/svg+xml'
+            type: 'image/png'
           },
           {
-            src: 'favicon.svg',
+            src: 'android-chrome-512x512.png',
             sizes: '512x512',
-            type: 'image/svg+xml'
-          },
-          {
-            src: 'favicon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any maskable'
+            type: 'image/png'
           }
         ]
       }
