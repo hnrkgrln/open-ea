@@ -38,7 +38,6 @@ export interface SearchChatValue extends PortfolioChatValue {
   selectSession: (id: string) => void;
 }
 
-const InsightsChatContext = createContext<PortfolioChatValue | null>(null);
 const SearchChatContext = createContext<SearchChatValue | null>(null);
 const MAX_SESSIONS = 20;
 
@@ -95,76 +94,6 @@ function upsertSession(list: SearchChatRecord[], incoming: SearchChatRecord) {
     ? { ...existing, messages: incoming.messages, answeredBy: incoming.answeredBy, updatedAt: incoming.updatedAt }
     : incoming;
   return [record, ...list.filter((item) => item.id !== record.id)].slice(0, MAX_SESSIONS);
-}
-
-function ChatSession({ context: Context, children }: { context: React.Context<PortfolioChatValue | null>; children: React.ReactNode }) {
-  const [messages, setMessages] = useState<ChatTurn[]>([]);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState('');
-  const [answeredBy, setAnsweredBy] = useState('');
-  const messagesRef = useRef(messages);
-  const pendingRef = useRef(false);
-  const epochRef = useRef(0);
-  const { data: providers } = useLlmProviders();
-  const active = activeLlmProvider(providers);
-  messagesRef.current = messages;
-
-  const ask = useCallback(async (text: string) => {
-    const question = text.trim();
-    if (!question || pendingRef.current || !active) return false;
-    const previous = messagesRef.current;
-    const next = turnsForRequest(previous, question);
-    const epoch = epochRef.current;
-    pendingRef.current = true;
-    setMessages(next);
-    setError('');
-    setPending(true);
-    try {
-      const result = await requestLandscapeAnswer(next, active.name);
-      if (epochRef.current !== epoch) return false;
-      setAnsweredBy(result.answeredBy);
-      setMessages([...next, { role: 'assistant', content: result.reply }]);
-      return true;
-    } catch (err) {
-      if (epochRef.current !== epoch) return false;
-      setMessages(previous);
-      setError(err instanceof Error ? err.message : 'Request failed');
-      return false;
-    } finally {
-      if (epochRef.current === epoch) {
-        pendingRef.current = false;
-        setPending(false);
-      }
-    }
-  }, [active]);
-
-  const startNew = useCallback(async (text = '') => {
-    if (pendingRef.current) return false;
-    epochRef.current += 1;
-    messagesRef.current = [];
-    setMessages([]);
-    setError('');
-    setAnsweredBy('');
-    const question = text.trim();
-    if (!question) return true;
-    return ask(question);
-  }, [ask]);
-
-  const reset = useCallback(() => {
-    epochRef.current += 1;
-    messagesRef.current = [];
-    setMessages([]);
-    setError('');
-    setAnsweredBy('');
-    pendingRef.current = false;
-    setPending(false);
-  }, []);
-
-  return (
-    <Context.Provider value={{ messages, pending, error, answeredBy, ask, startNew, reset }}>
-      {children}
-    </Context.Provider>
-  );
 }
 
 function SearchChatSession({ children }: { children: React.ReactNode }) {
@@ -304,11 +233,9 @@ function SearchChatSession({ children }: { children: React.ReactNode }) {
 
 export function PortfolioChatProvider({ children }: { children: React.ReactNode }) {
   return (
-    <ChatSession context={InsightsChatContext}>
-      <SearchChatSession>
-        {children}
-      </SearchChatSession>
-    </ChatSession>
+    <SearchChatSession>
+      {children}
+    </SearchChatSession>
   );
 }
 
@@ -316,10 +243,6 @@ function useChatSession<T extends PortfolioChatValue>(context: React.Context<T |
   const value = useContext(context);
   if (!value) throw new Error('Portfolio chat is unavailable.');
   return value;
-}
-
-export function usePortfolioChat() {
-  return useChatSession(InsightsChatContext);
 }
 
 export function useSearchPortfolioChat() {

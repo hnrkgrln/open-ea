@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Boxes, Database, FileText, Layers, Lightbulb, Network, Target } from 'lucide-react';
 import { TIME_OPTIONS, getAppTimeAssessment, type TimeThresholds } from '../App';
-import { InventoryChat } from './InventoryChat';
 
 interface Named {
   id: string;
@@ -361,7 +360,7 @@ export const InsightsView = ({
         : `${goalsWithoutCapability} require no capability`;
 
   return (
-    <div className="insights-page">
+    <div>
       <div style={{ marginBottom: '1.25rem' }}>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <Lightbulb size={24} /> Insights
@@ -375,8 +374,6 @@ export const InsightsView = ({
           TIME treats functional fit {thresholds.functionalFit} and technical fit {thresholds.technicalFit} as high.
         </p>
       </div>
-
-      <InventoryChat />
 
       <div className="insights-stats">
         <Stat to="/apps" accent={STAT_ACCENTS[0]} icon={<Database size={14} />} label="Applications" value={apps.length} detail={model.decommissioned > 0 ? `${model.decommissioned} decommissioned` : `${model.activeCount} in the portfolio`} />

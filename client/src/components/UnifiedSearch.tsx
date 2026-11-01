@@ -254,6 +254,8 @@ export const UnifiedSearch = () => {
 
   const { data: providers, isLoading: providersLoading, isError: providersError } = useLlmProviders();
   const activeProvider = activeLlmProvider(providers);
+  const aiOff = !providersLoading && !activeProvider;
+  const searchOnly = aiOff && !pending;
 
   useEffect(() => {
     if (!open || !askExpanded || !focusChatAfterOpen.current) return;
@@ -383,7 +385,8 @@ export const UnifiedSearch = () => {
 
   const recordsReady = query.length > 1 && !isLoading;
   const visibleCount = recordsReady ? flatResults.length : 0;
-  const showAsk = canAsk || messages.length > 0 || Boolean(error) || pending || askExpanded;
+  const showAsk = pending || (!searchOnly && (canAsk || messages.length > 0 || Boolean(error) || askExpanded));
+  const askOpen = askExpanded && !searchOnly;
   const askIndex = visibleCount;
   const optionCount = visibleCount + (showAsk ? 1 : 0);
   const askLabel = pending
@@ -492,8 +495,8 @@ export const UnifiedSearch = () => {
           style={{ height: '2.1rem', display: 'flex', gap: '0.4rem', alignItems: 'center', padding: '0 0.85rem', justifyContent: 'space-between' }}
         >
           <div className="header-search-query">
-            <Sparkles size={14} />
-            <span style={{ fontSize: '0.9rem' }}>Ask or search everything...</span>
+            {searchOnly ? <Search size={14} /> : <Sparkles size={14} />}
+            <span style={{ fontSize: '0.9rem' }}>{searchOnly ? 'Search everything...' : 'Ask or search everything...'}</span>
           </div>
           <kbd style={{ fontSize: '0.8rem', background: 'var(--muted)', padding: '0.15rem 0.4rem', borderRadius: '4px', opacity: 0.7, flexShrink: 0 }}>{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
         </button>
@@ -503,20 +506,24 @@ export const UnifiedSearch = () => {
         <Dialog.Portal>
           <Dialog.Overlay className="unified-search-overlay" />
           <Dialog.Content
-            className={`unified-search-dialog${askExpanded ? ' is-ai' : ''}`}
+            className={`unified-search-dialog${askOpen ? ' is-ai' : ''}`}
             onOpenAutoFocus={(event) => {
               event.preventDefault();
               inputRef.current?.focus({ preventScroll: true });
             }}
           >
-            <Dialog.Title style={{ display: 'none' }}>Ask or search</Dialog.Title>
-            <Dialog.Description style={{ display: 'none' }}>Type a question to start a chat, or search for apps, owners, strategic goals, capabilities, information, or integrations.</Dialog.Description>
+            <Dialog.Title style={{ display: 'none' }}>{searchOnly ? 'Search' : 'Ask or search'}</Dialog.Title>
+            <Dialog.Description style={{ display: 'none' }}>
+              {searchOnly
+                ? 'Search for apps, owners, strategic goals, capabilities, information, or integrations.'
+                : 'Type a question to start a chat, or search for apps, owners, strategic goals, capabilities, information, or integrations.'}
+            </Dialog.Description>
             <div className="unified-search-bar">
-              <Sparkles size={18} aria-hidden="true" />
+              {searchOnly ? <Search size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
               <div className="unified-search-field">
                 <input
                   ref={inputRef}
-                  placeholder="Ask or search everything..."
+                  placeholder={searchOnly ? 'Search everything...' : 'Ask or search everything...'}
                   value={query}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -531,15 +538,25 @@ export const UnifiedSearch = () => {
                 <button type="button" className="unified-search-icon" aria-label="Close"><X size={18} /></button>
               </Dialog.Close>
             </div>
+            {searchOnly && (
+              <p className="unified-search-ai-setup">
+                AI can be configured in{' '}
+                <button type="button" onClick={openAiSettings}>Settings</button>.
+              </p>
+            )}
 
             <div className="unified-search-body">
             <div className="unified-search-results">
             <div className="unified-search-results-list">
-              {!query && !askExpanded && (
+              {!query && !askOpen && (
                 <div className="unified-search-empty">
                   <Search size={22} aria-hidden="true" />
-                  <div className="unified-search-empty-title">Ask or search</div>
-                  <p>Type a question to start a chat, or search for apps, owners, goals, capabilities, and integrations.</p>
+                  <div className="unified-search-empty-title">{searchOnly ? 'Search' : 'Ask or search'}</div>
+                  <p>
+                    {searchOnly
+                      ? 'Search for apps, owners, goals, capabilities, and integrations.'
+                      : 'Type a question to start a chat, or search for apps, owners, goals, capabilities, and integrations.'}
+                  </p>
                 </div>
               )}
 
