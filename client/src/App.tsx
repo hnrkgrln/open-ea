@@ -36,6 +36,7 @@ import { TransformationsView } from './components/TransformationsView';
 import { TransformationDetailsView } from './components/TransformationDetailsView';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection } from './components/TableSelection';
 import { AspectsMenu } from './components/AspectsMenu';
+import { ApplicationGridCard, applicationRangeFields } from './components/ApplicationGridCard';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 import { fetchWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
 
@@ -371,9 +372,9 @@ const CapabilityDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
 };
 
 // Organization Detail Wrapper for Route
-const OrganizationDetailWrapper = ({ onRefresh }: { onRefresh: () => void }) => {
+const OrganizationDetailWrapper = ({ onRefresh, timeThresholds }: { onRefresh: () => void; timeThresholds?: TimeThresholds }) => {
   const { id } = useParams<{ id: string }>();
-  return <OrganizationDetailsView orgId={id || ''} onBack={useSmartBack('/organizations')} onRefresh={onRefresh} />;
+  return <OrganizationDetailsView orgId={id || ''} onBack={useSmartBack('/organizations')} onRefresh={onRefresh} timeThresholds={timeThresholds} />;
 };
 
 // Information Object Detail Wrapper for Route
@@ -619,7 +620,7 @@ const AppContent = () => {
           <OrganizationsView organizations={organizations || []} onRefresh={handleRefresh} />
         } />
         <Route path="/organizations/new" element={<EditOrganizationPage />} />
-        <Route path="/organizations/:id" element={<OrganizationDetailWrapper onRefresh={handleRefresh} />} />
+        <Route path="/organizations/:id" element={<OrganizationDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} />} />
         <Route path="/organizations/:id/edit" element={<EditOrganizationPage />} />
 
         {/* Information Routes */}
@@ -724,14 +725,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
   const funcFitOptions = picklists?.find(p => p.name === 'functional_fit')?.options || [];
   const techFitOptions = picklists?.find(p => p.name === 'technical_fit')?.options || [];
 
-  const scoreFields = [
-    { id: 'crit', fieldName: 'criticality', label: 'Criticality', scaleType: 'importance', min: 1, max: 5 },
-    { id: 'cost', fieldName: 'cost', label: 'Cost', scaleType: 'good-bad', min: 1, max: 5 },
-    { id: 'func', fieldName: 'functionalFit', label: 'Functional Fit', scaleType: 'bad-good', min: 1, max: 5 },
-    { id: 'tech', fieldName: 'technicalFit', label: 'Technical Fit', scaleType: 'bad-good', min: 1, max: 5 },
-  ];
-  const customRangeFields = appMetaDefs.filter(d => d.fieldType === 'range' && !['criticality', 'cost', 'functionalFit', 'technicalFit'].includes(d.fieldName)) || [];
-  const allRangeFields = [...scoreFields, ...customRangeFields];
+  const allRangeFields = useMemo(() => applicationRangeFields(metaDefs), [metaDefs]);
 
   // Active applications (excluding decommissioned)
   const activeApps = useMemo(() => {
@@ -1024,98 +1018,18 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         />
       ) : viewMode === 'grid' ? (
         <div className="grid">
-          {filteredApps.map(app => {
-            const meta = safeJsonParse(app.metadata);
-            
-            const getRecursiveMaxCrit = (capIds: string[]): number => {
-              let max = 0;
-              capIds.forEach(id => {
-                const cap = allCapabilities.find(c => c.id === id);
-                if (cap) {
-                  max = Math.max(max, Number(cap.criticality || 1));
-                  const childIds = (allCapabilities.filter(c => c.parentId === id) || []).map(c => c.id);
-                  if (childIds.length > 0) max = Math.max(max, getRecursiveMaxCrit(childIds));
-                }
-              });
-              return max;
-            };
-
-            const isInherited = app.capabilities && app.capabilities.length > 0;
-            const inheritedCrit = isInherited 
-              ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities!.map(c => c.id))))
-              : String(app.criticality || 1);
-
-            const timeInfo = getAppTimeAssessment(app, timeThresholds);
-
-            return (
-              <div key={app.id} className="card" onClick={() => onSelectApp(app.id)} style={{ cursor: 'pointer', padding: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.6rem', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                    <div style={{ background: 'var(--accent)', padding: '0.35rem', borderRadius: 'var(--radius)' }}><Database size={16} /></div>
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      {allRangeFields.map(def => {
-                        const val = def.fieldName === 'criticality' ? inheritedCrit : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
-                        const isThisInherited = def.fieldName === 'criticality' && isInherited;
-                        return (
-                          <div 
-                            key={def.id} 
-                            title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`}
-                            style={{ 
-                              width: '8px', height: '8px', borderRadius: '50%', 
-                              background: getOverlayColor(Number(val), def),
-                              border: isThisInherited ? '1px solid var(--primary)' : 'none'
-                            }} 
-                          />
-                        );
-                      })}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                    {timeInfo && (
-                      <span 
-                        title={`TIME Assessment: ${timeInfo.label} (Tech Fit: ${app.technicalFit || '—'}, Functional Fit: ${app.functionalFit || '—'}, Criticality: ${inheritedCrit})`}
-                        style={{ 
-                          fontSize: '0.62rem', 
-                          fontWeight: 800, 
-                          letterSpacing: '0.04em',
-                          textTransform: 'uppercase', 
-                          padding: '0.15rem 0.45rem', 
-                          borderRadius: '4px', 
-                          background: timeInfo.bg, 
-                          color: timeInfo.color, 
-                          border: `1px solid ${timeInfo.border}` 
-                        }}
-                      >
-                        {timeInfo.label}
-                      </span>
-                    )}
-                    <LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} />
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onEditApp(app); }} 
-                      className="secondary" 
-                      style={{ border: 'none', height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent' }}
-                    >
-                      <Edit2 size={12} />
-                    </button>
-                  </div>
-                </div>
-                <h3 style={{ marginBottom: '0.35rem', fontSize: '1rem' }}>{app.name}</h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginBottom: '0.75rem', display: '-webkit-box', WebkitLineClamp: '2', WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{app.description || 'No description provided.'}</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.7rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', marginTop: 'auto' }}>
-                  <div><strong>Owner:</strong> {ownerOptions.find((o: any) => o.value === app.owner)?.label || app.owner || 'Unassigned'}</div>
-                  <div>
-                    <strong>Owning Org:</strong> {app.ownerOrg ? (
-                      <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem', color: 'var(--primary)' }}>
-                        <Layers size={10} /> {app.ownerOrg.name}
-                      </span>
-                    ) : '—'}
-                  </div>
-                  <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{appTypeOptions.find((o: any) => o.value === app.type)?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: appTypeOptions.find((o: any) => o.value === app.type)?.color }} />} {appTypeOptions.find((o: any) => o.value === app.type)?.label || app.type || 'Unspecified'}</span></div>
-                  <div><strong>Cost:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{costOptions.find((o: any) => String(o.value) === String(app.cost || '1'))?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: costOptions.find((o: any) => String(o.value) === String(app.cost || '1'))?.color }} />} {costOptions.find((o: any) => String(o.value) === String(app.cost || '1'))?.label || app.cost || '1'}</span></div>
-                </div>
-              </div>
-            );
-          })}
+          {filteredApps.map(app => (
+            <ApplicationGridCard
+              key={app.id}
+              app={app}
+              capabilities={allCapabilities}
+              rangeFields={allRangeFields}
+              picklists={picklists}
+              timeThresholds={timeThresholds}
+              onOpen={() => onSelectApp(app.id)}
+              onEdit={() => onEditApp(app)}
+            />
+          ))}
         </div>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'hidden' }}>

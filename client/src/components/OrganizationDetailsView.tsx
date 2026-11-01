@@ -7,14 +7,17 @@ import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
+import { ApplicationGridCard, applicationRangeFields } from './ApplicationGridCard';
+import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../timeAssessment';
 
 interface Props {
   orgId: string | null;
   onBack: () => void;
   onRefresh: () => void;
+  timeThresholds?: TimeThresholds;
 }
 
-export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => {
+export const OrganizationDetailsView = ({ orgId, onBack, onRefresh, timeThresholds = DEFAULT_TIME_THRESHOLDS }: Props) => {
   const navigate = useNavigate();
 
   const { data: allOrgs, isLoading: isAllLoading } = useQuery<any[]>({ 
@@ -31,10 +34,18 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
+  const { data: capabilities } = useQuery<any[]>({ queryKey: ['capabilities'], queryFn: () => fetch('/api/capabilities').then(res => res.json()) });
+  const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
+  const rangeFields = useMemo(() => applicationRangeFields(metaDefs), [metaDefs]);
+  const appsById = useMemo(() => new Map((apps || []).map((app) => [app.id, app])), [apps]);
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
   const parent = useMemo(() => allOrgs?.find(o => o.id === org?.parentId), [allOrgs, org]);
-  const children = useMemo(() => allOrgs?.filter(o => o.parentId === orgId) || [], [allOrgs, orgId]);
+  const children = useMemo(
+    () => (allOrgs?.filter(o => o.parentId === orgId) || []).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+    [allOrgs, orgId],
+  );
 
   // Recursively collect all descendant organization IDs
   const getDescendantIds = (parentId: string): string[] => {
@@ -149,6 +160,34 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
 
   const orgTypeInfo = org.type ? getPicklistInfo('organization_type', org.type) : null;
 
+  const relatedByType = (() => {
+    const related = [
+      ...(showField('organization.parent') && parent ? [parent] : []),
+      ...children,
+    ];
+    const typeOptions = picklists?.find((list) => list.name === 'organization_type')?.options || [];
+    const order = new Map(typeOptions.map((option: { value: string }, index: number) => [String(option.value), index]));
+    const groups = new Map<string, any[]>();
+    for (const relatedOrg of related) {
+      const key = relatedOrg.type ? String(relatedOrg.type) : '';
+      const list = groups.get(key) || [];
+      list.push(relatedOrg);
+      groups.set(key, list);
+    }
+    return [...groups.entries()]
+      .map(([type, orgs]) => {
+        const info = type ? getPicklistInfo('organization_type', type) : null;
+        return {
+          type,
+          label: info?.label || '',
+          color: info?.color,
+          orgs: [...orgs].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })),
+          order: type ? (order.get(type) ?? 1000) : 1001,
+        };
+      })
+      .sort((a, b) => a.order - b.order || a.label.localeCompare(b.label));
+  })();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: 'var(--background)' }}>
       <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -187,17 +226,6 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                 {org.description || 'No description provided for this organization artifact.'}
               </p>
               )}
-              {showField('organization.parent') && parent && (
-                <div style={{ marginTop: '1.5rem' }}>
-                  <span 
-                    onClick={() => navigate(`/organizations/${parent.id}`)}
-                    style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', padding: '0.25rem 0.5rem', borderRadius: '4px' }}
-                    className="row-hover"
-                  >
-                    <Layers size={16} /> Reports to <strong>{parent.name}</strong>
-                  </span>
-                </div>
-              )}
             </div>
             <button onClick={() => navigate(`/organizations/${org.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
               <Edit2 size={18} /> Edit Organization
@@ -211,23 +239,27 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                 <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <Database size={16} /> Owned Applications
                 </h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
-                  {rolledUpApps.length > 0 ? rolledUpApps.map(({ app, isDirect, viaOrgName }) => (
-                    <div key={app.id} onClick={() => navigate(`/apps/${app.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }} className="row-hover">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ background: 'var(--secondary)', padding: '0.4rem', borderRadius: '8px' }}>
-                          <Database size={16} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 700 }}>{app.name}</span>
-                            {!isDirect && viaOrgName && <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontStyle: 'italic' }}>via {viaOrgName}</span>}
-                        </div>
-                      </div>
-                    </div>
-                  )) : (
-                    <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No applications currently owned by this organization.</div>
-                  )}
-                </div>
+                {rolledUpApps.length > 0 ? (
+                  <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+                    {rolledUpApps.map(({ app }) => {
+                      const full = appsById.get(app.id) || app;
+                      return (
+                        <ApplicationGridCard
+                          key={app.id}
+                          app={full}
+                          capabilities={capabilities || []}
+                          rangeFields={rangeFields}
+                          picklists={picklists}
+                          timeThresholds={timeThresholds}
+                          compact
+                          onOpen={() => navigate(`/apps/${full.id}`)}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ color: 'var(--muted-foreground)', fontSize: '0.875rem', fontStyle: 'italic' }}>No applications currently owned by this organization.</div>
+                )}
               </section>
 
               {showField('organization.capabilities') && <section>
@@ -292,24 +324,23 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
                 </div>
               </section>
 
-              {children.length > 0 && (
-                <section>
-                  <h3 style={{ fontSize: '0.8125rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.5rem', letterSpacing: '0.1em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <Layers size={16} /> Child Organizations
-                  </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '1rem' }}>
-                    {children.map(child => (
-                      <div key={child.id} onClick={() => navigate(`/organizations/${child.id}`)} style={{ cursor: 'pointer', padding: '1.25rem', background: 'var(--card)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '0.75rem' }} className="row-hover">
-                        <Layers size={16} style={{ color: 'var(--primary)' }} />
-                        <span style={{ fontWeight: 700 }}>{child.name}</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+              {relatedByType.map((group) => (
+                <section key={group.type || 'untyped'}>
+                  {group.label && (
+                    <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: group.color && String(group.color).startsWith('#') ? group.color : 'var(--muted-foreground)', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>{group.label}</h3>
+                  )}
+                  <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                    {group.orgs.map((related: any, index: number) => (
+                      <div key={related.id} onClick={() => navigate(`/organizations/${related.id}`)} className="row-hover" style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.85rem 1.15rem', borderTop: index > 0 ? '1px solid var(--border)' : undefined }}>
+                        <span style={{ fontWeight: 700 }}>{related.name}</span>
                       </div>
                     ))}
                   </div>
                 </section>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
+              ))}
               <section>
                 <h3 style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1.25rem', letterSpacing: '0.05em' }}>Audit Trail</h3>
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', padding: '1.5rem' }}>
