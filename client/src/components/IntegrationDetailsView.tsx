@@ -6,6 +6,8 @@ import { getContrastColor } from '../utils/colors';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 
 interface Props {
   integrationId: string | null;
@@ -33,10 +35,11 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
     queryFn: () => fetch('/api/integrations').then(res => res.json())
   });
 
-  const { data: i, isLoading } = useQuery<any>({
+  const { data: i, isLoading, error } = useQuery<any>({
     queryKey: ['integration', integrationId],
-    queryFn: () => fetch(`/api/integrations/${integrationId}`).then(res => res.json()),
-    enabled: !!integrationId && integrationId !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/integrations/${integrationId}`),
+    enabled: !!integrationId && integrationId !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   React.useEffect(() => {
@@ -102,6 +105,8 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
     const option = list?.options?.find((o: any) => o.value === String(value));
     return option || { label: value, color: 'var(--secondary)' };
   };
+
+  if (recordIsMissing(i, error)) return <MissingRecord noun="integration" onBack={onBack} />;
 
   if (isLoading || !i) {
     return (

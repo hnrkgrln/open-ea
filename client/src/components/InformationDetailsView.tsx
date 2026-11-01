@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -32,16 +34,19 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
     queryFn: () => fetch('/api/information-objects').then(res => res.json()),
   });
 
-  const { data: item, isLoading } = useQuery<any>({
+  const { data: item, isLoading, error } = useQuery<any>({
     queryKey: ['information-object', infoId],
-    queryFn: () => fetch(`/api/information-objects/${infoId}`).then(res => res.json()),
-    enabled: !!infoId && infoId !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/information-objects/${infoId}`),
+    enabled: !!infoId && infoId !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: () => fetch('/api/metadata-definitions').then(res => res.json()) });
   const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+
+  if (recordIsMissing(item, error)) return <MissingRecord noun="information object" onBack={onBack} />;
 
   if (isLoading || !item) {
     return (

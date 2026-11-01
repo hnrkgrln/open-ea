@@ -7,6 +7,8 @@ import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -61,10 +63,11 @@ export const EditInformationPage = () => {
   const [dynamicValues, setDynamicValues] = useState<Record<string, any>>({});
   const [references, setReferences] = useState<Reference[]>([]);
 
-  const { data: item, isLoading: isItemLoading } = useQuery({
+  const { data: item, isLoading: isItemLoading, error: itemError } = useQuery({
     queryKey: ['information-object', id],
-    queryFn: () => fetch(`/api/information-objects/${id}`).then(res => res.json()),
-    enabled: !isNew && !!id && id !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/information-objects/${id}`),
+    enabled: !isNew && !!id && id !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: organizations } = useQuery<any[]>({ queryKey: ['organizations'], queryFn: () => fetch('/api/organizations').then(res => res.json()) });
@@ -82,7 +85,7 @@ export const EditInformationPage = () => {
   // they mount once with the correct DB-backed value, avoiding the case where
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
-    if (item && !isNew && !hydrated && picklists) {
+    if (item?.id && !isNew && !hydrated && picklists) {
       const cia = scaleBounds(picklists.find(p => p.name === 'cia_scale')?.options || []);
       const pii = scaleBounds(picklists.find(p => p.name === 'pii_category')?.options || []);
       setFormData({
@@ -180,6 +183,7 @@ export const EditInformationPage = () => {
   // Don't render the form until both the item AND the lookup data are loaded,
   // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
   // default values that then get committed back, overwriting real DB values.
+  if (!isNew && recordIsMissing(item, itemError)) return <MissingRecord noun="information object" onBack={() => navigate('/information')} />;
   if (!isNew && (isItemLoading || !item)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
   if (!picklists || !organizations || !apps) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;

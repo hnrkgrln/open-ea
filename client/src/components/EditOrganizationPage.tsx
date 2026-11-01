@@ -7,6 +7,8 @@ import { InlineFilter } from './FilterControls';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 
 export const EditOrganizationPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -27,10 +29,11 @@ export const EditOrganizationPage = () => {
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
   const [capSearch, setCapSearch] = useState('');
 
-  const { data: org, isLoading: isOrgLoading } = useQuery({
+  const { data: org, isLoading: isOrgLoading, error: orgError } = useQuery({
     queryKey: ['organization', id],
-    queryFn: () => fetch(`/api/organizations/${id}`).then(res => res.json()),
-    enabled: !isNew && !!id && id !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/organizations/${id}`),
+    enabled: !isNew && !!id && id !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: allOrgs } = useQuery<any[]>({ 
@@ -62,7 +65,7 @@ export const EditOrganizationPage = () => {
   // they mount once with the correct DB-backed value, avoiding the case where
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
-    if (org && !isNew && !hydrated) {
+    if (org?.id && !isNew && !hydrated) {
       setFormData({
         name: org.name || '',
         description: org.description || '',
@@ -136,6 +139,7 @@ export const EditOrganizationPage = () => {
   // Don't render the form until both the organization AND the lookup data are loaded,
   // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
   // default values that then get committed back, overwriting real DB values.
+  if (!isNew && recordIsMissing(org, orgError)) return <MissingRecord noun="organization" onBack={() => navigate('/organizations')} />;
   if (!isNew && (isOrgLoading || !org)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
   if (!picklists || !allOrgs || !capabilities) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;

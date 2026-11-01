@@ -8,6 +8,8 @@ import { CustomCheckbox } from './CustomCheckbox';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -52,10 +54,11 @@ export const EditCapabilityPage = () => {
   const [references, setReferences] = useState<Reference[]>([]);
 
   // Data Fetching
-  const { data: capability, isLoading: isCapLoading } = useQuery({
+  const { data: capability, isLoading: isCapLoading, error: capabilityError } = useQuery({
     queryKey: ['capability', id],
-    queryFn: () => fetch(`/api/capabilities/${id}`).then(res => res.json()),
-    enabled: !isNew
+    queryFn: () => fetchRecord<any>(`/api/capabilities/${id}`),
+    enabled: !isNew,
+    retry: retryRecordQuery,
   });
 
   const { data: allCapabilities } = useQuery<any[]>({ queryKey: ['capabilities'], queryFn: () => fetch('/api/capabilities?flat=true').then(res => res.json()) });
@@ -69,7 +72,7 @@ export const EditCapabilityPage = () => {
   // they mount once with the correct DB-backed value, avoiding the case where
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
-    if (capability && !isNew && !hydrated) {
+    if (capability?.id && !isNew && !hydrated) {
       setFormData({
         name: capability.name || '',
         description: capability.description || '',
@@ -179,6 +182,7 @@ export const EditCapabilityPage = () => {
   // Don't render the form until both the capability AND the lookup data are loaded,
   // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
   // default values that then get committed back, overwriting real DB values.
+  if (!isNew && recordIsMissing(capability, capabilityError)) return <MissingRecord noun="capability" onBack={() => navigate('/capabilities')} />;
   if (!isNew && (isCapLoading || !capability)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Retrieving capability...</div>;
   if (!picklists || !allCapabilities) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Retrieving capability...</div>;

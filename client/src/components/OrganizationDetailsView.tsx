@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 
 interface Props {
   orgId: string | null;
@@ -20,10 +22,11 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
     queryFn: () => fetch('/api/organizations').then(res => res.json())
   });
 
-  const { data: org, isLoading } = useQuery<any>({
+  const { data: org, isLoading, error } = useQuery<any>({
     queryKey: ['organization', orgId],
-    queryFn: () => fetch(`/api/organizations/${orgId}`).then(res => res.json()),
-    enabled: !!orgId && orgId !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/organizations/${orgId}`),
+    enabled: !!orgId && orgId !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
@@ -126,6 +129,8 @@ export const OrganizationDetailsView = ({ orgId, onBack, onRefresh }: Props) => 
       a.io.name.localeCompare(b.io.name, undefined, { numeric: true })
     );
   }, [allOrgs, org]);
+
+  if (recordIsMissing(org, error)) return <MissingRecord noun="organization" onBack={onBack} />;
 
   if (isLoading || !org) {
     return (

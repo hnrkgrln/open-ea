@@ -1851,7 +1851,12 @@ server.post('/llm/ask', {
       buildPortfolioContext(prisma, request.body.timeThresholds),
       prisma.application.findMany({ select: { id: true, name: true } }),
     ]);
-    const text = await completeConversation(provider, messages, systemPrompt, workspaceContext, 2048);
+    const prepared = messages.map((message) => (
+      message.role === 'assistant'
+        ? { ...message, content: linkApplicationMentions(message.content, applications) }
+        : message
+    ));
+    const text = await completeConversation(provider, prepared, systemPrompt, workspaceContext, 2048);
     return { text: linkApplicationMentions(text, applications), providerName: provider.name, model: provider.model };
   } catch (err) {
     return sendLlmError(reply, err);

@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 
 interface Props {
   goalId: string | null;
@@ -14,10 +16,11 @@ interface Props {
 
 export const StrategicGoalDetailsView = ({ goalId, onBack }: Props) => {
   const navigate = useNavigate();
-  const { data: goal, isLoading } = useQuery<any>({
+  const { data: goal, isLoading, error } = useQuery<any>({
     queryKey: ['strategic-goal', goalId],
-    queryFn: () => fetch(`/api/strategic-goals/${goalId}`).then((res) => res.json()),
+    queryFn: () => fetchRecord<any>(`/api/strategic-goals/${goalId}`),
     enabled: !!goalId && goalId !== 'undefined',
+    retry: retryRecordQuery,
   });
   const { data: allGoals } = useQuery<any[]>({
     queryKey: ['strategic-goals'],
@@ -31,7 +34,9 @@ export const StrategicGoalDetailsView = ({ goalId, onBack }: Props) => {
     [allGoals, goalId],
   );
 
-  if (isLoading || !goal || goal.error) {
+  if (recordIsMissing(goal, error)) return <MissingRecord noun="strategic goal" onBack={onBack} />;
+
+  if (isLoading || !goal) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '1rem', opacity: 0.8 }}>
         <div className="loading-logo" style={{ fontSize: '1.5rem' }}>OpenEA</div>

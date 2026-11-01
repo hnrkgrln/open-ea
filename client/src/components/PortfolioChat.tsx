@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { MarkdownAnswer } from './MarkdownAnswer';
+import { renderPlainMath } from '../plainMath';
+import { useApplicationLinks } from '../useApplicationLinks';
 import { activeLlmProvider, useLlmProviders } from './useLlmProviders';
 import { readStoredTimeThresholds } from '../timeAssessment';
 
@@ -22,8 +24,28 @@ interface PortfolioChatValue {
   reset: () => void;
 }
 
+export interface SearchChatRecord {
+  id: string;
+  title: string;
+  messages: ChatTurn[];
+  answeredBy: string;
+  updatedAt: number;
+}
+
+export interface SearchChatValue extends PortfolioChatValue {
+  sessions: SearchChatRecord[];
+  activeId: string | null;
+  selectSession: (id: string) => void;
+}
+
 const InsightsChatContext = createContext<PortfolioChatValue | null>(null);
-const SearchChatContext = createContext<PortfolioChatValue | null>(null);
+const SearchChatContext = createContext<SearchChatValue | null>(null);
+const MAX_SESSIONS = 20;
+
+function newSessionId() {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 async function readError(res: Response) {
   try {
@@ -39,6 +61,40 @@ export function turnsForRequest(messages: ChatTurn[], question: string): ChatTur
   const room = messages.length >= MAX_TURNS ? messages.slice(messages.length - (MAX_TURNS - 1)) : messages;
   const history = room[0]?.role === 'assistant' ? room.slice(1) : room;
   return [...history, { role: 'user', content: question }];
+}
+
+async function requestLandscapeAnswer(messages: ChatTurn[], fallbackName: string) {
+  const thresholds = readStoredTimeThresholds();
+  const res = await fetch('/api/llm/ask', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      messages,
+      timeThresholds: {
+        technicalFit: thresholds.technicalFit,
+        functionalFit: thresholds.functionalFit,
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  const body = await res.json();
+  const reply = ((typeof body.text === 'string' ? body.text.trim() : '') || 'The provider returned an empty reply.').slice(0, MAX_ANSWER);
+  const answeredBy = body.providerName && body.model ? `${body.providerName} · ${body.model}` : fallbackName;
+  return { reply, answeredBy };
+}
+
+function sessionTitle(messages: ChatTurn[]) {
+  const text = messages.find((message) => message.role === 'user')?.content ?? '';
+  const title = text.replace(/\s+/g, ' ').trim();
+  return title.slice(0, 180) || 'New chat';
+}
+
+function upsertSession(list: SearchChatRecord[], incoming: SearchChatRecord) {
+  const existing = list.find((item) => item.id === incoming.id);
+  const record = existing
+    ? { ...existing, messages: incoming.messages, answeredBy: incoming.answeredBy, updatedAt: incoming.updatedAt }
+    : incoming;
+  return [record, ...list.filter((item) => item.id !== record.id)].slice(0, MAX_SESSIONS);
 }
 
 function ChatSession({ context: Context, children }: { context: React.Context<PortfolioChatValue | null>; children: React.ReactNode }) {
@@ -64,29 +120,10 @@ function ChatSession({ context: Context, children }: { context: React.Context<Po
     setError('');
     setPending(true);
     try {
-      const thresholds = readStoredTimeThresholds();
-      const res = await fetch('/api/llm/ask', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          messages: next,
-          timeThresholds: {
-            technicalFit: thresholds.technicalFit,
-            functionalFit: thresholds.functionalFit,
-          },
-        }),
-      });
+      const result = await requestLandscapeAnswer(next, active.name);
       if (epochRef.current !== epoch) return false;
-      if (!res.ok) {
-        setMessages(previous);
-        setError(await readError(res));
-        return false;
-      }
-      const body = await res.json();
-      if (epochRef.current !== epoch) return false;
-      const reply = (typeof body.text === 'string' ? body.text.trim() : '') || 'The provider returned an empty reply.';
-      setAnsweredBy(body.providerName && body.model ? `${body.providerName} · ${body.model}` : active.name);
-      setMessages([...next, { role: 'assistant', content: reply.slice(0, MAX_ANSWER) }]);
+      setAnsweredBy(result.answeredBy);
+      setMessages([...next, { role: 'assistant', content: result.reply }]);
       return true;
     } catch (err) {
       if (epochRef.current !== epoch) return false;
@@ -130,17 +167,152 @@ function ChatSession({ context: Context, children }: { context: React.Context<Po
   );
 }
 
+function SearchChatSession({ children }: { children: React.ReactNode }) {
+  const [sessions, setSessions] = useState<SearchChatRecord[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatTurn[]>([]);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState('');
+  const [answeredBy, setAnsweredBy] = useState('');
+  const messagesRef = useRef(messages);
+  const sessionsRef = useRef(sessions);
+  const activeIdRef = useRef(activeId);
+  const answeredByRef = useRef(answeredBy);
+  const pendingRef = useRef(false);
+  const epochRef = useRef(0);
+  const { data: providers } = useLlmProviders();
+  const active = activeLlmProvider(providers);
+  messagesRef.current = messages;
+  sessionsRef.current = sessions;
+  activeIdRef.current = activeId;
+  answeredByRef.current = answeredBy;
+
+  const remember = useCallback((id: string, nextMessages: ChatTurn[], by: string) => {
+    const record: SearchChatRecord = {
+      id,
+      title: sessionTitle(nextMessages),
+      messages: nextMessages,
+      answeredBy: by,
+      updatedAt: Date.now(),
+    };
+    const next = upsertSession(sessionsRef.current, record);
+    sessionsRef.current = next;
+    setSessions(next);
+  }, []);
+
+  const ask = useCallback(async (text: string) => {
+    const question = text.trim();
+    if (!question || pendingRef.current || !active) return false;
+    const previous = messagesRef.current;
+    const previousId = activeIdRef.current;
+    const id = previousId ?? newSessionId();
+    const next = turnsForRequest(previous, question);
+    const epoch = epochRef.current;
+    const by = answeredByRef.current;
+    pendingRef.current = true;
+    activeIdRef.current = id;
+    messagesRef.current = next;
+    setActiveId(id);
+    setMessages(next);
+    setError('');
+    setPending(true);
+    remember(id, next, previousId ? by : '');
+    try {
+      const result = await requestLandscapeAnswer(next, active.name);
+      if (epochRef.current !== epoch) return false;
+      const withReply = [...next, { role: 'assistant' as const, content: result.reply }];
+      messagesRef.current = withReply;
+      answeredByRef.current = result.answeredBy;
+      setAnsweredBy(result.answeredBy);
+      setMessages(withReply);
+      remember(id, withReply, result.answeredBy);
+      return true;
+    } catch (err) {
+      if (epochRef.current !== epoch) return false;
+      if (previousId) {
+        messagesRef.current = previous;
+        setMessages(previous);
+        remember(previousId, previous, by);
+      } else {
+        activeIdRef.current = null;
+        messagesRef.current = [];
+        setActiveId(null);
+        setMessages([]);
+        const next = sessionsRef.current.filter((item) => item.id !== id);
+        sessionsRef.current = next;
+        setSessions(next);
+      }
+      setError(err instanceof Error ? err.message : 'Request failed');
+      return false;
+    } finally {
+      if (epochRef.current === epoch) {
+        pendingRef.current = false;
+        setPending(false);
+      }
+    }
+  }, [active, remember]);
+
+  const startNew = useCallback(async (text = '') => {
+    if (pendingRef.current) return false;
+    epochRef.current += 1;
+    activeIdRef.current = null;
+    messagesRef.current = [];
+    setActiveId(null);
+    setMessages([]);
+    setError('');
+    setAnsweredBy('');
+    answeredByRef.current = '';
+    const question = text.trim();
+    if (!question) return true;
+    return ask(question);
+  }, [ask]);
+
+  const selectSession = useCallback((id: string) => {
+    if (pendingRef.current) return;
+    const session = sessionsRef.current.find((item) => item.id === id);
+    if (!session) return;
+    activeIdRef.current = id;
+    messagesRef.current = session.messages;
+    answeredByRef.current = session.answeredBy;
+    setActiveId(id);
+    setMessages(session.messages);
+    setAnsweredBy(session.answeredBy);
+    setError('');
+  }, []);
+
+  const reset = useCallback(() => {
+    epochRef.current += 1;
+    activeIdRef.current = null;
+    messagesRef.current = [];
+    sessionsRef.current = [];
+    answeredByRef.current = '';
+    setSessions([]);
+    setActiveId(null);
+    setMessages([]);
+    setError('');
+    setAnsweredBy('');
+    pendingRef.current = false;
+    setPending(false);
+  }, []);
+
+  return (
+    <SearchChatContext.Provider value={{ messages, pending, error, answeredBy, ask, startNew, reset, sessions, activeId, selectSession }}>
+      {children}
+    </SearchChatContext.Provider>
+  );
+}
+
 export function PortfolioChatProvider({ children }: { children: React.ReactNode }) {
   return (
     <ChatSession context={InsightsChatContext}>
-      <ChatSession context={SearchChatContext}>
+      <SearchChatSession>
         {children}
-      </ChatSession>
+      </SearchChatSession>
     </ChatSession>
   );
 }
 
-function useChatSession(context: React.Context<PortfolioChatValue | null>) {
+function useChatSession<T extends PortfolioChatValue>(context: React.Context<T | null>) {
   const value = useContext(context);
   if (!value) throw new Error('Portfolio chat is unavailable.');
   return value;
@@ -154,10 +326,11 @@ export function useSearchPortfolioChat() {
   return useChatSession(SearchChatContext);
 }
 
-function conversationText(messages: ChatTurn[]) {
+function conversationText(messages: ChatTurn[], linkAnswer: (text: string) => string) {
   return messages.map((message) => {
     const who = message.role === 'user' ? 'You' : 'Landscape';
-    return `${who}\n${message.content.trim()}`;
+    const body = message.role === 'assistant' ? renderPlainMath(linkAnswer(message.content)) : message.content;
+    return `${who}\n${body.trim()}`;
   }).join('\n\n');
 }
 
@@ -184,6 +357,7 @@ export const ChatTranscript = React.forwardRef<HTMLDivElement, {
   pending?: boolean;
   style?: React.CSSProperties;
 }>(({ messages, pending, style }, ref) => {
+  const linkAnswer = useApplicationLinks();
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState<number | 'all' | null>(null);
   useEffect(() => {
@@ -218,7 +392,7 @@ export const ChatTranscript = React.forwardRef<HTMLDivElement, {
         <button
           type="button"
           className="chat-copy"
-          onClick={() => copy(conversationText(messages), 'all')}
+          onClick={() => copy(conversationText(messages, linkAnswer), 'all')}
         >
           {copied === 'all' ? <Check size={13} /> : <Copy size={13} />}
           {copied === 'all' ? 'Copied' : 'Copy conversation'}
@@ -234,7 +408,7 @@ export const ChatTranscript = React.forwardRef<HTMLDivElement, {
           type="button"
           className="chat-copy"
           aria-label={copied === index ? 'Copied' : message.role === 'user' ? 'Copy question' : 'Copy answer'}
-          onClick={() => copy(message.content, index)}
+          onClick={() => copy(message.role === 'assistant' ? renderPlainMath(linkAnswer(message.content)) : message.content, index)}
         >
           {copied === index ? <Check size={13} /> : <Copy size={13} />}
           {copied === index ? 'Copied' : 'Copy'}

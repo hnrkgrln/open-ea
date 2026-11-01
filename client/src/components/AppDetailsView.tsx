@@ -11,6 +11,8 @@ import { TimeMatrix } from './TimeMatrix';
 import { applicationVendor } from './ApplicationSuggestions';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -35,10 +37,11 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
   const [storedThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
   const thresholds = propThresholds || storedThresholds;
 
-  const { data: app, isLoading } = useQuery<any>({
+  const { data: app, isLoading, error } = useQuery<any>({
     queryKey: ['application', appId],
-    queryFn: () => fetch(`/api/applications/${appId}`).then(res => res.json()),
-    enabled: !!appId && appId !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/applications/${appId}`),
+    enabled: !!appId && appId !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
@@ -140,6 +143,8 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
   }, [app, effectiveCriticality, thresholds]);
 
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
+
+  if (recordIsMissing(app, error)) return <MissingRecord noun="application" onBack={onBack} />;
 
   if (isLoading || !app) {
     return (

@@ -7,6 +7,8 @@ import { InlineFilter } from './FilterControls';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 
 export const EditStrategicGoalPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,10 +28,11 @@ export const EditStrategicGoalPage = () => {
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
   const [capSearch, setCapSearch] = useState('');
 
-  const { data: goal, isLoading: isGoalLoading } = useQuery({
+  const { data: goal, isLoading: isGoalLoading, error: goalError } = useQuery({
     queryKey: ['strategic-goal', id],
-    queryFn: () => fetch(`/api/strategic-goals/${id}`).then((res) => res.json()),
+    queryFn: () => fetchRecord<any>(`/api/strategic-goals/${id}`),
     enabled: !isNew && !!id && id !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: capabilities } = useQuery<any[]>({
@@ -50,7 +53,7 @@ export const EditStrategicGoalPage = () => {
   }, [capabilities, capSearch]);
 
   useLayoutEffect(() => {
-    if (goal && !isNew && !hydrated) {
+    if (goal?.id && !isNew && !hydrated) {
       setFormData({
         name: goal.name || '',
         description: goal.description || '',
@@ -122,6 +125,7 @@ export const EditStrategicGoalPage = () => {
     }
   };
 
+  if (!isNew && recordIsMissing(goal, goalError)) return <MissingRecord noun="strategic goal" onBack={() => navigate('/strategic-goals')} />;
   if (!isNew && (isGoalLoading || !goal)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;
   if (!capabilities || !allGoals) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading artifact...</div>;

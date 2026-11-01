@@ -7,6 +7,8 @@ import { ColoredSelect } from './ColoredSelect';
 import { ReferencesEditor, parseReferences, serializeReferences, type Reference } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 
 export const EditIntegrationPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,10 +31,11 @@ export const EditIntegrationPage = () => {
   });
   const [references, setReferences] = useState<Reference[]>([]);
 
-  const { data: item, isLoading: isItemLoading } = useQuery({
+  const { data: item, isLoading: isItemLoading, error: itemError } = useQuery({
     queryKey: ['integration', id],
-    queryFn: () => fetch(`/api/integrations/${id}`).then(res => res.json()),
-    enabled: !isNew && !!id && id !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/integrations/${id}`),
+    enabled: !isNew && !!id && id !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
@@ -66,7 +69,7 @@ export const EditIntegrationPage = () => {
   // they mount once with the correct DB-backed value, avoiding the case where
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
-    if (item && !isNew && !hydrated) {
+    if (item?.id && !isNew && !hydrated) {
       setFormData({
         description: item.description || '',
         sourceAppId: item.sourceAppId || '',
@@ -145,6 +148,7 @@ export const EditIntegrationPage = () => {
   // Don't render the form until both the integration AND the lookup data are loaded,
   // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
   // default values that then get committed back, overwriting real DB values.
+  if (!isNew && recordIsMissing(item, itemError)) return <MissingRecord noun="integration" onBack={() => navigate('/integrations')} />;
   if (!isNew && (isItemLoading || !item)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading flow...</div>;
   if (!picklists || !apps || !infoObjects) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading configuration...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading flow...</div>;

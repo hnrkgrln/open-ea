@@ -246,7 +246,7 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
   const headerRef = useRef<HTMLElement>(null);
   const { isTarget } = useLandscapeStateController();
 
-  // The search stays a fixed 280px control centered on the header when that fits.
+  // The search control stays 360px and centered on the header when that fits.
   // A narrower window, or a long brand name, would otherwise cover Diagrams, so
   // place it in the gap between the nav and Settings, narrow it if that gap is
   // tight, and only then collapse the labels to icons.
@@ -259,7 +259,7 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
     if (!start || !search || !end) return;
 
     const GAP = 12;
-    const MAX_WIDTH = 280;
+    const MAX_WIDTH = 360;
     const MIN_WIDTH = 168;
 
     const place = () => {

@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
@@ -34,10 +36,11 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
     queryFn: () => fetch('/api/capabilities').then(res => res.json()),
   });
 
-  const { data: capability, isLoading } = useQuery<any>({
+  const { data: capability, isLoading, error } = useQuery<any>({
     queryKey: ['capability', capabilityId],
-    queryFn: () => fetch(`/api/capabilities/${capabilityId}`).then(res => res.json()),
-    enabled: !!capabilityId && capabilityId !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/capabilities/${capabilityId}`),
+    enabled: !!capabilityId && capabilityId !== 'undefined',
+    retry: retryRecordQuery,
   });
   const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
@@ -87,6 +90,8 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
         a.app.name.localeCompare(b.app.name, undefined, { numeric: true })
       );
   }, [allCapabilities, capability]);
+
+  if (recordIsMissing(capability, error)) return <MissingRecord noun="capability" onBack={onBack} />;
 
   if (isLoading || !capability) {
     return (

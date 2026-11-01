@@ -15,6 +15,8 @@ import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '.
 import { getAppTimeAssessment } from '../timeAssessment';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
+import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
 
 function vendorGuide(name: string, url: string, summary: string): string {
@@ -115,10 +117,11 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   const llmProviders = useLlmProviders();
   const activeProvider = activeLlmProvider(llmProviders.data);
 
-  const { data: app, isLoading: isAppLoading } = useQuery({
+  const { data: app, isLoading: isAppLoading, error: appError } = useQuery({
     queryKey: ['application', id],
-    queryFn: () => fetch(`/api/applications/${id}`).then(res => res.json()),
-    enabled: !isNew && !!id && id !== 'undefined'
+    queryFn: () => fetchRecord<any>(`/api/applications/${id}`),
+    enabled: !isNew && !!id && id !== 'undefined',
+    retry: retryRecordQuery,
   });
 
   const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
@@ -135,7 +138,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   // they mount once with the correct DB-backed value, avoiding the case where
   // a placeholder briefly registers and overwrites the real selection.
   useLayoutEffect(() => {
-    if (app && !isNew && !hydrated) {
+    if (app?.id && !isNew && !hydrated) {
       const storedVendor = applicationVendor(app);
       setFormData({
         name: app.name || '',
@@ -403,6 +406,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   // Don't render the form until both the application AND the picklists are loaded,
   // AND formData has been hydrated from the DB. Otherwise dropdowns can mount with
   // default values that then get committed back, overwriting real DB values.
+  if (!isNew && recordIsMissing(app, appError)) return <MissingRecord noun="application" onBack={() => navigate('/apps')} />;
   if (!isNew && (isAppLoading || !app)) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading application...</div>;
   if (!picklists) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading picklists...</div>;
   if (!hydrated) return <div style={{ padding: '4rem', textAlign: 'center' }} className="loading-text">Loading application...</div>;
