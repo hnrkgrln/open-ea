@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tan
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
-import { ApplicationDiagram, getLandscapeSearchMatchedApps } from './components/ApplicationDiagram';
+import { ApplicationDiagram, getLandscapeSearchMatchedApps, organizationTypeSelected } from './components/ApplicationDiagram';
 import { StrategicGoalsView } from './components/StrategicGoalsView';
 import { StrategicGoalDetailsView } from './components/StrategicGoalDetailsView';
 import { EditStrategicGoalPage } from './components/EditStrategicGoalPage';
@@ -1817,7 +1817,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
 
       const matchOwnerOrg = selectedValue(filters.ownerOrgId, app.ownerOrgId);
       const orgType = app.ownerOrg?.type || orgById.get(app.ownerOrgId || '')?.type;
-      const matchOrgType = selectedValue(filters.orgType, orgType);
+      const matchOrgType = organizationTypeSelected(filters.orgType, orgType, picklists);
       const relatedInfo = infoByApp.get(app.id) || [];
       const flows = flowsByApp.get(app.id) || [];
       const matchInfoType = matchesAnyValue(filters.infoType, relatedInfo.map((info) => info.type));
@@ -1861,10 +1861,11 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
       showCapabilities,
       hideOrphanApps,
       groupingField,
+      picklists,
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, activeSearch, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, hideOrphanApps, groupingField]);
+  }, [apps, filters, activeSearch, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, hideOrphanApps, groupingField, picklists]);
 
   const diagramFiltersActive = useMemo(() => {
     const lists = [

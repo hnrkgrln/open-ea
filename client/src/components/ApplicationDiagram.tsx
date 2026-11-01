@@ -50,6 +50,44 @@ const listSelected = (selected: string[] | undefined, value: string | null | und
   return selected.some((item) => item === raw || item.toLowerCase() === lower);
 };
 
+type OrganizationTypeList = { name: string; options?: { value: string; label?: string | null }[] }[];
+
+const organizationTypeOptions = (picklists?: OrganizationTypeList) =>
+  picklists?.find((list) => list.name === 'organization_type')?.options || [];
+
+// A meta-model edit can rename a type's label while records still store the value, or the reverse.
+// The filter accepts whichever side the current picklist still ties together.
+export const organizationTypeSelected = (
+  selected: string[] | undefined,
+  type: string | null | undefined,
+  picklists?: OrganizationTypeList,
+) => {
+  if (!selected || selected.length === 0) return true;
+  const accepted = new Set<string>(selected);
+  for (const item of selected) {
+    const option = organizationTypeOptions(picklists).find((entry) => String(entry.value) === item || entry.label === item);
+    if (!option) continue;
+    accepted.add(String(option.value));
+    if (option.label) accepted.add(option.label);
+  }
+  return listSelected([...accepted], type);
+};
+
+const organizationTypeLabel = (type: string | null | undefined, picklists?: OrganizationTypeList) => {
+  if (!type) return '';
+  const option = organizationTypeOptions(picklists).find((entry) => String(entry.value) === String(type) || entry.label === type);
+  return option?.label || String(type);
+};
+
+const visibleHierarchyRoots = (structure: HierarchyNodeLike[], isRelevant: (id: string) => boolean) => {
+  const byId = new Map(structure.map((node) => [node.id, node]));
+  return structure.filter((node) => {
+    if (!isRelevant(node.id)) return false;
+    if (!node.parentId || !byId.has(node.parentId)) return true;
+    return !isRelevant(node.parentId);
+  });
+};
+
 const crudSelected = (selected: string[] | undefined, crud: string | null | undefined) => {
   if (!selected || selected.length === 0) return true;
   const ops = (crud || '').split(',').map((part) => part.trim()).filter(Boolean);
@@ -292,9 +330,7 @@ const filterHierarchyTopDown = <TApp extends { id: string; name: string }>({
   const childrenOf = (nodeId: string) =>
     structure.filter((c) => c.parentId === nodeId && c.id !== nodeId && isBaseRelevant(c.id));
 
-  const roots = structure.filter(
-    (c) => (!c.parentId || !structureMap.has(c.parentId)) && isBaseRelevant(c.id),
-  );
+  const roots = visibleHierarchyRoots(structure, isBaseRelevant);
 
   for (const root of roots) {
     const levels: string[][] = [];
@@ -654,6 +690,7 @@ export const getLandscapeSearchMatchedApps = <
   showCapabilities = true,
   hideOrphanApps = false,
   groupingField = null,
+  picklists,
 }: {
   mode: 'network' | 'landscape' | 'app-landscape' | 'org-landscape';
   search?: string;
@@ -668,6 +705,7 @@ export const getLandscapeSearchMatchedApps = <
   showCapabilities?: boolean;
   hideOrphanApps?: boolean;
   groupingField?: string | null;
+  picklists?: OrganizationTypeList;
 }): TApp[] => {
   const queries = normalizeKeywords(searchTerms && searchTerms.length > 0 ? searchTerms : search ? [search] : [])
     .map((term) => term.toLowerCase());
@@ -746,11 +784,14 @@ export const getLandscapeSearchMatchedApps = <
     } else if (structuralOnly) {
       const direct =
         nodeId !== 'unassigned' &&
-        listSelected(filters?.orgType, (node as Organization).type) &&
+        organizationTypeSelected(filters?.orgType, (node as Organization).type, picklists) &&
         listSelected(filters?.ownerOrgId, nodeId);
-      res = direct || children.some((c) => isBaseRelevant(c.id, nextSeen));
+      // Organization type names the boxes. A parent of another type stays hidden.
+      const typeFilter = (filters?.orgType?.length || 0) > 0;
+      res = direct || (!typeFilter && children.some((c) => isBaseRelevant(c.id, nextSeen)));
     } else {
-      res = hasApps || children.some((c) => isBaseRelevant(c.id, nextSeen));
+      const typeOk = !isOrg || organizationTypeSelected(filters?.orgType, (node as Organization).type, picklists);
+      res = typeOk && (hasApps || children.some((c) => isBaseRelevant(c.id, nextSeen)));
     }
     memoBase.set(nodeId, res);
     return res;
@@ -1903,9 +1944,12 @@ const DiagramInner = ({
         const searchActive = activeQueries.length > 0;
         const { hasStructuralFilter, hasOtherAppFilter, hasAnyAppFilter } = analyzeDiagramFilterFlags(filters);
         // Organization Type and Owning Organization name the boxes. With no other
-        // application filter, a matching organization stays visible without apps,
-        // and its ancestors stay so the tree still connects.
+        // application filter, a matching organization stays visible without apps.
+        // An owning-organization filter still keeps ancestors so that unit stays
+        // connected. An organization-type filter does not: a parent whose type
+        // was not selected, such as Portfölj above Produktområde, stays hidden.
         const structuralOnly = isOrg && !groupingField && !capFilter && hasStructuralFilter && !hasOtherAppFilter;
+        const typeFilter = isOrg && (filters?.orgType?.length || 0) > 0;
         const isAppGroupContainer = Boolean(containerId && !capFilter);
 
         const memoBaseRelevant = new Map<string, boolean>();
@@ -1926,13 +1970,14 @@ const DiagramInner = ({
             res = true;
           } else if (structuralOnly) {
             const direct = capId !== 'unassigned'
-              && listSelected(filters.orgType, (cap as Organization).type)
+              && organizationTypeSelected(filters.orgType, (cap as Organization).type, picklists)
               && listSelected(filters.ownerOrgId, capId);
-            res = direct || children.some(c => isBaseRelevant(c.id, nextSeen));
+            res = direct || (!typeFilter && children.some(c => isBaseRelevant(c.id, nextSeen)));
           } else if (capFilter && !hasAnyAppFilter) {
             res = matchesFilter || children.some(c => isBaseRelevant(c.id, nextSeen));
           } else {
-            res = (matchesFilter && hasApps) || children.some(c => isBaseRelevant(c.id, nextSeen));
+            const typeOk = !typeFilter || organizationTypeSelected(filters.orgType, (cap as Organization).type, picklists);
+            res = typeOk && ((matchesFilter && hasApps) || children.some(c => isBaseRelevant(c.id, nextSeen)));
           }
 
           memoBaseRelevant.set(capId, res);
@@ -2057,7 +2102,7 @@ const DiagramInner = ({
                 text: 'var(--foreground)'
               };
           const NodeIcon = isOrg ? Layers : Boxes;
-          const orgType = isOrg ? (cap as Organization).type : undefined;
+          const orgType = isOrg ? organizationTypeLabel((cap as Organization).type, picklists) : '';
 
           groupNodes.unshift({
             id: boxId(capId), parentNode: parentNodeId,
@@ -2214,8 +2259,7 @@ const DiagramInner = ({
         };
 
         if (mode === 'landscape' || mode === 'org-landscape') {
-          const roots = structure.filter(c => !c.parentId || !structureMap.has(c.parentId));
-          const relevantRoots = roots.filter(r => isRelevant(r.id));
+          const relevantRoots = visibleHierarchyRoots(structure, isRelevant);
           if (cell) {
             const headerH = containerId ? GROUP_HEADER : 0;
             const insetX = 16;
