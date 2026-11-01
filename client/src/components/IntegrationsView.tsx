@@ -7,6 +7,7 @@ import { getContrastColor } from '../utils/colors';
 import { FilterDot, MultiSelect, SearchInput } from './FilterControls';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, useTableSelection } from './TableSelection';
 import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
+import { useAccess } from '../access';
 
 interface Integration {
   id: string;
@@ -65,8 +66,10 @@ const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, val
 
 export const IntegrationsView = ({ integrations, onRefresh }: { integrations: Integration[], onRefresh: () => void }) => {
   const navigate = useNavigate();
+  const canEditIntegration = useAccess().canEdit('integrations');
   const [filters, setFilters] = useLocalStorage<IntegrationFilters>('openea_integrations_filters', EMPTY_INTEGRATION_FILTERS);
-  const [viewMode, setViewMode] = useLocalStorage<'list' | 'edit'>('openea_integrations_view', 'list');
+  const [storedViewMode, setViewMode] = useLocalStorage<'list' | 'edit'>('openea_integrations_view', 'list');
+  const viewMode = storedViewMode === 'edit' && !canEditIntegration ? 'list' : storedViewMode;
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const rows = useMemo(() => Array.isArray(integrations) ? integrations : [], [integrations]);
 
@@ -211,7 +214,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
           </button>
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button type="button" title="Table view" onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={16} /></button>
-            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+            {canEditIntegration && <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />}
           </div>
           <button
             type="button"
@@ -222,10 +225,10 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
             <MapIcon size={16} />
             View diagram
           </button>
-          <button onClick={() => navigate('/integrations/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
+          {canEditIntegration && <button onClick={() => navigate('/integrations/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
             <PlusCircle size={14} />
             New Integration
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -264,6 +267,7 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
           deletePath={(id) => `/api/integrations/${id}`}
           editPath={(id) => `/integrations/${id}/edit`}
           onRefresh={onRefresh}
+          writable={canEditIntegration}
         />
         <table style={{ width: '100%' }}>
           <thead>
@@ -312,8 +316,10 @@ export const IntegrationsView = ({ integrations, onRefresh }: { integrations: In
                   <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{i.targetApp?.name}</div>
                 </td>
                 <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
-                  <button onClick={(e) => { e.stopPropagation(); navigate(`/integrations/${i.id}/edit`); }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={12} /></button>
-                  <button onClick={async (e) => { e.stopPropagation(); if(confirm('Delete integration?')) { await fetch(`/api/integrations/${i.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent', border: 'none', color: 'var(--destructive)' }}><Trash2 size={12} /></button>
+                  {canEditIntegration && <>
+                    <button onClick={(e) => { e.stopPropagation(); navigate(`/integrations/${i.id}/edit`); }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={12} /></button>
+                    <button onClick={async (e) => { e.stopPropagation(); if(confirm('Delete integration?')) { await fetch(`/api/integrations/${i.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent', border: 'none', color: 'var(--destructive)' }}><Trash2 size={12} /></button>
+                  </>}
                 </td>
               </tr>
             )})}

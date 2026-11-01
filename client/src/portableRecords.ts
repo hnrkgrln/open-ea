@@ -1,7 +1,8 @@
 // Round-trip columns for Data Portability. Keep these in step with the scalar
 // fields on Application, StrategicGoal, Capability, Organization, InformationObject,
-// and Integration in server/prisma/schema.base.prisma. Leave out createdAt and
-// updatedAt. Relation columns carry ids from an earlier import step.
+// and Integration in server/prisma/schema.base.prisma. Leave out createdAt,
+// updatedAt, createdById, and updatedById. Import records the signed-in account.
+// Relation columns carry ids from an earlier import step.
 
 export type ArtifactType = 'applications' | 'strategic-goals' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
 

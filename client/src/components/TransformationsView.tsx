@@ -19,6 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { useLandscapeStateController, type LandscapeState } from './StateMenu';
+import { useAccess } from '../access';
 
 const API_BASE = '/api';
 
@@ -100,6 +101,7 @@ export const TransformationsView: React.FC = () => {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const { states, active, activeId, isTarget, label } = useLandscapeStateController();
+  const canEditInsights = useAccess().canEdit('insights');
 
   const initialStateFilter = searchParams.get('state') || 'all';
   const [stateFilter, setStateFilter] = useState<string>(initialStateFilter);
@@ -273,7 +275,7 @@ export const TransformationsView: React.FC = () => {
           </p>
         </div>
 
-        {isTarget && (
+        {isTarget && canEditInsights && (
           <button
             type="button"
             className="primary"
@@ -517,7 +519,7 @@ export const TransformationsView: React.FC = () => {
                         {st.icon}
                         {item.status}
                       </span>
-                      {isTarget && item.toStateId === activeId && (
+                      {isTarget && canEditInsights && item.toStateId === activeId && (
                         <button
                           type="button"
                           onClick={(e) => handleDelete(e, item)}

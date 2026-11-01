@@ -32,6 +32,10 @@ model Application {
   references    String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+  // User id of the account that created or last changed this record. No foreign key.
+  // A removed account is left out of the audit trail.
+  createdById   String?
+  updatedById   String?
   ownerOrg      Organization? @relation("OrgOwnedApps", fields: [ownerOrgId], references: [id], onDelete: SetNull)
   capabilities  Capability[]  @relation("ApplicationToCapability")
   sourceOf      Integration[] @relation("sourceApp")
@@ -54,6 +58,8 @@ model Capability {
   parentId     String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  createdById  String?
+  updatedById  String?
   parent       Capability?   @relation("CapabilityToCapability", fields: [parentId], references: [id], onDelete: Cascade)
   children     Capability[]  @relation("CapabilityToCapability")
   applications Application[] @relation("ApplicationToCapability")
@@ -73,6 +79,8 @@ model StrategicGoal {
   parentId     String?
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
+  createdById  String?
+  updatedById  String?
   parent       StrategicGoal?  @relation("GoalToGoal", fields: [parentId], references: [id], onDelete: Cascade)
   children     StrategicGoal[] @relation("GoalToGoal")
   capabilities Capability[]    @relation("GoalRequiresCapability")
@@ -91,6 +99,8 @@ model Organization {
   references        String?
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
+  createdById       String?
+  updatedById       String?
   parent            Organization?       @relation("OrgToOrg", fields: [parentId], references: [id], onDelete: Cascade)
   children          Organization[]      @relation("OrgToOrg")
   informationObjects InformationObject[]
@@ -118,6 +128,8 @@ model InformationObject {
   appOwnerId      String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+  createdById     String?
+  updatedById     String?
   businessOwner   Organization? @relation(fields: [businessOwnerId], references: [id], onDelete: SetNull)
   appOwner        Application?  @relation("AppOwner", fields: [appOwnerId], references: [id], onDelete: SetNull)
   integrations    Integration[]
@@ -142,6 +154,8 @@ model Integration {
   references    String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+  createdById   String?
+  updatedById   String?
   targetApp     Application        @relation("targetApp", fields: [targetAppId], references: [id], onDelete: Cascade)
   sourceApp     Application        @relation("sourceApp", fields: [sourceAppId], references: [id], onDelete: Cascade)
   payload       InformationObject? @relation(fields: [infoObjectId], references: [id], onDelete: SetNull)
@@ -273,4 +287,58 @@ model WorkspaceSettings {
   brandName            String
   disabledNativeFields String   @default("[]")
   updatedAt            DateTime @updatedAt
+}
+
+// Users, groups, and sessions are workspace-wide. They are not copied with a landscape state.
+model User {
+  id           String            @id @default(uuid())
+  name         String
+  email        String            @unique
+  passwordHash String
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  memberships  GroupMembership[]
+  sessions     Session[]
+}
+
+model Group {
+  id          String            @id @default(uuid())
+  name        String            @unique
+  builtIn     String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  memberships GroupMembership[]
+  grants      GroupGrant[]
+}
+
+model GroupMembership {
+  userId  String
+  groupId String
+  user    User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+}
+
+// organizationId is a portfolio organization id with no foreign key. Copies in other
+// landscape states get new ids, so a grant is matched by the organization's name path.
+model GroupGrant {
+  id             String  @id @default(uuid())
+  groupId        String
+  area           String
+  level          String
+  organizationId String?
+  group          Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

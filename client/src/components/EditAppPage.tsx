@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAccess, useRequireEdit } from '../access';
 import { Edit2, Plus, Trash2, CheckCircle2, Database, Boxes, ShieldCheck, Info, Network, User, ArrowUpRight, ChevronLeft, LogOut, LogIn, FileText, FileSignature, Sparkles } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DatePicker } from './DatePicker';
@@ -70,6 +71,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const access = useAccess();
   const isNew = !id || id === 'new' || id === 'undefined';
 
   const [localThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
@@ -122,6 +124,12 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     queryFn: () => fetchRecord<any>(`/api/applications/${id}`),
     enabled: !isNew && !!id && id !== 'undefined',
     retry: retryRecordQuery,
+  });
+  useRequireEdit('applications', {
+    record: !isNew,
+    ownerOrgId: app?.ownerOrgId ?? null,
+    ready: isNew || Boolean(app?.id),
+    redirectTo: !isNew && id ? `/apps/${id}` : '/apps',
   });
 
   const { data: apps } = useQuery<any[]>({ queryKey: ['applications'], queryFn: () => fetch('/api/applications').then(res => res.json()) });
@@ -298,6 +306,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     cost: formData.cost,
   }), [id, formData.name, isNew, formData.technicalFit, formData.functionalFit, effectiveCriticality, formData.cost]);
 
+  const globalApplicationEdit = access.canEditApplication(null);
+  const applicationEditIds = access.applicationEdits;
   const organizationOptions = useMemo(() => {
     const orgs = organizations || [];
     const typeOptions = picklists?.find((list: any) => list.name === 'organization_type')?.options || [];
@@ -306,6 +316,8 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
       const match = typeOptions.find((option: any) => String(option.value) === String(value));
       return match?.label || value;
     };
+    const allowed = new Set(globalApplicationEdit ? orgs.map((org: any) => org.id) : applicationEditIds);
+    if (formData.ownerOrgId) allowed.add(formData.ownerOrgId);
     const ids = new Set(orgs.map((org: any) => org.id));
     const byParent = new Map<string | null, any[]>();
     for (const org of orgs) {
@@ -315,28 +327,32 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
       byParent.set(parent, list);
     }
     for (const list of byParent.values()) list.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    const options: { value: string; label: string; detail?: string; depth?: number; parentValue?: string }[] = [
-      { value: '', label: 'Unassigned' },
-    ];
+    const options: { value: string; label: string; detail?: string; depth?: number; parentValue?: string }[] = [];
+    if (globalApplicationEdit) options.push({ value: '', label: 'Unassigned' });
     const seen = new Set<string>();
     const walk = (parentId: string | null, depth: number) => {
       for (const org of byParent.get(parentId) ?? []) {
         if (seen.has(org.id)) continue;
         seen.add(org.id);
+        if (!allowed.has(org.id)) {
+          walk(org.id, depth);
+          continue;
+        }
         const detail = typeLabel(org.type);
+        const parentShown = Boolean(parentId && allowed.has(parentId));
         options.push({
           value: org.id,
           label: org.name,
           ...(detail ? { detail } : {}),
           depth,
-          ...(parentId ? { parentValue: parentId } : {}),
+          ...(parentShown ? { parentValue: parentId as string } : {}),
         });
         walk(org.id, depth + 1);
       }
     };
     walk(null, 0);
     return options;
-  }, [organizations, picklists]);
+  }, [organizations, picklists, globalApplicationEdit, applicationEditIds, formData.ownerOrgId]);
 
   const appMetaDefs = metaDefs?.filter(d => d.entityType === 'Application') || [];
   
@@ -1010,7 +1026,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       return (
                         <div 
                           key={int.id} 
-                          onClick={() => navigate(`/integrations/${int.id}/edit`)}
+                          onClick={() => navigate(access.canEdit('integrations') ? `/integrations/${int.id}/edit` : `/integrations/${int.id}`)}
                           className="card row-hover" 
                           style={{ padding: '0.75rem 1rem', display: 'flex', alignItems: 'center', gap: '1rem', cursor: 'pointer' }}
                         >

@@ -2,12 +2,14 @@ import React, { useMemo } from 'react';
 import { Boxes, Edit2, Layers, ChevronLeft, FileText, Calendar, Info, Database } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { ApplicationGridCard, applicationRangeFields } from './ApplicationGridCard';
+import { AuditActorName } from './AuditActor';
 import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../timeAssessment';
 
 interface Props {
@@ -19,6 +21,7 @@ interface Props {
 
 export const OrganizationDetailsView = ({ orgId, onBack, timeThresholds = DEFAULT_TIME_THRESHOLDS }: Props) => {
   const navigate = useNavigate();
+  const canEditOrg = useAccess().canEdit('organizations');
 
   const { data: allOrgs, isLoading: isAllLoading } = useQuery<any[]>({ 
     queryKey: ['organizations'], 
@@ -230,9 +233,9 @@ export const OrganizationDetailsView = ({ orgId, onBack, timeThresholds = DEFAUL
               </p>
               )}
             </div>
-            <button onClick={() => navigate(`/organizations/${org.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+            {canEditOrg && <button onClick={() => navigate(`/organizations/${org.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
               <Edit2 size={18} /> Edit Organization
-            </button>
+            </button>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '3rem' }}>
@@ -352,6 +355,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, timeThresholds = DEFAUL
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>System Creation</span>
                       <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{org.createdAt ? org.createdAt.split('T')[0] : '—'}</span>
+                      <AuditActorName actor={org.createdBy} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
@@ -359,6 +363,7 @@ export const OrganizationDetailsView = ({ orgId, onBack, timeThresholds = DEFAUL
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
                       <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{org.updatedAt ? org.updatedAt.split('T')[0] : '—'}</span>
+                      <AuditActorName actor={org.updatedBy} />
                     </div>
                   </div>
                 </div>

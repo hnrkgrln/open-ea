@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { activeStateId, basePrisma, createLandscapeState, CURRENT_STATE_ID, LandscapeStateError, type LandscapeStateView } from './landscape.js';
+import { activeStateId, basePrisma, createLandscapeState, CURRENT_STATE_ID, currentActorId, LandscapeStateError, type LandscapeStateView } from './landscape.js';
 
 export const TRANSFORMATION_STATUSES = ['Planned', 'In Progress', 'Completed', 'On Hold'] as const;
 export type TransformationStatus = (typeof TRANSFORMATION_STATUSES)[number];
@@ -1348,6 +1348,8 @@ export async function applyTransformation(id: string, options: ApplyTransformati
           description: toOrg.description,
           type: toOrg.type,
           references: toOrg.references,
+          createdById: toOrg.createdById,
+          updatedById: toOrg.updatedById,
         },
       });
       fromOrgsByName.set(normKey(createdOrg.name), createdOrg);
@@ -1382,6 +1384,8 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               criticality: toCap.criticality,
               metadata: toCap.metadata,
               references: toCap.references,
+              createdById: toCap.createdById,
+              updatedById: toCap.updatedById,
             },
           });
           fromCapsByName.set(normKey(createdCap.name), createdCap);
@@ -1432,6 +1436,7 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               timeRationale: toApp.timeRationale,
               metadata: toApp.metadata,
               references: toApp.references,
+              ...(toApp.updatedById ? { updatedById: toApp.updatedById } : {}),
               capabilities: { set: capConnections.map((cid) => ({ id: cid })) },
             },
           });
@@ -1464,6 +1469,8 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               timeRationale: toApp.timeRationale,
               metadata: toApp.metadata,
               references: toApp.references,
+              createdById: toApp.createdById,
+              updatedById: toApp.updatedById,
               capabilities: { connect: capConnections.map((cid) => ({ id: cid })) },
             },
           });
@@ -1493,20 +1500,22 @@ export async function applyTransformation(id: string, options: ApplyTransformati
           // Re-point existing integrations in fromState to primary successor if available
           const primarySuccId = resultSuccIds[0];
           if (primarySuccId && primarySuccId !== pid) {
+            const actorId = currentActorId();
             await tx.integration.updateMany({
               where: { stateId: fromStateId, sourceAppId: pid },
-              data: { sourceAppId: primarySuccId },
+              data: { sourceAppId: primarySuccId, ...(actorId ? { updatedById: actorId } : {}) },
             });
             await tx.integration.updateMany({
               where: { stateId: fromStateId, targetAppId: pid },
-              data: { targetAppId: primarySuccId },
+              data: { targetAppId: primarySuccId, ...(actorId ? { updatedById: actorId } : {}) },
             });
           }
 
           if (retireMode === 'decommission') {
+            const actorId = currentActorId();
             await tx.application.update({
               where: { id: pid },
-              data: { lifecycle: 'Decommissioned' },
+              data: { lifecycle: 'Decommissioned', ...(actorId ? { updatedById: actorId } : {}) },
             });
           } else {
             await tx.application.deleteMany({ where: { id: pid, stateId: fromStateId } });
@@ -1548,6 +1557,8 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               frequency: toInt.frequency,
               crud: toInt.crud,
               references: toInt.references,
+              createdById: toInt.createdById,
+              updatedById: toInt.updatedById,
             },
           });
           appliedIntegrations++;

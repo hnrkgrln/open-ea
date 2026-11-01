@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { ArrowLeft, GitBranch, GitCompareArrows, GitMerge, Pencil, Plus, Trash2 } from 'lucide-react';
 import { landscapeStateHeader, setLandscapeStateId, subscribeLandscapeState } from '../landscapeState';
+import { useAccess } from '../access';
 
 export type LandscapeState = {
   id: string;
@@ -403,6 +404,7 @@ export const TargetStateBanner = () => {
 
 export const StateMenu = () => {
   const queryClient = useQueryClient();
+  const admin = useAccess().admin;
   const { activeId, isTarget, label, states, switchTo } = useLandscapeStateController();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -529,7 +531,7 @@ export const StateMenu = () => {
                     <span className="model-menu-label">{state.name}</span>
                     <span className="model-menu-desc">{sourceName(state)}</span>
                   </span>
-                  <span className="state-menu-actions">
+                  {admin && <span className="state-menu-actions">
                     <button
                       type="button"
                       data-state-action="merge"
@@ -572,12 +574,12 @@ export const StateMenu = () => {
                     >
                       <Trash2 size={13} />
                     </button>
-                  </span>
+                  </span>}
                 </span>
               </DropdownMenu.Item>
             ))}
-            <DropdownMenu.Separator className="state-menu-separator" />
-            <DropdownMenu.Item
+            {admin && <DropdownMenu.Separator className="state-menu-separator" />}
+            {admin && <DropdownMenu.Item
               className="model-menu-item"
               onSelect={() => {
                 setFormError('');
@@ -589,7 +591,7 @@ export const StateMenu = () => {
                 <span className="model-menu-label">New target state…</span>
                 <span className="model-menu-desc">Evolve a future state from an existing landscape</span>
               </span>
-            </DropdownMenu.Item>
+            </DropdownMenu.Item>}
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>

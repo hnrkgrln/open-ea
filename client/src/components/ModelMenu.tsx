@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Boxes, ChevronDown, Database, FileText, Layers, Network, Shapes, Target, type LucideIcon } from 'lucide-react';
+import { useAccess, type AccessArea } from '../access';
 
 interface ModelLink {
   to: string;
@@ -19,6 +20,15 @@ const MODEL_LINKS: ModelLink[] = [
   { to: '/integrations', label: 'Integrations', description: 'How applications connect', icon: Network },
 ];
 
+const PATH_AREA: Record<string, AccessArea> = {
+  '/apps': 'applications',
+  '/strategic-goals': 'strategicGoals',
+  '/capabilities': 'capabilities',
+  '/organizations': 'organizations',
+  '/information': 'information',
+  '/integrations': 'integrations',
+};
+
 const isModelPath = (pathname: string, to: string) => pathname === to || pathname.startsWith(`${to}/`);
 
 const OPEN_DELAY = 80;
@@ -26,7 +36,9 @@ const CLOSE_DELAY = 160;
 
 export const ModelMenu = () => {
   const { pathname } = useLocation();
-  const active = MODEL_LINKS.some((link) => isModelPath(pathname, link.to));
+  const access = useAccess();
+  const links = MODEL_LINKS.filter((link) => access.canView(PATH_AREA[link.to]));
+  const active = links.some((link) => isModelPath(pathname, link.to));
   const [open, setOpen] = useState(false);
   const openTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
@@ -61,6 +73,8 @@ export const ModelMenu = () => {
     clearTimer(closeTimer);
   }, []);
 
+  if (links.length === 0) return null;
+
   return (
     <DropdownMenu.Root open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenu.Trigger
@@ -89,7 +103,7 @@ export const ModelMenu = () => {
           onPointerEnter={hoverIn}
           onPointerLeave={hoverOut}
         >
-          {MODEL_LINKS.map((link) => {
+          {links.map((link) => {
             const Icon = link.icon;
             const current = isModelPath(pathname, link.to);
             return (

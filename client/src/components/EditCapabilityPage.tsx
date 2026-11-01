@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useRequireEdit } from '../access';
 import { Edit2, CheckCircle2, Trash2, Boxes, Info, Share2, Database, ChevronLeft, Plus } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
@@ -37,6 +38,7 @@ export const EditCapabilityPage = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const isNew = !id || id === 'new' || id === 'undefined';
+  useRequireEdit('capabilities', { redirectTo: '/capabilities' });
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);

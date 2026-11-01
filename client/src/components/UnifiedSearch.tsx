@@ -3,6 +3,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { Search, Database, Boxes, X, FileText, Layers, Network, ArrowRight, Sparkles, Target, SquarePen, History, Send, ChevronDown } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { ChatTranscript, useSearchPortfolioChat, type ChatTurn, type SearchChatRecord } from './PortfolioChat';
 import { activeLlmProvider, useLlmProviders } from './useLlmProviders';
 
@@ -267,7 +268,8 @@ export const UnifiedSearch = () => {
 
   const { data: providers, isLoading: providersLoading, isError: providersError } = useLlmProviders();
   const activeProvider = activeLlmProvider(providers);
-  const aiOff = !providersLoading && !activeProvider;
+  const portfolioAsk = useAccess().ask;
+  const aiOff = !portfolioAsk || (!providersLoading && !activeProvider);
   const searchOnly = aiOff && !pending;
 
   useEffect(() => {
@@ -413,7 +415,7 @@ export const UnifiedSearch = () => {
           : 'Ask about the inventory';
 
   const askAi = useCallback(async () => {
-    if (!canAsk || pending) return;
+    if (!portfolioAsk || !canAsk || pending) return;
     const asked = question;
     setQ('');
     focusChatAfterOpen.current = true;
@@ -428,7 +430,7 @@ export const UnifiedSearch = () => {
     }
     if (!ok) setQ((current) => current.trim() ? current : asked);
     focusChat();
-  }, [ask, canAsk, focusChat, pending, question]);
+  }, [ask, canAsk, focusChat, pending, portfolioAsk, question]);
 
   const activateAsk = useCallback(() => {
     if (canAsk && !pending) {
@@ -440,7 +442,7 @@ export const UnifiedSearch = () => {
 
   const sendChat = useCallback(async (text: string) => {
     const asked = text.trim();
-    if (!activeProvider || pending || asked.length < 2 || asked.length > 4000) return;
+    if (!portfolioAsk || !activeProvider || pending || asked.length < 2 || asked.length > 4000) return;
     setChatDraft('');
     setAskExpanded(true);
     setHistoryOpen(false);
@@ -453,7 +455,7 @@ export const UnifiedSearch = () => {
     }
     if (!ok) setChatDraft((current) => current.trim() ? current : asked);
     focusChat();
-  }, [activeProvider, ask, focusChat, pending]);
+  }, [activeProvider, ask, focusChat, pending, portfolioAsk]);
 
   const beginNew = useCallback(async () => {
     if (pending) return;

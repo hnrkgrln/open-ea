@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useRequireEdit } from '../access';
 import { ChevronLeft, Info, Network, Trash2, Edit2, Activity } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { MultiSelect } from './FilterControls';
@@ -16,6 +17,7 @@ export const EditIntegrationPage = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const isNew = !id || id === 'new';
+  useRequireEdit('integrations', { redirectTo: '/integrations' });
 
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(isNew);

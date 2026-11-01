@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers, FileSignature, Building2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { LifecycleBadge } from './LifecycleBadge';
 import { InlineFilter } from './FilterControls';
 import { ReferencesList } from './References';
@@ -14,6 +15,7 @@ import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
+import { AuditActorName } from './AuditActor';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -33,6 +35,7 @@ interface Props {
 
 export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThresholds }: Props) => {
   const navigate = useNavigate();
+  const access = useAccess();
   const [flowFilter, setFlowFilter] = useState('');
   const [storedThresholds] = useLocalStorage<TimeThresholds>('openea_time_thresholds', DEFAULT_TIME_THRESHOLDS);
   const thresholds = propThresholds || storedThresholds;
@@ -202,9 +205,9 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
               </p>
               )}
             </div>
-            <button onClick={() => navigate(`/apps/${app.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+            {access.canEditApplication(app.ownerOrgId ?? null) && <button onClick={() => navigate(`/apps/${app.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
               <Edit2 size={16} /> Edit Application
-            </button>
+            </button>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
@@ -659,6 +662,15 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Inventory Date</span>
                       <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{new Date(app.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
+                      <AuditActorName actor={app.createdBy} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--muted)', padding: '0.4rem', borderRadius: '8px' }}><Info size={16} style={{ opacity: 0.7 }} /></div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{app.updatedAt ? new Date(app.updatedAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <AuditActorName actor={app.updatedBy} />
                     </div>
                   </div>
                 </div>

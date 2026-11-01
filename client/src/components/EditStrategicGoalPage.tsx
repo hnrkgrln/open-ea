@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useRequireEdit } from '../access';
 import { Boxes, CheckCircle2, ChevronLeft, Edit2, Info, Plus, Target, Trash2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
@@ -16,6 +17,7 @@ export const EditStrategicGoalPage = () => {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const isNew = !id || id === 'new' || id === 'undefined';
+  useRequireEdit('strategicGoals', { redirectTo: '/strategic-goals' });
 
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(isNew);

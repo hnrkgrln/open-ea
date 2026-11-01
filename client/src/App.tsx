@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows, LogOut } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram, getLandscapeSearchMatchedApps, organizationTypeSelected } from './components/ApplicationDiagram';
 import { StrategicGoalsView } from './components/StrategicGoalsView';
@@ -40,6 +40,7 @@ import { AspectsMenu } from './components/AspectsMenu';
 import { ApplicationGridCard, applicationRangeFields } from './components/ApplicationGridCard';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
 import { fetchWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
+import { AccessProvider, useAccess, type AccessArea } from './access';
 
 export { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, readStoredTimeThresholds } from './timeAssessment';
 export type { TimeThresholds } from './timeAssessment';
@@ -241,7 +242,21 @@ interface Integration {
 }
 
 // Layout component for shared UI elements
+function AreaRoute({ area, children }: { area: AccessArea; children: React.ReactNode }) {
+  const access = useAccess();
+  if (!access.canView(area)) return <Navigate to={access.homePath} replace />;
+  return children;
+}
+
+function EditRoute({ area, children }: { area: AccessArea; children: React.ReactNode }) {
+  const access = useAccess();
+  const allowed = area === 'applications' ? access.canEditSomeApplication() : access.canEdit(area);
+  if (!allowed) return <Navigate to={access.homePath} replace />;
+  return children;
+}
+
 const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode, brandName: string, onRefresh: () => void }) => {
+  const access = useAccess();
   const navigate = useNavigate();
   const location = useLocation();
   const isFullWidth = location.pathname.startsWith('/diagrams');
@@ -317,12 +332,12 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }} data-landscape-state={isTarget ? 'target' : 'current'} data-diagram-embed={diagramEmbed ? 'true' : undefined}>
       {!diagramEmbed && <header ref={headerRef} className="header" data-landscape-state={isTarget ? 'target' : 'current'} style={{ flexShrink: 0, position: 'relative' }}>
         <div className="header-start">
-          <Link to="/insights" className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
+          <Link to={access.homePath} className="logo" title={brandName} style={{ textDecoration: 'none', fontSize: '1.25rem' }}>{brandName}</Link>
           <nav className="nav">
-            <NavLink to="/insights" title="Insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /><span className="header-label">Insights</span></NavLink>
+            {access.canView('insights') && <NavLink to="/insights" title="Insights" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><Lightbulb size={16} /><span className="header-label">Insights</span></NavLink>}
             <ModelMenu />
-            <NavLink to="/diagrams" title="Diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><MapIcon size={16} /><span className="header-label">Diagrams</span></NavLink>
-            <NavLink to="/transformations" title="Transformations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><GitCompareArrows size={16} /><span className="header-label">Transformations</span></NavLink>
+            {access.canView('diagrams') && <NavLink to="/diagrams" title="Diagrams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><MapIcon size={16} /><span className="header-label">Diagrams</span></NavLink>}
+            {access.canView('insights') && <NavLink to="/transformations" title="Transformations" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}><GitCompareArrows size={16} /><span className="header-label">Transformations</span></NavLink>}
           </nav>
         </div>
         <div className="header-search">
@@ -330,7 +345,8 @@ const Layout = ({ children, brandName, onRefresh }: { children: React.ReactNode,
         </div>
         <div className="header-end">
           <StateMenu />
-          <NavLink to="/settings" title="Settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /><span className="header-label">Settings</span></NavLink>
+          {access.admin && <NavLink to="/settings" title="Settings" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}><Settings size={20} /><span className="header-label">Settings</span></NavLink>}
+          {access.user && <button type="button" className="nav-link" title={`Signed in as ${access.user.name.trim() || access.user.email}. Sign out.`} onClick={() => void access.signOut()} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem', background: 'transparent', border: 'none', cursor: 'pointer' }}><LogOut size={16} /><span className="header-label">Sign out</span></button>}
           <ThemeToggle />
         </div>
       </header>}
@@ -409,6 +425,7 @@ function readLegacyBrandName(): string | null {
 
 const AppContent = () => {
   const navigate = useNavigate();
+  const access = useAccess();
   const queryClient = useQueryClient();
   const { data: workspace, isLoading: isWorkspaceLoading, isError: isWorkspaceError } = useQuery<WorkspaceSettings>({
     queryKey: ['workspace'],
@@ -572,9 +589,10 @@ const AppContent = () => {
   return (
     <Layout brandName={brandName} onRefresh={handleRefresh}>
       <Routes>
-        <Route path="/" element={<Navigate to="/insights" replace />} />
+        <Route path="/" element={<Navigate to={access.homePath} replace />} />
+        <Route path="/no-access" element={<div className="card" style={{ padding: '1.5rem' }}><h1 style={{ marginTop: 0 }}>No access</h1><p>You do not have access to any part of this workspace.</p></div>} />
         <Route path="/insights" element={
-          <InsightsView
+          <AreaRoute area="insights"><InsightsView
             apps={apps || []}
             strategicGoals={strategicGoals || []}
             capabilities={capabilities || []}
@@ -582,67 +600,67 @@ const AppContent = () => {
             informationObjects={informationObjects || []}
             integrations={integrations || []}
             thresholds={timeThresholds}
-          />
+          /></AreaRoute>
         } />
 
         {/* Application Routes */}
         <Route path="/apps" element={
-          <InventoryView
+          <AreaRoute area="applications"><InventoryView
             apps={apps || []}
             capabilities={capabilities || []}
             organizations={organizations || []}
             onSelectApp={(id) => navigate(`/apps/${id}`)}
             onEditApp={(app) => navigate(`/apps/${app.id}/edit`)}
             onRefresh={handleRefresh}
-            onNewApp={<button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button>}
+            onNewApp={access.canEditSomeApplication() ? <button onClick={() => navigate('/apps/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PlusCircle size={18} /> New Application</button> : null}
             timeThresholds={timeThresholds}
-          />
+          /></AreaRoute>
         } />
-        <Route path="/apps/new" element={<EditAppPage timeThresholds={timeThresholds} />} />
-        <Route path="/apps/:id" element={<AppDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} />} />
-        <Route path="/apps/:id/edit" element={<EditAppPage timeThresholds={timeThresholds} />} />
+        <Route path="/apps/new" element={<EditRoute area="applications"><EditAppPage timeThresholds={timeThresholds} /></EditRoute>} />
+        <Route path="/apps/:id" element={<AreaRoute area="applications"><AppDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} /></AreaRoute>} />
+        <Route path="/apps/:id/edit" element={<EditRoute area="applications"><EditAppPage timeThresholds={timeThresholds} /></EditRoute>} />
 
         <Route path="/strategic-goals" element={
-          <StrategicGoalsView goals={strategicGoals || []} onRefresh={handleRefresh} />
+          <AreaRoute area="strategicGoals"><StrategicGoalsView goals={strategicGoals || []} onRefresh={handleRefresh} /></AreaRoute>
         } />
-        <Route path="/strategic-goals/new" element={<EditStrategicGoalPage />} />
-        <Route path="/strategic-goals/:id" element={<StrategicGoalDetailWrapper onRefresh={handleRefresh} />} />
-        <Route path="/strategic-goals/:id/edit" element={<EditStrategicGoalPage />} />
+        <Route path="/strategic-goals/new" element={<EditRoute area="strategicGoals"><EditStrategicGoalPage /></EditRoute>} />
+        <Route path="/strategic-goals/:id" element={<AreaRoute area="strategicGoals"><StrategicGoalDetailWrapper onRefresh={handleRefresh} /></AreaRoute>} />
+        <Route path="/strategic-goals/:id/edit" element={<EditRoute area="strategicGoals"><EditStrategicGoalPage /></EditRoute>} />
 
         {/* Capability Routes */}
         <Route path="/capabilities" element={
-          <CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => navigate(`/apps/${id}`)} />
+          <AreaRoute area="capabilities"><CapabilitiesView capabilities={capabilities || []} onRefresh={handleRefresh} onSelectApp={(id) => navigate(`/apps/${id}`)} /></AreaRoute>
         } />
-        <Route path="/capabilities/new" element={<EditCapabilityPage />} />
-        <Route path="/capabilities/:id" element={<CapabilityDetailWrapper onRefresh={handleRefresh} />} />
-        <Route path="/capabilities/:id/edit" element={<EditCapabilityPage />} />
+        <Route path="/capabilities/new" element={<EditRoute area="capabilities"><EditCapabilityPage /></EditRoute>} />
+        <Route path="/capabilities/:id" element={<AreaRoute area="capabilities"><CapabilityDetailWrapper onRefresh={handleRefresh} /></AreaRoute>} />
+        <Route path="/capabilities/:id/edit" element={<EditRoute area="capabilities"><EditCapabilityPage /></EditRoute>} />
 
         {/* Organization Routes */}
         <Route path="/organizations" element={
-          <OrganizationsView organizations={organizations || []} onRefresh={handleRefresh} />
+          <AreaRoute area="organizations"><OrganizationsView organizations={organizations || []} onRefresh={handleRefresh} /></AreaRoute>
         } />
-        <Route path="/organizations/new" element={<EditOrganizationPage />} />
-        <Route path="/organizations/:id" element={<OrganizationDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} />} />
-        <Route path="/organizations/:id/edit" element={<EditOrganizationPage />} />
+        <Route path="/organizations/new" element={<EditRoute area="organizations"><EditOrganizationPage /></EditRoute>} />
+        <Route path="/organizations/:id" element={<AreaRoute area="organizations"><OrganizationDetailWrapper onRefresh={handleRefresh} timeThresholds={timeThresholds} /></AreaRoute>} />
+        <Route path="/organizations/:id/edit" element={<EditRoute area="organizations"><EditOrganizationPage /></EditRoute>} />
 
         {/* Information Routes */}
         <Route path="/information" element={
-          <InformationView informationObjects={informationObjects || []} onRefresh={handleRefresh} />
+          <AreaRoute area="information"><InformationView informationObjects={informationObjects || []} onRefresh={handleRefresh} /></AreaRoute>
         } />
-        <Route path="/information/new" element={<EditInformationPage />} />
-        <Route path="/information/:id" element={<InformationDetailWrapper onRefresh={handleRefresh} />} />
-        <Route path="/information/:id/edit" element={<EditInformationPage />} />
+        <Route path="/information/new" element={<EditRoute area="information"><EditInformationPage /></EditRoute>} />
+        <Route path="/information/:id" element={<AreaRoute area="information"><InformationDetailWrapper onRefresh={handleRefresh} /></AreaRoute>} />
+        <Route path="/information/:id/edit" element={<EditRoute area="information"><EditInformationPage /></EditRoute>} />
 
         {/* Integration Routes */}
         <Route path="/integrations" element={
-          <IntegrationsView integrations={integrations || []} onRefresh={handleRefresh} />
+          <AreaRoute area="integrations"><IntegrationsView integrations={integrations || []} onRefresh={handleRefresh} /></AreaRoute>
         } />
-        <Route path="/integrations/new" element={<EditIntegrationPage />} />
-        <Route path="/integrations/:id" element={<IntegrationDetailWrapper onRefresh={handleRefresh} />} />
-        <Route path="/integrations/:id/edit" element={<EditIntegrationPage />} />
+        <Route path="/integrations/new" element={<EditRoute area="integrations"><EditIntegrationPage /></EditRoute>} />
+        <Route path="/integrations/:id" element={<AreaRoute area="integrations"><IntegrationDetailWrapper onRefresh={handleRefresh} /></AreaRoute>} />
+        <Route path="/integrations/:id/edit" element={<EditRoute area="integrations"><EditIntegrationPage /></EditRoute>} />
 
         <Route path="/diagrams" element={
-          <DiagramsView 
+          <AreaRoute area="diagrams"><DiagramsView 
             apps={apps || []} 
             capabilities={capabilities || []}
             organizations={organizations || []}
@@ -650,11 +668,11 @@ const AppContent = () => {
             integrations={integrations || []}
             isVisible={true}
             timeThresholds={timeThresholds}
-          />
+          /></AreaRoute>
         } />
-        <Route path="/transformations" element={<TransformationsView />} />
-        <Route path="/transformations/:id" element={<TransformationDetailsView timeThresholds={timeThresholds} />} />
-        <Route path="/settings" element={
+        <Route path="/transformations" element={<AreaRoute area="insights"><TransformationsView /></AreaRoute>} />
+        <Route path="/transformations/:id" element={<AreaRoute area="insights"><TransformationDetailsView timeThresholds={timeThresholds} /></AreaRoute>} />
+        <Route path="/settings" element={access.admin ? (
           <PicklistsView 
             brandName={brandName} 
             onUpdateBrand={setBrandName}
@@ -669,14 +687,16 @@ const AppContent = () => {
             timeThresholds={timeThresholds}
             onUpdateTimeThresholds={setTimeThresholds}
           />
-        } />
+        ) : <Navigate to={access.homePath} replace />} />
       </Routes>
     </Layout>
   );
 };
 const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onSelectApp, onEditApp, onNewApp, onRefresh, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations: any[], onSelectApp: (id: string) => void, onEditApp: (app: any) => void, onNewApp: React.ReactNode, onRefresh: () => void, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard' | 'edit'>('openea_inventory_view', 'grid');
+  const access = useAccess();
+  const [storedViewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'dashboard' | 'edit'>('openea_inventory_view', 'grid');
+  const viewMode = storedViewMode === 'edit' && !access.canEdit('applications') ? 'list' : storedViewMode;
   const [filters, setFilters] = useLocalStorage('openea_inventory_filters', { 
     search: '', 
     owner: [] as string[], 
@@ -960,9 +980,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             <button title="TIME Dashboard" onClick={() => setViewMode('dashboard')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'dashboard' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'dashboard' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutDashboard size={16} /></button>
             <button title="Grid View" onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button title="Table View" onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
-            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+            {access.canEdit('applications') && <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />}
           </div>
-          {React.cloneElement(onNewApp as React.ReactElement<any>, { style: { ...(onNewApp as React.ReactElement<any>).props?.style, height: '2.2rem', fontSize: '0.9rem' } })}
+          {onNewApp && React.cloneElement(onNewApp as React.ReactElement<any>, { style: { ...(onNewApp as React.ReactElement<any>).props?.style, height: '2.2rem', fontSize: '0.9rem' } })}
         </div>
       </div>
       {showFilters && (
@@ -1044,7 +1064,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
               picklists={picklists}
               timeThresholds={timeThresholds}
               onOpen={() => onSelectApp(app.id)}
-              onEdit={() => onEditApp(app)}
+              onEdit={access.canEditApplication(app.ownerOrgId) ? () => onEditApp(app) : undefined}
             />
           ))}
         </div>
@@ -1058,6 +1078,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
             deletePath={(id) => `/api/applications/${id}`}
             editPath={(id) => `/apps/${id}/edit`}
             onRefresh={onRefresh}
+            writable={selection.ids.every((id) => access.canEditApplication(apps.find((app) => app.id === id)?.ownerOrgId ?? null))}
           />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead><tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}><SelectionHeader selection={selection} /><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Name</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>TIME</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Cost</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owner</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Owning Org</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Type</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Status</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Lifecycle</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>Capabilities</th><th style={{ padding: '0.6rem 1rem', fontSize: '0.75rem', textAlign: 'right' }}>Actions</th></tr></thead>
@@ -1144,13 +1165,13 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}><LifecycleBadge lifecycle={app.lifecycle} color={picklists?.find(p => p.name === 'lifecycle')?.options?.find((o: any) => o.value === app.lifecycle)?.color} /></td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}><div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap' }}>{app.capabilities?.map(cap => (<span key={cap.id} style={{ background: 'var(--accent)', padding: '0.05rem 0.35rem', borderRadius: '3px', fontSize: '0.65rem' }}>{cap.name}</span>))}{(!app.capabilities || app.capabilities.length === 0) && <span style={{ color: 'var(--muted-foreground)' }}>—</span>}</div></td>
                   <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
-                    <button 
+                    {access.canEditApplication(app.ownerOrgId) && <button 
                       onClick={(e) => { e.stopPropagation(); onEditApp(app); }} 
                       className="secondary" 
                       style={{ border: 'none', height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent' }}
                     >
                       <Edit2 size={12} />
-                    </button>
+                    </button>}
                   </td>
                 </tr>
               );
@@ -1164,6 +1185,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
 
 const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, showApps = false, depth = 0, forceExpandState }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], showApps?: boolean, depth?: number, forceExpandState?: { state: boolean, timestamp: number } }) => {
   const navigate = useNavigate();
+  const canEditCapability = useAccess().canEdit('capabilities');
   const [expanded, setExpanded] = useState<boolean>(() => {
     if (forceExpandState && forceExpandState.timestamp > 0) return forceExpandState.state;
     return true;
@@ -1229,11 +1251,11 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
               {appCount} Supporting App{appCount !== 1 ? 's' : ''}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {canEditCapability && <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add Sub-capability"><Plus size={16} /></button>
             <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }}><Edit2 size={16} /></button>
             <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={16} /></button>
-          </div>
+          </div>}
         </div>
         
         {node.description && <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', margin: 0, maxWidth: '800px' }}>{node.description}</p>}
@@ -1269,6 +1291,7 @@ const CapabilityNode = ({ node, onRefresh, onSelectApp, criticalityOptions, show
 
 const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, selection, showApps = false, depth = 0 }: { node: Capability, onRefresh: () => void, onSelectApp: (id: string) => void, criticalityOptions: any[], selection: ReturnType<typeof useTableSelection>, showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
+  const canEditCapability = useAccess().canEdit('capabilities');
   
   const getEffectiveCapabilityCriticality = (n: Capability): number => {
     const local = Number(n.criticality || 1);
@@ -1295,11 +1318,11 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
           </div>
         </td>
         <td style={{ padding: '0.6rem 1rem', width: '110px' }}>
-          <div style={{ display: 'flex', gap: '0.2rem' }}>
+          {canEditCapability && <div style={{ display: 'flex', gap: '0.2rem' }}>
             <button onClick={() => navigate(`/capabilities/new?parentId=${node.id}`)} className="secondary" style={{ height: '1.6rem', padding: '0 0.5rem' }} title="Add Sub-capability"><Plus size={12} /></button>
             <button onClick={() => navigate(`/capabilities/${node.id}/edit`)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0 }}><Edit2 size={12} /></button>
             <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/capabilities/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={12} /></button>
-          </div>
+          </div>}
         </td>
         <td style={{ padding: '0.6rem 1rem' }}>
           {crit && (
@@ -1326,7 +1349,9 @@ const CapabilityListRow = ({ node, onRefresh, onSelectApp, criticalityOptions, s
 
 const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabilities: Capability[], onRefresh: () => void, onSelectApp: (id: string) => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_capabilities_view', 'grid');
+  const access = useAccess();
+  const [storedViewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_capabilities_view', 'grid');
+  const viewMode = storedViewMode === 'edit' && !access.canEdit('capabilities') ? 'grid' : storedViewMode;
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_capabilities_show_apps', false);
   const [isPending, startTransition] = useTransition();
   const [forceExpandState, setForceExpandState] = useState({ state: true, timestamp: 0 });
@@ -1424,12 +1449,12 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><LayoutGrid size={16} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none' }}><List size={16} /></button>
-            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+            {access.canEdit('capabilities') && <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />}
           </div>
-          <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
+          {access.canEdit('capabilities') && <button onClick={() => navigate('/capabilities/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
             <PlusCircle size={16} />
             New Capability
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -1514,6 +1539,7 @@ const CapabilitiesView = ({ capabilities, onRefresh, onSelectApp }: { capabiliti
             deletePath={(id) => `/api/capabilities/${id}`}
             editPath={(id) => `/capabilities/${id}/edit`}
             onRefresh={onRefresh}
+            writable={access.canEdit('capabilities')}
           />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
@@ -2168,7 +2194,9 @@ export default function App() {
   return ( 
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AppContent />
+        <AccessProvider>
+          <AppContent />
+        </AccessProvider>
       </BrowserRouter>
     </QueryClientProvider> 
   ); 

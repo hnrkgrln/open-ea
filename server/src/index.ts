@@ -9,9 +9,10 @@ import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
 import { builtinSkill, cleanSkillBody, cleanSkillName, MAX_LLM_SKILLS, MAX_SKILL_BODY, MAX_SKILL_NAME, presentSkills, skillInstructions, type StoredSkill } from './llmSkills.js';
-import { createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId } from './landscape.js';
+import { bindActor, createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId, withoutActor } from './landscape.js';
 import { watchDevDatabase } from './devDatabase.js';
 import { applyTransformation, createTransformation, deleteTransformation, getStateDiffPreview, getTransformationDetail, listTransformations, TRANSFORMATION_ACTIONS, TRANSFORMATION_ENTITY_TYPES, TRANSFORMATION_STATUSES, updateTransformation } from './transformations.js';
+import { accessGate, applicationVisibilityWhere, canEditApplication, canSeeApplication, canViewArea, hasGlobalApplicationEdit, organizationOwnershipDenied, presentApplication, presentCapability, presentGoal, presentInformation, presentOrganization, principalFromCookie, registerAccessRoutes, rememberPrincipal, requestPrincipal } from './access.js';
 
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -194,10 +195,10 @@ async function connectIntegrationProcessing(
   if (!infoObjectId) return;
   const appIds = [sourceAppId, targetAppId].filter((x): x is string => !!x);
   if (appIds.length === 0) return;
-  await prisma.informationObject.update({
+  await withoutActor(() => prisma.informationObject.update({
     where: { id: infoObjectId },
     data: { processingApplications: { connect: appIds.map(id => ({ id })) } }
-  }).catch((err: any) => {
+  })).catch((err: any) => {
     // FK miss (app/info deleted out from under us) is not fatal here.
     if (err?.code !== 'P2025') throw err;
   });
@@ -272,6 +273,23 @@ server.addHook('onRequest', (request, _reply, done) => {
   const stateId = resolveStateId(typeof header === 'string' ? header : undefined);
   landscapeContext.run(stateId, () => done());
 });
+
+server.addHook('preHandler', (request, reply, done) => {
+  const header = request.headers['x-landscape-state'];
+  const stateId = resolveStateId(typeof header === 'string' ? header : undefined);
+  principalFromCookie(request.headers.cookie, stateId).then((principal) => {
+    rememberPrincipal(request, principal);
+    const decision = accessGate(request.method, request.routeOptions.url, principal);
+    if (!decision.allow) {
+      reply.status(decision.status).send(decision.body);
+      done();
+      return;
+    }
+    bindActor(principal.user?.id ?? null, () => done());
+  }, done);
+});
+
+registerAccessRoutes(server);
 
 server.setErrorHandler((error: any, request, reply) => {
   console.error('FASTIFY ERROR:', error);
@@ -507,8 +525,12 @@ server.post('/transformations/:id/apply', {
   }
 });
 
-server.get('/applications', async () => {
-  return prisma.application.findMany({
+server.get('/applications', async (request) => {
+  const principal = requestPrincipal(request);
+  const where = applicationVisibilityWhere(principal);
+  if (!where) return [];
+  const apps = await prisma.application.findMany({
+    where,
     include: {
       capabilities: true,
       processedInformationObjects: true,
@@ -518,6 +540,7 @@ server.get('/applications', async () => {
     },
     orderBy: { name: 'asc' }
   });
+  return apps.map((app) => presentApplication(principal, app));
 });
 
 server.get('/applications/:id', {
@@ -536,8 +559,8 @@ server.get('/applications/:id', {
         ownerOrg: true
       }
     });
-    if (!app) return reply.status(404).send({ error: 'Application not found' });
-    return app;
+    if (!app || !canSeeApplication(requestPrincipal(request), app.ownerOrgId)) return reply.status(404).send({ error: 'Application not found' });
+    return presentApplication(requestPrincipal(request), app);
   } catch (err) {
     return reply.status(404).send({ error: 'Application not found' });
   }
@@ -572,8 +595,13 @@ server.post('/applications', {
       processedInformationObjectIds: z.array(z.string()).optional(),
     }),
   },
-}, async (request) => {
+}, async (request, reply) => {
   console.log('POST /applications - Body:', JSON.stringify(request.body));
+  const principal = requestPrincipal(request);
+  const ownerOrgId = request.body.ownerOrgId ?? null;
+  if (ownerOrgId === null ? !hasGlobalApplicationEdit(principal) : !canEditApplication(principal, ownerOrgId)) {
+    return reply.status(403).send({ error: 'You cannot create this application.' });
+  }
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
   if (data.timeRationale !== undefined) data.timeRationale = normalizeTimeRationale(data.timeRationale);
   applyStoredVendor(data);
@@ -621,7 +649,7 @@ server.post('/applications', {
       ownerOrg: true
     }
   });
-  return fullApp || created;
+  return fullApp ? presentApplication(principal, fullApp) : created;
 });
 
 server.put('/applications/:id', {
@@ -656,6 +684,17 @@ server.put('/applications/:id', {
 }, async (request, reply) => {
   const { id } = request.params;
   console.log('PUT /applications/:id - Body:', JSON.stringify(request.body));
+  const principal = requestPrincipal(request);
+  const current = await prisma.application.findUnique({ where: { id }, select: { id: true, ownerOrgId: true } });
+  if (!current) return reply.status(404).send({ error: 'Application not found' });
+  if (!canEditApplication(principal, current.ownerOrgId)) {
+    return reply.status(403).send({ error: 'You cannot edit this application.' });
+  }
+  if (request.body.ownerOrgId !== undefined && request.body.ownerOrgId !== current.ownerOrgId) {
+    const nextOwner = request.body.ownerOrgId ?? null;
+    const destinationAllowed = nextOwner === null ? hasGlobalApplicationEdit(principal) : canEditApplication(principal, nextOwner);
+    if (!destinationAllowed) return reply.status(403).send({ error: 'You cannot move this application to that organization.' });
+  }
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
   if (data.timeRationale !== undefined) data.timeRationale = normalizeTimeRationale(data.timeRationale);
   applyStoredVendor(data);
@@ -705,7 +744,7 @@ server.put('/applications/:id', {
         ownerOrg: true
       }
     });
-    return fullApp || updated;
+    return fullApp ? presentApplication(principal, fullApp) : updated;
   } catch (err: any) {
     if (err.code === 'P2025') return reply.status(404).send({ error: 'Application not found' });
     throw err;
@@ -718,6 +757,11 @@ server.delete('/applications/:id', {
   },
 }, async (request, reply) => {
   try {
+    const current = await prisma.application.findUnique({ where: { id: request.params.id }, select: { id: true, ownerOrgId: true } });
+    if (!current) return reply.status(404).send({ error: 'Application not found' });
+    if (!canEditApplication(requestPrincipal(request), current.ownerOrgId)) {
+      return reply.status(403).send({ error: 'You cannot delete this application.' });
+    }
     return await prisma.application.delete({
       where: { id: request.params.id },
     });
@@ -739,7 +783,8 @@ server.get('/capabilities', async (request) => {
   // Natural sort so "10. Foo" comes after "9. Foo" — matches the numeric
   // prefix convention used for Excel traceability.
   caps.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  return caps;
+  const principal = requestPrincipal(request);
+  return caps.map((capability) => presentCapability(principal, capability));
 });
 
 server.get('/capabilities/:id', {
@@ -761,7 +806,7 @@ server.get('/capabilities/:id', {
       }
     });
     if (!cap) return reply.status(404).send({ error: 'Capability not found' });
-    return cap;
+    return presentCapability(requestPrincipal(request), cap);
   } catch (err) {
     return reply.status(404).send({ error: 'Capability not found' });
   }
@@ -936,7 +981,26 @@ server.get('/organizations', async (request, reply) => {
       orderBy: { name: 'asc' }
     });
     console.log('GET /organizations SUCCESS - Found:', orgs.length);
-    return orgs;
+    const principal = requestPrincipal(request);
+    if (!canViewArea(principal, 'organizations')) {
+      const ids = [...principal.applicationOrgs.keys()];
+      if (ids.length === 0) return [];
+      const granted = await prisma.organization.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, name: true, description: true, type: true, parentId: true },
+        orderBy: { name: 'asc' },
+      });
+      return granted.map((org) => ({
+        ...org,
+        parent: null,
+        children: [],
+        ownedApplications: [],
+        informationObjects: [],
+        supportedCapabilities: [],
+        _count: { ownedApplications: 0, informationObjects: 0 },
+      }));
+    }
+    return orgs.map((org) => presentOrganization(principal, org));
   } catch (err) {
     console.error('GET /organizations ERROR:', err);
     throw err;
@@ -962,7 +1026,7 @@ server.get('/organizations/:id', {
       }
     });
     if (!org) return reply.status(404).send({ error: 'Organization not found' });
-    return org;
+    return presentOrganization(requestPrincipal(request), org);
   } catch (err) {
     return reply.status(404).send({ error: 'Organization not found' });
   }
@@ -981,8 +1045,12 @@ server.post('/organizations', {
       applicationIds: z.array(z.string()).optional(),
     }),
   },
-}, async (request) => {
+}, async (request, reply) => {
   const { capabilityIds, applicationIds, ...data } = request.body;
+  if (applicationIds !== undefined) {
+    const denied = await organizationOwnershipDenied(requestPrincipal(request), null, applicationIds);
+    if (denied) return reply.status(403).send({ error: denied });
+  }
   if (data.parentId === '') data.parentId = null;
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -1017,6 +1085,10 @@ server.put('/organizations/:id', {
   },
 }, async (request, reply) => {
   const { capabilityIds, applicationIds, ...data } = request.body;
+  if (applicationIds !== undefined) {
+    const denied = await organizationOwnershipDenied(requestPrincipal(request), request.params.id, applicationIds);
+    if (denied) return reply.status(403).send({ error: denied });
+  }
   if (data.parentId === '') data.parentId = null;
   let validIds: string[] = [];
   if (capabilityIds && capabilityIds.length > 0) {
@@ -1116,13 +1188,14 @@ async function resolveGoalParent(goalId: string | undefined, parentId: string | 
   return parentId;
 }
 
-server.get('/strategic-goals', async () => {
+server.get('/strategic-goals', async (request) => {
   const goals = await prisma.strategicGoal.findMany({
     include: strategicGoalInclude,
     orderBy: { name: 'asc' },
   });
   goals.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  return goals;
+  const principal = requestPrincipal(request);
+  return goals.map((goal) => presentGoal(principal, goal));
 });
 
 server.get('/strategic-goals/:id', {
@@ -1133,7 +1206,7 @@ server.get('/strategic-goals/:id', {
     include: strategicGoalInclude,
   });
   if (!goal) return reply.status(404).send({ error: 'Strategic goal not found' });
-  return goal;
+  return presentGoal(requestPrincipal(request), goal);
 });
 
 server.post('/strategic-goals', {
@@ -1217,7 +1290,8 @@ server.get('/information-objects', async (request, reply) => {
       orderBy: { name: 'asc' }
     });
     console.log('GET /information-objects SUCCESS - Found:', info.length);
-    return info;
+    const principal = requestPrincipal(request);
+    return info.map((row) => presentInformation(principal, row));
   } catch (err) {
     console.error('GET /information-objects ERROR:', err);
     throw err;
@@ -1233,7 +1307,7 @@ server.get('/information-objects/:id', {
       include: { businessOwner: true, appOwner: true, processingApplications: true, integrations: { include: { sourceApp: true, targetApp: true } } }
     });
     if (!io) return reply.status(404).send({ error: 'Information Object not found' });
-    return io;
+    return presentInformation(requestPrincipal(request), io);
   } catch (err) {
     return reply.status(404).send({ error: 'Information Object not found' });
   }
@@ -1874,9 +1948,17 @@ server.post('/llm/skills/:id/restore', {
   return restored ?? reply.status(404).send({ error: 'Skill not found' });
 });
 
-server.get('/llm/providers', async () => {
+server.get('/llm/providers', async (request) => {
   const rows = await prisma.llmProvider.findMany({ orderBy: { createdAt: 'asc' } });
-  return rows.map(toPublicLlmProvider);
+  const full = rows.map(toPublicLlmProvider);
+  if (requestPrincipal(request).admin) return full;
+  return full.map((row) => ({
+    id: row.id,
+    name: row.name,
+    model: row.model,
+    isActive: row.isActive,
+    hasKey: row.hasKey,
+  }));
 });
 
 server.post('/llm/providers', {
@@ -2096,10 +2178,14 @@ server.get('/search', {
   },
 }, async (request) => {
   const { q } = request.query;
+  const principal = requestPrincipal(request);
+  const applicationWhere = applicationVisibilityWhere(principal);
   const [apps, caps, goals, orgs, info, integrations] = await Promise.all([
-    prisma.application.findMany({
+    !applicationWhere ? Promise.resolve([]) : prisma.application.findMany({
       where: {
-        OR: [
+        AND: [
+          applicationWhere,
+          { OR: [
           { name: { contains: q, mode: 'insensitive' } },
           { description: { contains: q, mode: 'insensitive' } },
           { owner: { contains: q, mode: 'insensitive' } },
@@ -2111,11 +2197,13 @@ server.get('/search', {
           { timeRationale: { contains: q, mode: 'insensitive' } },
           { metadata: { contains: q, mode: 'insensitive' } },
         ],
+          },
+        ],
       },
       include: { capabilities: true, ownerOrg: true },
       take: 10,
     }),
-    prisma.capability.findMany({
+    canViewArea(principal, 'capabilities') ? prisma.capability.findMany({
       where: {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
@@ -2124,8 +2212,8 @@ server.get('/search', {
         ],
       },
       take: 10,
-    }),
-    prisma.strategicGoal.findMany({
+    }) : Promise.resolve([]),
+    canViewArea(principal, 'strategicGoals') ? prisma.strategicGoal.findMany({
       where: {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
@@ -2134,8 +2222,8 @@ server.get('/search', {
       },
       include: { capabilities: { select: { id: true, name: true } } },
       take: 10,
-    }),
-    prisma.organization.findMany({
+    }) : Promise.resolve([]),
+    canViewArea(principal, 'organizations') ? prisma.organization.findMany({
       where: {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
@@ -2144,8 +2232,8 @@ server.get('/search', {
         ],
       },
       take: 10,
-    }),
-    prisma.informationObject.findMany({
+    }) : Promise.resolve([]),
+    canViewArea(principal, 'information') ? prisma.informationObject.findMany({
       where: {
         OR: [
           { name: { contains: q, mode: 'insensitive' } },
@@ -2154,8 +2242,8 @@ server.get('/search', {
         ],
       },
       take: 10,
-    }),
-    prisma.integration.findMany({
+    }) : Promise.resolve([]),
+    canViewArea(principal, 'integrations') ? prisma.integration.findMany({
       where: {
         OR: [
           { sourceApp: { name: { contains: q, mode: 'insensitive' } } },
@@ -2166,7 +2254,7 @@ server.get('/search', {
       },
       include: { sourceApp: true, targetApp: true, payload: true },
       take: 10,
-    }),
+    }) : Promise.resolve([]),
   ]);
 
   // Helper to score relevance: exact name = 100, name startsWith = 50, name contains = 30, others = 10
@@ -2195,11 +2283,11 @@ server.get('/search', {
   const sortedIntegrations = [...integrations].sort((a, b) => scoreMatch(b.name, `${b.sourceApp?.name} ${b.targetApp?.name}`, q) - scoreMatch(a.name, `${a.sourceApp?.name} ${a.targetApp?.name}`, q));
 
   return {
-    applications: sortedApps,
-    capabilities: sortedCaps,
-    strategicGoals: sortedGoals,
+    applications: sortedApps.map((app) => presentApplication(principal, app)),
+    capabilities: sortedCaps.map((capability) => presentCapability(principal, capability)),
+    strategicGoals: sortedGoals.map((goal) => presentGoal(principal, goal)),
     organizations: sortedOrgs,
-    informationObjects: sortedInfo,
+    informationObjects: sortedInfo.map((row) => presentInformation(principal, row)),
     integrations: sortedIntegrations
   };
 });

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAccess } from '../access';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactFlow, {
   Background,
@@ -380,6 +381,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeId, isTarget, switchTo } = useLandscapeStateController();
+  const canEditInsights = useAccess().canEdit('insights');
 
   const [activeTab, setActiveTab] = useState<'diagram' | 'steps' | 'impact'>('diagram');
   const [diagramEntityFilter, setDiagramEntityFilter] = useState<string>('all');
@@ -434,7 +436,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
     },
   });
 
-  const canEdit = Boolean(isTarget && detail && detail.toStateId === activeId);
+  const canEdit = Boolean(isTarget && canEditInsights && detail && detail.toStateId === activeId);
 
   const saveStepsList = async (nextSteps: Array<{
     id?: string;

@@ -2,12 +2,14 @@ import React, { useMemo } from 'react';
 import { Edit2, Database, Boxes, ShieldCheck, ChevronLeft, Calendar, Info, Share2, Layers, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
+import { AuditActorName } from './AuditActor';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -26,6 +28,7 @@ interface Props {
 
 export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
+  const canEditCapability = useAccess().canEdit('capabilities');
 
   // Fetch all contextual data
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
@@ -170,9 +173,9 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                 </div>
               )}
             </div>
-            <button onClick={() => navigate(`/capabilities/${capability.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+            {canEditCapability && <button onClick={() => navigate(`/capabilities/${capability.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
               <Edit2 size={16} /> Edit Capability
-            </button>
+            </button>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
@@ -329,6 +332,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>System Creation</span>
                       <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{capability.createdAt ? new Date(capability.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <AuditActorName actor={capability.createdBy} />
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
@@ -336,6 +340,7 @@ export const CapabilityDetailsView = ({ capabilityId, onBack, onRefresh }: Props
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
                       <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{capability.updatedAt ? new Date(capability.updatedAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                      <AuditActorName actor={capability.updatedBy} />
                     </div>
                   </div>
                 </div>

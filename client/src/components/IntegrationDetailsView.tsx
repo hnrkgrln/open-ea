@@ -2,8 +2,10 @@ import React from 'react';
 import { Edit2, Network, ChevronLeft, Database, Calendar, Info, ArrowRight, Activity } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { getContrastColor } from '../utils/colors';
 import { ReferencesList } from './References';
+import { AuditActorName } from './AuditActor';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
@@ -17,6 +19,7 @@ interface Props {
 
 export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
+  const canEditIntegration = useAccess().canEdit('integrations');
 
   const parentRef = React.useRef<HTMLDivElement>(null);
   const sourceIconRef = React.useRef<HTMLDivElement>(null);
@@ -153,9 +156,9 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
               </p>
               )}
             </div>
-            <button onClick={() => navigate(`/integrations/${i.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+            {canEditIntegration && <button onClick={() => navigate(`/integrations/${i.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
               <Edit2 size={18} /> Edit Integration
-            </button>
+            </button>}
           </div>
 
           {/* Integration Visual Flow */}
@@ -357,6 +360,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Established</span>
                     <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{i.createdAt ? i.createdAt.split('T')[0] : '—'}</span>
+                    <AuditActorName actor={i.createdBy} />
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
@@ -364,6 +368,7 @@ export const IntegrationDetailsView = ({ integrationId, onBack, onRefresh }: Pro
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Updated</span>
                     <span style={{ fontWeight: 700, fontSize: '0.925rem' }}>{i.updatedAt ? i.updatedAt.split('T')[0] : '—'}</span>
+                    <AuditActorName actor={i.updatedBy} />
                   </div>
                 </div>
               </div>

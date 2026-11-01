@@ -1,12 +1,14 @@
 import React, { useMemo } from 'react';
-import { Boxes, ChevronLeft, Edit2, Target } from 'lucide-react';
+import { Boxes, Calendar, ChevronLeft, Edit2, Info, Target } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { ReferencesList } from './References';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
+import { AuditActorName } from './AuditActor';
 
 interface Props {
   goalId: string | null;
@@ -16,6 +18,7 @@ interface Props {
 
 export const StrategicGoalDetailsView = ({ goalId, onBack }: Props) => {
   const navigate = useNavigate();
+  const canEditGoal = useAccess().canEdit('strategicGoals');
   const { data: goal, isLoading, error } = useQuery<any>({
     queryKey: ['strategic-goal', goalId],
     queryFn: () => fetchRecord<any>(`/api/strategic-goals/${goalId}`),
@@ -76,9 +79,9 @@ export const StrategicGoalDetailsView = ({ goalId, onBack }: Props) => {
                 </div>
               )}
             </div>
-            <button onClick={() => navigate(`/strategic-goals/${goal.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
+            {canEditGoal && <button onClick={() => navigate(`/strategic-goals/${goal.id}/edit`)} className="primary" style={{ height: '3rem', gap: '0.75rem', padding: '0 1.5rem', fontSize: '1rem', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}>
               <Edit2 size={18} /> Edit Strategic Goal
-            </button>
+            </button>}
           </div>
 
           {children.length > 0 && (
@@ -116,6 +119,28 @@ export const StrategicGoalDetailsView = ({ goalId, onBack }: Props) => {
               </div>
             </section>
           )}
+
+          <section style={{ marginTop: '3rem', maxWidth: '24rem' }}>
+            <h3 style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted-foreground)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Audit Trail</h3>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <div style={{ background: 'var(--muted)', padding: '0.4rem', borderRadius: '8px' }}><Calendar size={16} style={{ opacity: 0.7 }} /></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>System Creation</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{goal.createdAt ? new Date(goal.createdAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                  <AuditActorName actor={goal.createdBy} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                <div style={{ background: 'var(--muted)', padding: '0.4rem', borderRadius: '8px' }}><Info size={16} style={{ opacity: 0.7 }} /></div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Refined</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{goal.updatedAt ? new Date(goal.updatedAt).toLocaleDateString(undefined, { dateStyle: 'long' }) : '—'}</span>
+                  <AuditActorName actor={goal.updatedBy} />
+                </div>
+              </div>
+            </div>
+          </section>
 
           {showField('strategicGoal.references') && (
             <div style={{ marginTop: '3rem' }}>

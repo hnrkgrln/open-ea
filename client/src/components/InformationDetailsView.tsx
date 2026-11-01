@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Edit2, FileText, ChevronLeft, ShieldCheck, Database, Calendar, Network, ArrowRight } from 'lucide-react';
+import { Edit2, FileText, ChevronLeft, ShieldCheck, Database, Calendar, Info, Network, ArrowRight } from 'lucide-react';
 import { InlineFilter } from './FilterControls';
 import { ReferencesList } from './References';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useAccess } from '../access';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
+import { AuditActorName } from './AuditActor';
 
 const safeJsonParse = (str: string | null | undefined, fallback: any = {}) => {
   if (!str) return fallback;
@@ -27,6 +29,7 @@ interface Props {
 
 export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => {
   const navigate = useNavigate();
+  const canEditInfo = useAccess().canEdit('information');
   const [flowFilter, setFlowFilter] = useState('');
 
   const { data: latestInfo } = useQuery<any[]>({
@@ -112,9 +115,9 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                 </div>
               )}
             </div>
-            <button onClick={() => navigate(`/information/${item.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+            {canEditInfo && <button onClick={() => navigate(`/information/${item.id}/edit`)} className="primary" style={{ height: '2.4rem', gap: '0.5rem', padding: '0 1rem', fontSize: '0.9rem', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
               <Edit2 size={16} /> Edit Definition
-            </button>
+            </button>}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '2rem' }}>
@@ -251,6 +254,15 @@ export const InformationDetailsView = ({ infoId, onBack, onRefresh }: Props) => 
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Conceptualized</span>
                       <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{item.createdAt ? item.createdAt.split('T')[0] : '—'}</span>
+                      <AuditActorName actor={item.createdBy} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div style={{ background: 'var(--muted)', padding: '0.4rem', borderRadius: '8px' }}><Info size={16} style={{ opacity: 0.7 }} /></div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>Last Updated</span>
+                      <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{item.updatedAt ? item.updatedAt.split('T')[0] : '—'}</span>
+                      <AuditActorName actor={item.updatedBy} />
                     </div>
                   </div>
                 </div>

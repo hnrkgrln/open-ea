@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalStorage } from '../App';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, useTableSelection } from './TableSelection';
 import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
+import { useAccess } from '../access';
 
 interface InformationObject {
   id: string;
@@ -20,6 +21,7 @@ interface InformationObject {
 
 const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onRefresh: () => void, picklists: any[] }) => {
   const navigate = useNavigate();
+  const canEditInfo = useAccess().canEdit('information');
   
   const getPicklistInfo = (picklistName: string, value: string) => {
     const list = picklists?.find(p => p.name === picklistName);
@@ -45,10 +47,10 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
             {typeInfo.label || item.type || 'Data Concept'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.4rem' }}>
+        {canEditInfo && <div style={{ display: 'flex', gap: '0.4rem' }}>
           <button onClick={() => navigate(`/information/${item.id}/edit`)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0 }}><Edit2 size={12} /></button>
           <button onClick={async (e) => { e.stopPropagation(); if(confirm('Delete?')) { await fetch(`/api/information-objects/${item.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={12} /></button>
-        </div>
+        </div>}
       </div>
       
       {item.description && <p style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.description}</p>}
@@ -72,7 +74,9 @@ const InfoCard = ({ item, onRefresh, picklists }: { item: InformationObject, onR
 
 export const InformationView = ({ informationObjects, onRefresh }: { informationObjects: InformationObject[], onRefresh: () => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_information_view', 'grid');
+  const canEditInfo = useAccess().canEdit('information');
+  const [storedViewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_information_view', 'grid');
+  const viewMode = storedViewMode === 'edit' && !canEditInfo ? 'list' : storedViewMode;
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
   const rows = useMemo(() => Array.isArray(informationObjects) ? informationObjects : [], [informationObjects]);
   const visibleIds = useMemo(() => rows.map((item) => item.id), [rows]);
@@ -94,12 +98,12 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><LayoutGrid size={14} /></button>
             <button onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={14} /></button>
-            <AdvancedEditButton compact active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+            {canEditInfo && <AdvancedEditButton compact active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />}
           </div>
-          <button onClick={() => navigate('/information/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
+          {canEditInfo && <button onClick={() => navigate('/information/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
             <PlusCircle size={14} />
             New
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -130,6 +134,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
             deletePath={(id) => `/api/information-objects/${id}`}
             editPath={(id) => `/information/${id}/edit`}
             onRefresh={onRefresh}
+            writable={canEditInfo}
           />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
@@ -159,7 +164,7 @@ export const InformationView = ({ informationObjects, onRefresh }: { information
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>{getLabel('pii_category', io.piiCategory || '1')}</td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>{io.businessOwner?.name || '—'}</td>
                   <td style={{ padding: '0.6rem 1rem', textAlign: 'right' }}>
-                    <button onClick={(e) => { e.stopPropagation(); navigate(`/information/${io.id}/edit`); }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={12} /></button>
+                    {canEditInfo && <button onClick={(e) => { e.stopPropagation(); navigate(`/information/${io.id}/edit`); }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, background: 'transparent', border: 'none' }}><Edit2 size={12} /></button>}
                   </td>
                 </tr>
                 );

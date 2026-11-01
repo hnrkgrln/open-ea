@@ -1,5 +1,6 @@
 import React, { useState, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useRequireEdit } from '../access';
 import { ChevronLeft, Info, Share2, FileText, Trash2, Edit2, ShieldCheck } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ColoredSelect } from './ColoredSelect';
@@ -44,6 +45,7 @@ export const EditInformationPage = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isNew = !id || id === 'new' || id === 'undefined';
+  useRequireEdit('information', { redirectTo: '/information' });
 
   const [loading, setLoading] = useState(false);
   const [hydrated, setHydrated] = useState(isNew);

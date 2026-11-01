@@ -6,6 +6,7 @@ import { SearchInput } from './FilterControls';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection, type TableSelection } from './TableSelection';
 import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
 import { flattenTree } from '../advancedEdit';
+import { useAccess } from '../access';
 
 interface RequiredCapability {
   id: string;
@@ -57,6 +58,7 @@ const confirmDelete = async (goal: StrategicGoal, onRefresh: () => void) => {
 
 const GoalNode = ({ goal, onRefresh, depth = 0, forceExpand }: { goal: StrategicGoal; onRefresh: () => void; depth?: number; forceExpand?: { state: boolean; timestamp: number } }) => {
   const navigate = useNavigate();
+  const canEditGoals = useAccess().canEdit('strategicGoals');
   const [expanded, setExpanded] = useState(true);
   const hasChildren = (goal.children || []).length > 0;
   const required = requiredNames(goal);
@@ -88,11 +90,11 @@ const GoalNode = ({ goal, onRefresh, depth = 0, forceExpand }: { goal: Strategic
               <Target size={depth === 0 ? 20 : 16} style={{ color: '#5f3dc4' }} /> {goal.name}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+          {canEditGoals && <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
             <button type="button" onClick={() => navigate(`/strategic-goals/new?parentId=${goal.id}`)} className="secondary" style={{ height: '2rem', padding: '0 0.6rem' }} title="Add sub-goal"><Plus size={16} /></button>
             <button type="button" onClick={() => navigate(`/strategic-goals/${goal.id}/edit`)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0 }} title="Edit"><Edit2 size={16} /></button>
             <button type="button" onClick={() => confirmDelete(goal, onRefresh)} className="secondary" style={{ height: '2rem', width: '2rem', padding: 0, color: 'var(--destructive)' }} title="Delete"><Trash2 size={16} /></button>
-          </div>
+          </div>}
         </div>
         {goal.description && <p style={{ fontSize: '0.875rem', color: 'var(--muted-foreground)', margin: 0, maxWidth: '800px' }}>{goal.description}</p>}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
@@ -116,6 +118,7 @@ const GoalNode = ({ goal, onRefresh, depth = 0, forceExpand }: { goal: Strategic
 
 const GoalListRow = ({ goal, onRefresh, selection, depth = 0 }: { goal: StrategicGoal; onRefresh: () => void; selection: TableSelection; depth?: number }) => {
   const navigate = useNavigate();
+  const canEditGoals = useAccess().canEdit('strategicGoals');
   const required = requiredNames(goal);
   return (
     <>
@@ -128,11 +131,11 @@ const GoalListRow = ({ goal, onRefresh, selection, depth = 0 }: { goal: Strategi
           </span>
         </td>
         <td style={{ padding: '0.6rem 1rem', width: '110px' }} onClick={(event) => event.stopPropagation()}>
-          <div style={{ display: 'flex', gap: '0.2rem' }}>
+          {canEditGoals && <div style={{ display: 'flex', gap: '0.2rem' }}>
             <button type="button" onClick={() => navigate(`/strategic-goals/new?parentId=${goal.id}`)} className="secondary" style={{ height: '1.6rem', padding: '0 0.5rem' }} title="Add sub-goal"><Plus size={12} /></button>
             <button type="button" onClick={() => navigate(`/strategic-goals/${goal.id}/edit`)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0 }} title="Edit"><Edit2 size={12} /></button>
             <button type="button" onClick={() => confirmDelete(goal, onRefresh)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, color: 'var(--destructive)' }} title="Delete"><Trash2 size={12} /></button>
-          </div>
+          </div>}
         </td>
         <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
           {required.length > 0 ? required.map((capability) => capability.name).join(', ') : <span style={{ color: 'var(--muted-foreground)' }}>—</span>}
@@ -146,7 +149,9 @@ const GoalListRow = ({ goal, onRefresh, selection, depth = 0 }: { goal: Strategi
 
 export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[]; onRefresh: () => void }) => {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_strategic_goals_view', 'grid');
+  const canEditGoals = useAccess().canEdit('strategicGoals');
+  const [storedViewMode, setViewMode] = useLocalStorage<'grid' | 'list' | 'edit'>('openea_strategic_goals_view', 'grid');
+  const viewMode = storedViewMode === 'edit' && !canEditGoals ? 'list' : storedViewMode;
   const [search, setSearch] = useLocalStorage('openea_strategic_goals_search', '');
   const [forceExpand, setForceExpand] = useState({ state: true, timestamp: 0 });
   const query = search.trim().toLowerCase();
@@ -197,12 +202,12 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button type="button" onClick={() => setViewMode('grid')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'grid' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }} title="Cards"><LayoutGrid size={14} /></button>
             <button type="button" onClick={() => setViewMode('list')} style={{ height: '1.8rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }} title="List"><List size={14} /></button>
-            <AdvancedEditButton compact active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+            {canEditGoals && <AdvancedEditButton compact active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />}
           </div>
-          <button type="button" onClick={() => navigate('/strategic-goals/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
+          {canEditGoals && <button type="button" onClick={() => navigate('/strategic-goals/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '1.8rem', fontSize: '0.8rem' }}>
             <PlusCircle size={14} />
             New
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -237,6 +242,7 @@ export const StrategicGoalsView = ({ goals, onRefresh }: { goals: StrategicGoal[
             deletePath={(id) => `/api/strategic-goals/${id}`}
             editPath={(id) => `/strategic-goals/${id}/edit`}
             onRefresh={onRefresh}
+            writable={canEditGoals}
           />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>

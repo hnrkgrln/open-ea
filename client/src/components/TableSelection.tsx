@@ -171,6 +171,7 @@ export function SelectionBar({
   deletePath,
   editPath,
   onRefresh,
+  writable = true,
 }: {
   selection: TableSelection;
   singular: string;
@@ -179,6 +180,7 @@ export function SelectionBar({
   deletePath: (id: string) => string;
   editPath: (id: string) => string;
   onRefresh: () => void;
+  writable?: boolean;
 }) {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -219,14 +221,16 @@ export function SelectionBar({
   return (
     <div className="table-selection-bar" role="toolbar" aria-label="Selection actions">
       <span className="table-selection-count">{label} selected</span>
-      {selection.count === 1 && (
+      {writable && selection.count === 1 && (
         <button type="button" disabled={busy} onClick={() => navigate(editPath(selection.ids[0]))}>
           <Edit2 size={14} /> Edit
         </button>
       )}
+      {writable && (
       <button type="button" className="table-selection-delete" disabled={busy} onClick={() => void remove()}>
         <Trash2 size={14} /> {busy ? 'Deleting…' : 'Delete'}
       </button>
+      )}
       <button type="button" disabled={busy} onClick={selection.clear}>
         <X size={14} /> Clear
       </button>

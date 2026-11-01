@@ -4,6 +4,23 @@ import { Prisma, PrismaClient } from '@prisma/client';
 export const CURRENT_STATE_ID = 'current';
 export const landscapeContext = new AsyncLocalStorage<string>();
 
+// The signed-in account for portfolio writes in the current request. Null while
+// the workspace is still open. Copies use basePrisma and keep the original ids.
+const actorContext = new AsyncLocalStorage<string | null>();
+
+export function bindActor(userId: string | null, done: () => void) {
+  actorContext.run(userId, done);
+}
+
+export function currentActorId() {
+  const id = actorContext.getStore();
+  return typeof id === 'string' && id ? id : null;
+}
+
+export function withoutActor<T>(fn: () => Promise<T>): Promise<T> {
+  return actorContext.run(null, fn);
+}
+
 export class LandscapeStateError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -56,6 +73,82 @@ function stripState(data: unknown) {
   return next;
 }
 
+function stampActor(data: Record<string, unknown>, mode: 'create' | 'update') {
+  const actorId = currentActorId();
+  if (!actorId) return;
+  if (mode === 'create') data.createdById = actorId;
+  data.updatedById = actorId;
+}
+
+type AuditActor = { id: string; name: string; email: string };
+
+function isPlainObject(value: object) {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+// Replace stored user ids with the account's display name. A missing account
+// becomes null so the page can show a dash.
+async function attachActors(client: PrismaClient, value: unknown): Promise<unknown> {
+  const ids = new Set<string>();
+  const seen = new Set<object>();
+  const collect = (node: unknown) => {
+    if (!node || typeof node !== 'object' || node instanceof Date) return;
+    if (seen.has(node)) return;
+    seen.add(node);
+    if (Array.isArray(node)) {
+      node.forEach(collect);
+      return;
+    }
+    if (!isPlainObject(node)) return;
+    const record = node as Record<string, unknown>;
+    if (typeof record.createdById === 'string') ids.add(record.createdById);
+    if (typeof record.updatedById === 'string') ids.add(record.updatedById);
+    for (const child of Object.values(record)) collect(child);
+  };
+  collect(value);
+
+  const byId = new Map<string, AuditActor>();
+  if (ids.size > 0) {
+    const users = await client.user.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, name: true, email: true },
+    });
+    for (const user of users) byId.set(user.id, user);
+  }
+
+  const decorated = new Set<object>();
+  const apply = (node: unknown): unknown => {
+    if (!node || typeof node !== 'object' || node instanceof Date) return node;
+    if (decorated.has(node)) return node;
+    decorated.add(node);
+    if (Array.isArray(node)) {
+      let changed = false;
+      const next = node.map((item) => {
+        const child = apply(item);
+        if (child !== item) changed = true;
+        return child;
+      });
+      return changed ? next : node;
+    }
+    if (!isPlainObject(node)) return node;
+    const record = node as Record<string, unknown>;
+    let nested: Record<string, unknown> | null = null;
+    for (const [key, child] of Object.entries(record)) {
+      if (!child || typeof child !== 'object') continue;
+      const nextChild = apply(child);
+      if (nextChild === child) continue;
+      if (!nested) nested = { ...record };
+      nested[key] = nextChild;
+    }
+    if (!('createdById' in record) && !('updatedById' in record)) return nested ?? node;
+    const createdBy = typeof record.createdById === 'string' ? byId.get(record.createdById) ?? null : null;
+    const updatedBy = typeof record.updatedById === 'string' ? byId.get(record.updatedById) ?? null : null;
+    return { ...(nested ?? record), createdBy, updatedBy };
+  };
+  return apply(value);
+}
+
 function extendClient(client: PrismaClient): PrismaClient {
   function delegate(model: string): Delegate | null {
     switch (model) {
@@ -80,6 +173,7 @@ function extendClient(client: PrismaClient): PrismaClient {
     if (!data || typeof data !== 'object') return data;
     const next: Record<string, unknown> = { ...(data as Record<string, unknown>), stateId };
     delete next.state;
+    stampActor(next, 'create');
     if (typeof next.id === 'string' && next.id) {
       const row = await delegate(model)?.findUnique({ where: { id: next.id }, select: { stateId: true } });
       if (row && row.stateId !== stateId) delete next.id;
@@ -97,7 +191,16 @@ function extendClient(client: PrismaClient): PrismaClient {
 
           if (READ_SCOPED.has(operation)) {
             next.where = { AND: [next.where ?? {}, { stateId }] };
-            return query(next);
+            if (operation === 'updateMany') {
+              const data = stripState(next.data);
+              if (data && typeof data === 'object' && !Array.isArray(data)) stampActor(data as Record<string, unknown>, 'update');
+              next.data = data;
+            }
+            const result = await query(next);
+            if (operation === 'findMany' || operation === 'findFirst' || operation === 'findFirstOrThrow') {
+              return attachActors(client, result);
+            }
+            return result;
           }
 
           if (operation === 'findUnique' || operation === 'findUniqueOrThrow') {
@@ -107,19 +210,24 @@ function extendClient(client: PrismaClient): PrismaClient {
               if (operation === 'findUnique') return null;
               notFound(model);
             }
-            return query(args);
+            return attachActors(client, await query(args));
           }
 
           if (operation === 'update' || operation === 'delete') {
             const where = (next.where ?? {}) as { id?: string };
             if (!(await ownsRecord(model, where.id, stateId))) notFound(model);
-            if (operation === 'update') next.data = stripState(next.data);
+            if (operation === 'update') {
+              const data = stripState(next.data);
+              if (data && typeof data === 'object' && !Array.isArray(data)) stampActor(data as Record<string, unknown>, 'update');
+              next.data = data;
+              return attachActors(client, await query(next));
+            }
             return query(next);
           }
 
           if (operation === 'create') {
             next.data = await stampCreate(model, next.data, stateId);
-            return query(next);
+            return attachActors(client, await query(next));
           }
 
           if (operation === 'createMany') {
@@ -130,9 +238,11 @@ function extendClient(client: PrismaClient): PrismaClient {
           if (operation === 'upsert') {
             const where = (next.where ?? {}) as { id?: string };
             if (!(await ownsRecord(model, where.id, stateId))) notFound(model);
-            next.update = stripState(next.update);
+            const update = stripState(next.update);
+            if (update && typeof update === 'object' && !Array.isArray(update)) stampActor(update as Record<string, unknown>, 'update');
+            next.update = update;
             next.create = await stampCreate(model, next.create, stateId);
-            return query(next);
+            return attachActors(client, await query(next));
           }
 
           return query(args);
@@ -353,6 +463,8 @@ async function copyPortfolio(sourceStateId: string, stateId: string) {
           references: row.references,
           parentId: null,
           createdAt: row.createdAt,
+          createdById: row.createdById,
+          updatedById: row.updatedById,
         },
       });
     }
@@ -377,6 +489,8 @@ async function copyPortfolio(sourceStateId: string, stateId: string) {
           references: row.references,
           parentId: null,
           createdAt: row.createdAt,
+          createdById: row.createdById,
+          updatedById: row.updatedById,
         },
       });
     }
@@ -399,6 +513,8 @@ async function copyPortfolio(sourceStateId: string, stateId: string) {
           references: row.references,
           parentId: null,
           createdAt: row.createdAt,
+          createdById: row.createdById,
+          updatedById: row.updatedById,
           capabilities: connect(row.capabilities.map((capability) => mapped(capabilityIds, capability.id))),
         },
       });
@@ -439,6 +555,8 @@ async function copyPortfolio(sourceStateId: string, stateId: string) {
           metadata: row.metadata,
           references: row.references,
           createdAt: row.createdAt,
+          createdById: row.createdById,
+          updatedById: row.updatedById,
           capabilities: connect(row.capabilities.map((capability) => mapped(capabilityIds, capability.id))),
         },
       });
@@ -465,6 +583,8 @@ async function copyPortfolio(sourceStateId: string, stateId: string) {
           businessOwnerId: mapped(orgIds, row.businessOwnerId),
           appOwnerId: mapped(applicationIds, row.appOwnerId),
           createdAt: row.createdAt,
+          createdById: row.createdById,
+          updatedById: row.updatedById,
           processingApplications: connect(row.processingApplications.map((app) => mapped(applicationIds, app.id))),
         },
       });
@@ -489,6 +609,8 @@ async function copyPortfolio(sourceStateId: string, stateId: string) {
           crud: row.crud,
           references: row.references,
           createdAt: row.createdAt,
+          createdById: row.createdById,
+          updatedById: row.updatedById,
         },
       });
     }
@@ -748,6 +870,8 @@ export async function mergeLandscapeStateIntoCurrent(
             references: row.references,
             parentId: null,
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
           },
         });
       }
@@ -775,6 +899,8 @@ export async function mergeLandscapeStateIntoCurrent(
             references: row.references,
             parentId: null,
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
           },
         });
       }
@@ -800,6 +926,8 @@ export async function mergeLandscapeStateIntoCurrent(
             references: row.references,
             parentId: null,
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
             capabilities: connect(row.capabilities.map((c) => mapped(capMaps.targetToCurrent, c.id))),
           },
         });
@@ -853,6 +981,8 @@ export async function mergeLandscapeStateIntoCurrent(
             metadata: row.metadata,
             references: row.references,
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
             capabilities: connect(row.capabilities.map((c) => mapped(capMaps.targetToCurrent, c.id))),
           },
         });
@@ -892,6 +1022,8 @@ export async function mergeLandscapeStateIntoCurrent(
             businessOwnerId: mapped(orgMaps.targetToCurrent, row.businessOwnerId),
             appOwnerId: mapped(appMaps.targetToCurrent, row.appOwnerId),
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
             processingApplications: connect(row.processingApplications.map((a) => mapped(appMaps.targetToCurrent, a.id))),
           },
         });
@@ -937,6 +1069,8 @@ export async function mergeLandscapeStateIntoCurrent(
             crud: row.crud,
             references: row.references,
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
           },
         });
       }
@@ -960,6 +1094,8 @@ export async function mergeLandscapeStateIntoCurrent(
             crud: row.crud,
             references: row.references,
             createdAt: row.createdAt,
+            createdById: row.createdById,
+            updatedById: row.updatedById,
           },
         });
       }

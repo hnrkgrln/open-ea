@@ -7,6 +7,7 @@ import { OrganizationDiagram } from './OrganizationDiagram';
 import { FilterDot, MultiSelect, SearchInput } from './FilterControls';
 import { SelectionBar, SelectionHeader, SelectionRowCheck, collectTreeIds, useTableSelection, type TableSelection } from './TableSelection';
 import { AdvancedEditButton, AdvancedEditView } from './AdvancedEditView';
+import { useAccess } from '../access';
 import { organizationsTableCsv } from '../organizationExport';
 
 interface Organization {
@@ -34,6 +35,7 @@ const getPicklistInfo = (picklists: any[] | undefined, picklistName: string, val
 
 const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, showApps = false, depth = 0 }: { node: Organization, organizations: Organization[], picklists: any[], onRefresh: () => void, selection: TableSelection, showApps?: boolean, depth?: number }) => {
   const navigate = useNavigate();
+  const canEditOrg = useAccess().canEdit('organizations');
   const hasChildren = node.children && node.children.length > 0;
   const typeInfo = getPicklistInfo(picklists, 'organization_type', node.type);
   const directApps = useMemo(
@@ -76,11 +78,11 @@ const OrgListRow = ({ node, organizations, picklists, onRefresh, selection, show
           </div>
         </td>
         <td style={{ padding: '0.6rem 1rem', width: '110px' }}>
-          <div style={{ display: 'flex', gap: '0.2rem' }}>
+          {canEditOrg && <div style={{ display: 'flex', gap: '0.2rem' }}>
             <button onClick={() => navigate(`/organizations/new?parentId=${node.id}`)} className="secondary" style={{ height: '1.6rem', padding: '0 0.5rem' }} title="Add Sub-organization"><Plus size={12} /></button>
             <button onClick={() => navigate(`/organizations/${node.id}/edit`)} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0 }}><Edit2 size={12} /></button>
             <button onClick={async () => { if(confirm('Delete?')) { await fetch(`/api/organizations/${node.id}`, {method: 'DELETE'}); onRefresh(); } }} className="secondary" style={{ height: '1.6rem', width: '1.6rem', padding: 0, color: 'var(--destructive)' }}><Trash2 size={12} /></button>
-          </div>
+          </div>}
         </td>
         <td style={{ padding: '0.6rem 1rem' }}>
           <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -150,10 +152,12 @@ const EMPTY_ORG_FILTERS = { search: '', type: [] as string[], parentId: [] as st
 
 export const OrganizationsView = ({ organizations, onRefresh }: { organizations: Organization[], onRefresh: () => void }) => {
   const navigate = useNavigate();
+  const canEditOrg = useAccess().canEdit('organizations');
   // Tree (diagram) is the default. Stored values from older sessions ('grid')
   // are normalized to 'tree' so existing users land in the new default view.
   const [storedView, setViewMode] = useLocalStorage<string>('openea_organizations_view', 'tree');
-  const viewMode: 'list' | 'tree' | 'edit' = storedView === 'list' ? 'list' : storedView === 'edit' ? 'edit' : 'tree';
+  const storedMode: 'list' | 'tree' | 'edit' = storedView === 'list' ? 'list' : storedView === 'edit' ? 'edit' : 'tree';
+  const viewMode: 'list' | 'tree' | 'edit' = storedMode === 'edit' && !canEditOrg ? 'list' : storedMode;
   const [showApps, setShowApps] = useLocalStorage<boolean>('openea_organizations_show_apps', false);
   const [filters, setFilters] = useLocalStorage('openea_organizations_filters', EMPTY_ORG_FILTERS);
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: () => fetch('/api/picklists').then(res => res.json()) });
@@ -377,12 +381,12 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
           <div style={{ display: 'flex', background: 'var(--secondary)', padding: '0.15rem', borderRadius: 'var(--radius)', gap: '0.15rem' }}>
             <button onClick={() => setViewMode('tree')} title="Diagram view" style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'tree' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'tree' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><GitBranch size={14} /></button>
             <button onClick={() => setViewMode('list')} title="Table view" style={{ height: '2.2rem', padding: '0 0.6rem', border: 'none', background: viewMode === 'list' ? 'var(--background)' : 'transparent', boxShadow: viewMode === 'list' ? '0 1px 2px rgba(0,0,0,0.1)' : 'none', cursor: 'pointer' }}><List size={14} /></button>
-            <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />
+            {canEditOrg && <AdvancedEditButton active={viewMode === 'edit'} onClick={() => setViewMode('edit')} />}
           </div>
-          <button onClick={() => navigate('/organizations/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
+          {canEditOrg && <button onClick={() => navigate('/organizations/new')} className="primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', height: '2.2rem', fontSize: '0.9rem' }}>
             <PlusCircle size={14} />
             New Organization
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -406,6 +410,7 @@ export const OrganizationsView = ({ organizations, onRefresh }: { organizations:
             deletePath={(id) => `/api/organizations/${id}`}
             editPath={(id) => `/organizations/${id}/edit`}
             onRefresh={onRefresh}
+            writable={canEditOrg}
           />
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
