@@ -41,8 +41,8 @@ const LEVELS: { value: AccessLevel; label: string }[] = [
 ];
 
 const BUILTIN_SUMMARY: Record<string, string> = {
-  administrators: 'Edit every portfolio area and all settings, including users, groups, the meta model, frameworks, AI, branding, import and export, and landscape states. This group cannot be changed or removed.',
-  architects: 'Edit every portfolio area: applications, organizations, capabilities, strategic goals, information, integrations, diagrams, and insights. Merging a target state into Current, and applying a transformation, are included. Creating, renaming, and deleting landscape states stays with Administrators, along with the rest of Settings.',
+  administrators: 'Edit every portfolio area and all settings, including users, groups, the meta model, frameworks, AI, branding, and import and export. Landscape states and transformations are shared with Architects. This group cannot be changed or removed.',
+  architects: 'Edit every portfolio area: applications, organizations, capabilities, strategic goals, information, integrations, diagrams, and insights. Create, rename, delete, and merge landscape states, and model and apply transformations. Settings stay with Administrators.',
   viewers: 'View every portfolio area, including other landscape states and transformations. Nothing can be edited, and a target state cannot be merged into Current. Settings stay closed.',
 };
 

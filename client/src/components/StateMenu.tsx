@@ -407,9 +407,7 @@ export const TargetStateBanner = () => {
 
 export const StateMenu = () => {
   const queryClient = useQueryClient();
-  const access = useAccess();
-  const admin = access.admin;
-  const canPromote = access.canPromoteLandscape();
+  const canPromote = useAccess().canPromoteLandscape();
   const { activeId, isTarget, label, states, switchTo } = useLandscapeStateController();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -536,8 +534,8 @@ export const StateMenu = () => {
                     <span className="model-menu-label">{state.name}</span>
                     <span className="model-menu-desc">{sourceName(state)}</span>
                   </span>
-                  {(admin || canPromote) && <span className="state-menu-actions">
-                    {canPromote && <button
+                  {canPromote && <span className="state-menu-actions">
+                    <button
                       type="button"
                       data-state-action="merge"
                       title="Merge into Current"
@@ -550,8 +548,8 @@ export const StateMenu = () => {
                       }}
                     >
                       <GitMerge size={13} />
-                    </button>}
-                    {admin && <button
+                    </button>
+                    <button
                       type="button"
                       data-state-action="rename"
                       title="Rename"
@@ -565,8 +563,8 @@ export const StateMenu = () => {
                       }}
                     >
                       <Pencil size={13} />
-                    </button>}
-                    {admin && <button
+                    </button>
+                    <button
                       type="button"
                       data-state-action="delete"
                       title="Delete"
@@ -578,13 +576,13 @@ export const StateMenu = () => {
                       }}
                     >
                       <Trash2 size={13} />
-                    </button>}
+                    </button>
                   </span>}
                 </span>
               </DropdownMenu.Item>
             ))}
-            {admin && <DropdownMenu.Separator className="state-menu-separator" />}
-            {admin && <DropdownMenu.Item
+            {canPromote && <DropdownMenu.Separator className="state-menu-separator" />}
+            {canPromote && <DropdownMenu.Item
               className="model-menu-item"
               onSelect={() => {
                 setFormError('');

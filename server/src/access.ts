@@ -281,8 +281,8 @@ const PROMOTE_AREAS = [
   'integrations',
 ] as const satisfies readonly Area[];
 
-// Merging a target state, or applying a transformation, replaces portfolio records in the earlier state.
-// That takes edit on every portfolio area. Administrators and Architects have it. Viewers do not.
+// Managing landscape states and promoting them into Current takes edit on every portfolio area.
+// Administrators and Architects have it. Viewers do not.
 export function canPromoteLandscape(principal: Principal) {
   return PROMOTE_AREAS.every((area) => canEditArea(principal, area));
 }
@@ -473,11 +473,6 @@ function isPublic(method: string, url: string) {
 function isAdminRoute(method: string, url: string) {
   if (url.startsWith('/access/users') || url.startsWith('/access/groups') || url === '/access/organizations') return true;
   if (url.startsWith('/access/identity-providers') || url === '/access/sso/settings') return true;
-  if (url.startsWith('/landscape-states')) {
-    if (method === 'GET' && (url === '/landscape-states' || url === '/landscape-states/:id/summary')) return false;
-    if (method === 'POST' && url === '/landscape-states/:id/merge') return false;
-    return true;
-  }
   if (url.startsWith('/picklists') || url.startsWith('/picklist-options')) return method !== 'GET';
   if (url.startsWith('/metadata-definitions')) return method !== 'GET';
   if (url === '/workspace') return method !== 'GET';
@@ -490,8 +485,7 @@ function isAdminRoute(method: string, url: string) {
 }
 
 function isPromoteRoute(method: string, url: string) {
-  if (method === 'POST' && url === '/landscape-states/:id/merge') return true;
-  if (method === 'GET' && url === '/landscape-states/:id/summary') return true;
+  if (url.startsWith('/landscape-states') && !(method === 'GET' && url === '/landscape-states')) return true;
   if (method === 'POST' && url === '/transformations/:id/apply') return true;
   return false;
 }
