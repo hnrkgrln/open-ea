@@ -381,7 +381,9 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { activeId, isTarget, switchTo } = useLandscapeStateController();
-  const canEditInsights = useAccess().canEdit('insights');
+  const access = useAccess();
+  const canEditInsights = access.canEdit('insights');
+  const canPromoteLandscape = access.canPromoteLandscape();
 
   const [activeTab, setActiveTab] = useState<'diagram' | 'steps' | 'impact'>('diagram');
   const [diagramEntityFilter, setDiagramEntityFilter] = useState<string>('all');
@@ -437,6 +439,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   });
 
   const canEdit = Boolean(isTarget && canEditInsights && detail && detail.toStateId === activeId);
+  const canApply = canEdit && canPromoteLandscape;
 
   const saveStepsList = async (nextSteps: Array<{
     id?: string;
@@ -619,7 +622,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
   };
 
   const openApplyModal = () => {
-    if (!detail || !canEdit) return;
+    if (!detail || !canApply) return;
     const today = new Date().toISOString().slice(0, 10);
     setBackupFromState(true);
     setBackupName(`Before ${detail.name} (${today})`.slice(0, 80));
@@ -631,7 +634,7 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
 
   const handleApplyTransformation = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!detail || !canEdit) return;
+    if (!detail || !canApply) return;
     setApplying(true);
     setApplyError('');
     try {
@@ -894,17 +897,19 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                   <Edit3 size={14} />
                   Edit Details
                 </button>
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={openApplyModal}
-                  disabled={detail.steps.length === 0}
-                  title={`Promote this transformation's changes from ${detail.toState.name} into ${detail.fromState.name}`}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
-                >
-                  <GitMerge size={14} />
-                  Apply to {detail.fromState.name}…
-                </button>
+                {canApply && (
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={openApplyModal}
+                    disabled={detail.steps.length === 0}
+                    title={`Promote this transformation's changes from ${detail.toState.name} into ${detail.fromState.name}`}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem' }}
+                  >
+                    <GitMerge size={14} />
+                    Apply to {detail.fromState.name}…
+                  </button>
+                )}
               </>
             ) : (
               <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', maxWidth: '36rem' }}>

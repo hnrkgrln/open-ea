@@ -333,6 +333,7 @@ const MergeStateDialog = ({
 
 export const TargetStateBanner = () => {
   const navigate = useNavigate();
+  const canPromote = useAccess().canPromoteLandscape();
   const { active, activeId, isTarget, label, sourceState, switchTo } = useLandscapeStateController();
   const [mergingOpen, setMergingOpen] = useState(false);
   if (!isTarget) return null;
@@ -368,15 +369,17 @@ export const TargetStateBanner = () => {
             <GitCompareArrows size={13} />
             <span>Transformations</span>
           </button>
-          <button
-            type="button"
-            className="target-state-merge"
-            onClick={() => setMergingOpen(true)}
-            title={`Merge "${label}" into the Current state`}
-          >
-            <GitMerge size={13} />
-            <span>Merge into Current…</span>
-          </button>
+          {canPromote && (
+            <button
+              type="button"
+              className="target-state-merge"
+              onClick={() => setMergingOpen(true)}
+              title={`Merge "${label}" into the Current state`}
+            >
+              <GitMerge size={13} />
+              <span>Merge into Current…</span>
+            </button>
+          )}
           <button
             type="button"
             className="target-state-return"
@@ -404,7 +407,9 @@ export const TargetStateBanner = () => {
 
 export const StateMenu = () => {
   const queryClient = useQueryClient();
-  const admin = useAccess().admin;
+  const access = useAccess();
+  const admin = access.admin;
+  const canPromote = access.canPromoteLandscape();
   const { activeId, isTarget, label, states, switchTo } = useLandscapeStateController();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -531,8 +536,8 @@ export const StateMenu = () => {
                     <span className="model-menu-label">{state.name}</span>
                     <span className="model-menu-desc">{sourceName(state)}</span>
                   </span>
-                  {admin && <span className="state-menu-actions">
-                    <button
+                  {(admin || canPromote) && <span className="state-menu-actions">
+                    {canPromote && <button
                       type="button"
                       data-state-action="merge"
                       title="Merge into Current"
@@ -545,8 +550,8 @@ export const StateMenu = () => {
                       }}
                     >
                       <GitMerge size={13} />
-                    </button>
-                    <button
+                    </button>}
+                    {admin && <button
                       type="button"
                       data-state-action="rename"
                       title="Rename"
@@ -560,8 +565,8 @@ export const StateMenu = () => {
                       }}
                     >
                       <Pencil size={13} />
-                    </button>
-                    <button
+                    </button>}
+                    {admin && <button
                       type="button"
                       data-state-action="delete"
                       title="Delete"
@@ -573,7 +578,7 @@ export const StateMenu = () => {
                       }}
                     >
                       <Trash2 size={13} />
-                    </button>
+                    </button>}
                   </span>}
                 </span>
               </DropdownMenu.Item>

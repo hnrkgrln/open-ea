@@ -272,6 +272,21 @@ export function canEditArea(principal: Principal, area: Area) {
   return principal.open || principal.admin || principal.areas[area] === 'edit';
 }
 
+const PROMOTE_AREAS = [
+  'organizations',
+  'applications',
+  'capabilities',
+  'strategicGoals',
+  'information',
+  'integrations',
+] as const satisfies readonly Area[];
+
+// Merging a target state, or applying a transformation, replaces portfolio records in the earlier state.
+// That takes edit on every portfolio area. Administrators and Architects have it. Viewers do not.
+export function canPromoteLandscape(principal: Principal) {
+  return PROMOTE_AREAS.every((area) => canEditArea(principal, area));
+}
+
 export function hasGlobalApplicationEdit(principal: Principal) {
   return canEditArea(principal, 'applications');
 }
@@ -458,7 +473,11 @@ function isPublic(method: string, url: string) {
 function isAdminRoute(method: string, url: string) {
   if (url.startsWith('/access/users') || url.startsWith('/access/groups') || url === '/access/organizations') return true;
   if (url.startsWith('/access/identity-providers') || url === '/access/sso/settings') return true;
-  if (url.startsWith('/landscape-states')) return !(method === 'GET' && url === '/landscape-states');
+  if (url.startsWith('/landscape-states')) {
+    if (method === 'GET' && (url === '/landscape-states' || url === '/landscape-states/:id/summary')) return false;
+    if (method === 'POST' && url === '/landscape-states/:id/merge') return false;
+    return true;
+  }
   if (url.startsWith('/picklists') || url.startsWith('/picklist-options')) return method !== 'GET';
   if (url.startsWith('/metadata-definitions')) return method !== 'GET';
   if (url === '/workspace') return method !== 'GET';
@@ -467,6 +486,13 @@ function isAdminRoute(method: string, url: string) {
     if (method === 'POST' && (url === '/llm/ask' || url === '/llm/application-suggestions' || url === '/llm/application-capability-suggestions')) return false;
     return true;
   }
+  return false;
+}
+
+function isPromoteRoute(method: string, url: string) {
+  if (method === 'POST' && url === '/landscape-states/:id/merge') return true;
+  if (method === 'GET' && url === '/landscape-states/:id/summary') return true;
+  if (method === 'POST' && url === '/transformations/:id/apply') return true;
   return false;
 }
 
@@ -500,6 +526,7 @@ export function accessGate(method: string, url: string | undefined, principal: P
     return { allow: false, status: 401, body: { error: 'Sign in required.', required: true } };
   }
   if (isAdminRoute(method, path) && !principal.admin) return forbid();
+  if (isPromoteRoute(method, path) && !canPromoteLandscape(principal)) return forbid();
   if (method === 'POST' && path === '/llm/ask') return canAsk(principal) ? { allow: true } : forbid();
   if (method === 'POST' && path === '/llm/application-suggestions') {
     return canEditSomeApplication(principal) ? { allow: true } : forbid();

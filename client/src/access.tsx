@@ -67,6 +67,15 @@ const SIGNED_OUT: AccessState = {
   ask: false,
 };
 
+const PROMOTE_AREAS: AccessArea[] = [
+  'organizations',
+  'applications',
+  'capabilities',
+  'strategicGoals',
+  'information',
+  'integrations',
+];
+
 const HOME: { area: AccessArea; path: string }[] = [
   { area: 'insights', path: '/insights' },
   { area: 'applications', path: '/apps' },
@@ -83,6 +92,7 @@ type AccessContextValue = AccessState & {
   homePath: string;
   canView: (area: AccessArea) => boolean;
   canEdit: (area: AccessArea) => boolean;
+  canPromoteLandscape: () => boolean;
   canEditApplication: (ownerOrgId: string | null | undefined) => boolean;
   canEditSomeApplication: () => boolean;
   signOut: () => Promise<void>;
@@ -158,6 +168,7 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     homePath: homePathFor(access),
     canView: (area) => access.admin || access.areas[area] === 'view' || access.areas[area] === 'edit',
     canEdit: (area) => access.admin || access.areas[area] === 'edit',
+    canPromoteLandscape: () => access.admin || PROMOTE_AREAS.every((area) => access.areas[area] === 'edit'),
     canEditApplication: (ownerOrgId) => {
       if (access.admin || access.areas.applications === 'edit') return true;
       if (!ownerOrgId) return false;
