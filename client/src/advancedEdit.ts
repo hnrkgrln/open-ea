@@ -4,6 +4,16 @@
 
 import { nativeFieldEnabled, type NativeFieldId } from './nativeFields';
 import { getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
+import {
+  buildCostScaleBands,
+  costTierForAmount,
+  DEFAULT_COST_CURRENCY,
+  DEFAULT_COST_SCALE,
+  estimateApplicationTco,
+  formatShortCost,
+  getCostUnits,
+  parseCostInput,
+} from './cost';
 
 export type EditKind = 'application' | 'capability' | 'organization' | 'strategicGoal' | 'information' | 'integration';
 
@@ -47,6 +57,8 @@ export type EditLookups = {
   information?: any[];
   goals?: any[];
   thresholds?: TimeThresholds;
+  costCurrency?: string;
+  costScale?: readonly number[];
 };
 
 const RECORD_PATH: Record<EditKind, (id: string) => string> = {
@@ -346,7 +358,7 @@ function multiColumn(id: string, label: string, key: string, options: PickOption
 }
 
 const META_SKIP: Record<string, Set<string>> = {
-  Application: new Set(['criticality', 'cost', 'functionalFit', 'technicalFit']),
+  Application: new Set(['criticality', 'annualCost', 'cost', 'functionalFit', 'technicalFit']),
   Capability: new Set(['criticality']),
   InformationObject: new Set(['confidentiality', 'integrity', 'availability', 'piiCategory', 'type']),
 };
@@ -518,7 +530,79 @@ function applicationColumns(lookups: EditLookups): EditColumn[] {
     get: (row) => str(row.criticality),
     locked: (row) => (Array.isArray(row.capabilities) && row.capabilities.length > 0 ? 'Inherited from linked capabilities.' : null),
   }));
-  columns.push(pickColumn({ id: 'cost', label: 'Cost', key: 'cost', options: optionsOf(lookups.picklists, 'application_cost'), get: (row) => str(row.cost) }));
+  const costCurrency = lookups.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = lookups.costScale ?? DEFAULT_COST_SCALE;
+  const units = getCostUnits(costCurrency);
+  const costBandOptions = optionsOf(lookups.picklists, 'application_cost');
+  const fallbackBands = buildCostScaleBands(costScale, costCurrency);
+  columns.push({
+    id: 'annualCost',
+    label: `Annual Cost (${costCurrency})`,
+    kind: 'text',
+    minWidth: 165,
+    placeholder: `e.g. 250 ${units[1].label}`,
+    hint: `Supports plain numbers or shortenings (${units.map(u => u.label).join(', ')}).`,
+    get: (row) =>
+      typeof row.annualCost === 'number' && Number.isFinite(row.annualCost)
+        ? formatShortCost(row.annualCost, costCurrency)
+        : '',
+    commit: (_row, value) => {
+      const raw = typeof value === 'string' ? value.trim() : '';
+      if (!raw) return { body: { annualCost: null, cost: null } };
+      const parsed = parseCostInput(raw, 1);
+      if (parsed.error || parsed.value === null) {
+        return { error: parsed.error || 'Enter a valid cost amount.' };
+      }
+      return {
+        body: {
+          annualCost: parsed.value,
+          cost: costTierForAmount(parsed.value, costScale),
+        },
+      };
+    },
+  });
+  columns.push({
+    id: 'costScaleBand',
+    label: 'Cost Scale',
+    kind: 'readonly',
+    minWidth: 135,
+    hint: 'Derived automatically from Annual Cost and the workspace cost scale.',
+    get: (row) => {
+      const tier =
+        typeof row.annualCost === 'number' && Number.isFinite(row.annualCost)
+          ? costTierForAmount(row.annualCost, costScale)
+          : row.cost
+          ? String(row.cost)
+          : null;
+      if (!tier) return '—';
+      return (
+        costBandOptions.find(o => o.value === tier)?.label ||
+        fallbackBands.find(b => b.value === tier)?.label ||
+        tier
+      );
+    },
+  });
+  columns.push({
+    id: 'estimatedTco',
+    label: 'Estimated TCO',
+    kind: 'readonly',
+    minWidth: 165,
+    hint: 'Calculated from Annual Cost and enabled lifecycle/contract dates.',
+    get: (row) => {
+      const tco = estimateApplicationTco({
+        annualCost: row.annualCost,
+        cost: row.cost,
+        lifecycleStartDate: row.lifecycleStartDate,
+        lifecycleEndDate: row.lifecycleEndDate,
+        contractStartDate: row.contractStartDate,
+        contractEndDate: row.contractEndDate,
+        disabledNativeFields: disabled,
+        currency: costCurrency,
+        costScale,
+      });
+      return tco ? `${tco.formattedTotal} (${tco.durationLabel})` : '—';
+    },
+  });
   columns.push(pickColumn({ id: 'functionalFit', label: 'Functional Fit', key: 'functionalFit', options: optionsOf(lookups.picklists, 'functional_fit'), get: (row) => str(row.functionalFit) }));
   columns.push(pickColumn({ id: 'technicalFit', label: 'Technical Fit', key: 'technicalFit', options: optionsOf(lookups.picklists, 'technical_fit'), get: (row) => str(row.technicalFit) }));
   columns.push({

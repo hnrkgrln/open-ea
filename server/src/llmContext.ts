@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, estimateApplicationTco, formatShortCost, normalizeCostCurrency, parseCostScale } from './cost.js';
 
 // Same rule as getAppTimeAssessment in client/src/timeAssessment.ts.
 // A missing functional or technical score is treated as 3, the stored default.
@@ -17,7 +18,7 @@ const NOTE_LIMIT = 160;
 const CONTEXT_CHAR_BUDGET = 100_000;
 
 const COLUMN_FIELDS: Record<string, ReadonlySet<string>> = {
-  Application: new Set(['criticality', 'cost', 'functionalFit', 'technicalFit']),
+  Application: new Set(['criticality', 'annualCost', 'cost', 'functionalFit', 'technicalFit']),
   Capability: new Set(['criticality']),
   InformationObject: new Set(['confidentiality', 'integrity', 'availability', 'piiCategory']),
 };
@@ -66,6 +67,7 @@ export type PortfolioSnapshot = {
     vendorSummary: string | null;
     type: string | null;
     criticality: string | null;
+    annualCost?: number | null;
     cost: string | null;
     functionalFit: string | null;
     technicalFit: string | null;
@@ -126,6 +128,8 @@ export type PortfolioSnapshot = {
     payload: Named | null;
   }>;
   metadataDefinitions: MetadataDefinitionRow[];
+  costCurrency?: string;
+  costScale?: readonly number[];
 };
 
 export function timeLabel(
@@ -273,6 +277,9 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
   });
   const attributeGuide = customAttributeGuide(snapshot.metadataDefinitions);
 
+  const costCurrency = normalizeCostCurrency(snapshot.costCurrency ?? DEFAULT_COST_CURRENCY);
+  const costScale = snapshot.costScale ?? DEFAULT_COST_SCALE;
+
   const applicationLines = applications.map((app) => {
     const lifecycleSpan = dateSpan(app.lifecycleStartDate, app.lifecycleEndDate);
     const lifecycle = app.lifecycle && lifecycleSpan
@@ -282,6 +289,20 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
         : lifecycleSpan
           ? `lifecycle: ${lifecycleSpan}`
           : null;
+    const annualCostLabel =
+      typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)
+        ? `${formatShortCost(app.annualCost, costCurrency)}/yr`
+        : null;
+    const tco = estimateApplicationTco({
+      annualCost: app.annualCost,
+      cost: app.cost,
+      lifecycleStartDate: app.lifecycleStartDate,
+      lifecycleEndDate: app.lifecycleEndDate,
+      contractStartDate: app.contractStartDate,
+      contractEndDate: app.contractEndDate,
+      currency: costCurrency,
+      costScale,
+    });
     return line(app.name, [
       field('type', app.type),
       field('owner', app.owner),
@@ -292,7 +313,9 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
       field('vendor summary', note(app.vendorSummary)),
       field('contract', dateSpan(app.contractStartDate, app.contractEndDate)),
       field('contract note', note(app.contractDetails)),
-      field('cost', app.cost),
+      field('annual cost', annualCostLabel),
+      field('cost tier', app.cost),
+      field('estimated TCO', tco ? `${tco.formattedTotal} (${tco.durationLabel}, ${tco.basisLabel})` : null),
       field('criticality', app.criticality),
       field('functional fit', app.functionalFit),
       field('technical fit', app.technicalFit),
@@ -378,7 +401,7 @@ export function formatPortfolioContext(snapshot: PortfolioSnapshot, includeNotes
 }
 
 async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
-  const [applications, strategicGoals, capabilities, organizations, informationObjects, integrations, metadataDefinitions] = await Promise.all([
+  const [applications, strategicGoals, capabilities, organizations, informationObjects, integrations, metadataDefinitions, wsRow] = await Promise.all([
     prisma.application.findMany({
       orderBy: { name: 'asc' },
       select: {
@@ -396,6 +419,7 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
         vendorSummary: true,
         type: true,
         criticality: true,
+        annualCost: true,
         cost: true,
         functionalFit: true,
         technicalFit: true,
@@ -474,9 +498,20 @@ async function loadPortfolio(prisma: PrismaClient): Promise<PortfolioSnapshot> {
       orderBy: { label: 'asc' },
       select: { entityType: true, fieldName: true, fieldType: true, label: true, description: true },
     }),
+    prisma.workspaceSettings.findUnique({ where: { id: 'default' } }),
   ]);
 
-  return { applications, strategicGoals, capabilities, organizations, informationObjects, integrations, metadataDefinitions };
+  return {
+    applications,
+    strategicGoals,
+    capabilities,
+    organizations,
+    informationObjects,
+    integrations,
+    metadataDefinitions,
+    costCurrency: normalizeCostCurrency(wsRow?.costCurrency ?? DEFAULT_COST_CURRENCY),
+    costScale: parseCostScale(wsRow?.costScale ?? DEFAULT_COST_SCALE),
+  };
 }
 
 // Full compact snapshot for a question or a future tip. Callers decide when it is needed.

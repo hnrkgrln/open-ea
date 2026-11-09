@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { activeStateId, basePrisma, createLandscapeState, CURRENT_STATE_ID, currentActorId, LandscapeStateError, type LandscapeStateView } from './landscape.js';
+import { DEFAULT_COST_CURRENCY, formatShortCost, normalizeCostCurrency } from './cost.js';
 
 export const TRANSFORMATION_STATUSES = ['Planned', 'In Progress', 'Completed', 'On Hold'] as const;
 export type TransformationStatus = (typeof TRANSFORMATION_STATUSES)[number];
@@ -350,7 +351,11 @@ export function computeDiffSuggestionsFromSnapshots(
     if (normKey(fromApp.functionalFit) !== normKey(toApp.functionalFit)) {
       changes.push(`Func Fit: ${fromApp.functionalFit || '—'} → ${toApp.functionalFit || '—'}`);
     }
-    if (normKey(fromApp.cost) !== normKey(toApp.cost)) {
+    if (fromApp.annualCost !== toApp.annualCost) {
+      const fmt = (v: number | null | undefined) =>
+        typeof v === 'number' && Number.isFinite(v) ? formatShortCost(v, DEFAULT_COST_CURRENCY) : '—';
+      changes.push(`Annual cost: ${fmt(fromApp.annualCost)} → ${fmt(toApp.annualCost)}`);
+    } else if (normKey(fromApp.cost) !== normKey(toApp.cost)) {
       changes.push(`Cost: ${fromApp.cost || '—'} → ${toApp.cost || '—'}`);
     }
 
@@ -673,6 +678,7 @@ export async function getTransformationDetail(id: string) {
         ownerOrg: app.ownerOrg,
         lifecycle: app.lifecycle,
         criticality: app.criticality,
+        annualCost: app.annualCost,
         cost: app.cost,
         functionalFit: app.functionalFit,
         technicalFit: app.technicalFit,
@@ -816,12 +822,23 @@ export async function getTransformationDetail(id: string) {
   const sumCost = (apps: ReadonlyArray<{ cost?: string | null }>) =>
     apps.reduce((acc, a) => acc + parseNum(a.cost, 1), 0);
 
+  const sumAnnualCost = (apps: ReadonlyArray<{ annualCost?: number | null }>) =>
+    apps.reduce((acc, a) => acc + (typeof a.annualCost === 'number' && Number.isFinite(a.annualCost) ? a.annualCost : 0), 0);
+
+  const hasNumericAnnualCost =
+    predecessorApps.some(a => typeof a.annualCost === 'number' && Number.isFinite(a.annualCost)) ||
+    successorApps.some(a => typeof a.annualCost === 'number' && Number.isFinite(a.annualCost));
+  const wsRow = await basePrisma.workspaceSettings.findUnique({ where: { id: 'default' } });
+  const costCurrency = normalizeCostCurrency(wsRow?.costCurrency ?? DEFAULT_COST_CURRENCY);
+
   const avgTechFitBefore = avgMetric(predecessorApps, 'technicalFit');
   const avgTechFitAfter = avgMetric(successorApps, 'technicalFit');
   const avgFuncFitBefore = avgMetric(predecessorApps, 'functionalFit');
   const avgFuncFitAfter = avgMetric(successorApps, 'functionalFit');
   const totalCostBefore = sumCost(predecessorApps);
   const totalCostAfter = sumCost(successorApps);
+  const annualCostBefore = sumAnnualCost(predecessorApps);
+  const annualCostAfter = sumAnnualCost(successorApps);
 
   // Integration Impact Analysis:
   // Find all integrations in fromState touching any predecessorApp
@@ -1050,6 +1067,11 @@ export async function getTransformationDetail(id: string) {
         totalCostBefore,
         totalCostAfter,
         costDelta: totalCostAfter - totalCostBefore,
+        annualCostBefore,
+        annualCostAfter,
+        annualCostDelta: annualCostAfter - annualCostBefore,
+        hasNumericAnnualCost,
+        costCurrency,
         retiredCount,
         introducedCount,
         consolidatedCount,
@@ -1430,6 +1452,7 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               vendorSummary: toApp.vendorSummary,
               type: toApp.type,
               criticality: toApp.criticality,
+              annualCost: toApp.annualCost,
               cost: toApp.cost,
               functionalFit: toApp.functionalFit,
               technicalFit: toApp.technicalFit,
@@ -1463,6 +1486,7 @@ export async function applyTransformation(id: string, options: ApplyTransformati
               vendorSummary: toApp.vendorSummary,
               type: toApp.type,
               criticality: toApp.criticality,
+              annualCost: toApp.annualCost,
               cost: toApp.cost,
               functionalFit: toApp.functionalFit,
               technicalFit: toApp.technicalFit,

@@ -24,7 +24,8 @@ model Application {
   vendorSummary String?
   type          String?
   criticality   String?       @default("3")
-  cost          String?       @default("1")
+  annualCost    Float?
+  cost          String?
   functionalFit String?       @default("3")
   technicalFit  String?       @default("3")
   timeRationale String?
@@ -286,8 +287,11 @@ model WorkspaceSettings {
   id                   String   @id
   brandName            String
   disabledNativeFields String   @default("[]")
+  costCurrency         String   @default("SEK")
+  costScale            String   @default("[100000,500000,1000000,5000000]")
   // Address of this workspace, used to build sign-in callbacks. Empty until an administrator saves it.
   publicBaseUrl        String   @default("")
+  onboardingCompleted  Boolean  @default(false)
   updatedAt            DateTime @updatedAt
 }
 

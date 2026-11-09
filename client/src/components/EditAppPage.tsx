@@ -16,6 +16,19 @@ import { DEFAULT_TIME_THRESHOLDS, type TimeThresholds, useLocalStorage } from '.
 import { getAppTimeAssessment } from '../timeAssessment';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import {
+  buildCostScaleBands,
+  costTierForAmount,
+  decomposeCostForEditor,
+  DEFAULT_COST_CURRENCY,
+  DEFAULT_COST_SCALE,
+  estimateApplicationTco,
+  formatFullCost,
+  formatShortCost,
+  getCostUnits,
+  parseCostInput,
+  type CostUnitKey,
+} from '../cost';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
@@ -95,7 +108,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     contractDetails: '',
     type: '',
     criticality: '3',
-    cost: '1',
+    cost: '',
     functionalFit: '3',
     technicalFit: '3',
     timeRationale: '',
@@ -103,6 +116,9 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     vendorUrl: '',
     vendorSummary: '',
   });
+  const [annualCostText, setAnnualCostText] = useState('');
+  const [annualCostUnit, setAnnualCostUnit] = useState<CostUnitKey>('thousand');
+  const [annualCostTouched, setAnnualCostTouched] = useState(false);
   const [selectedCapIds, setSelectedCapIds] = useState<string[]>([]);
   const [selectedInfoIds, setSelectedInfoIds] = useState<string[]>([]);
   const [infoSearch, setInfoSearch] = useState('');
@@ -148,6 +164,10 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
   useLayoutEffect(() => {
     if (app?.id && !isNew && !hydrated) {
       const storedVendor = applicationVendor(app);
+      const decomposedCost = decomposeCostForEditor(app.annualCost, workspace?.costCurrency);
+      setAnnualCostText(decomposedCost.text);
+      setAnnualCostUnit(decomposedCost.unitKey);
+      setAnnualCostTouched(false);
       setFormData({
         name: app.name || '',
         description: app.description || '',
@@ -161,7 +181,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
         contractDetails: app.contractDetails || '',
         type: app.type || '',
         criticality: String(app.criticality || '3'),
-        cost: String(app.cost || '1'),
+        cost: app.cost ? String(app.cost) : '',
         functionalFit: String(app.functionalFit || '3'),
         technicalFit: String(app.technicalFit || '3'),
         timeRationale: app.timeRationale || '',
@@ -252,12 +272,63 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     return inheritedValue ? Number(inheritedValue) : Number(formData.criticality || 3);
   }, [inheritedValue, formData.criticality]);
 
+  const costCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
+  const costUnits = useMemo(() => getCostUnits(costCurrency), [costCurrency]);
+  const selectedCostUnitObj = useMemo(
+    () => costUnits.find(u => u.key === annualCostUnit) ?? costUnits[1],
+    [costUnits, annualCostUnit]
+  );
+  const parsedAnnualCost = useMemo(
+    () => parseCostInput(annualCostText, selectedCostUnitObj.multiplier),
+    [annualCostText, selectedCostUnitObj.multiplier]
+  );
+  const effectiveCostTier = useMemo(() => {
+    if (parsedAnnualCost.value !== null) {
+      return costTierForAmount(parsedAnnualCost.value, costScale);
+    }
+    if (!isNew && !annualCostTouched && formData.cost) {
+      return formData.cost;
+    }
+    return null;
+  }, [parsedAnnualCost.value, costScale, isNew, annualCostTouched, formData.cost]);
+
+  const liveTcoPreview = useMemo(() => {
+    return estimateApplicationTco({
+      annualCost: parsedAnnualCost.value,
+      cost: effectiveCostTier,
+      lifecycleStartDate: formData.lifecycleStartDate || null,
+      lifecycleEndDate: formData.lifecycleEndDate || null,
+      contractStartDate: formData.contractStartDate || null,
+      contractEndDate: formData.contractEndDate || null,
+      disabledNativeFields: workspace?.disabledNativeFields,
+      currency: costCurrency,
+      costScale,
+    });
+  }, [
+    parsedAnnualCost.value,
+    effectiveCostTier,
+    formData.lifecycleStartDate,
+    formData.lifecycleEndDate,
+    formData.contractStartDate,
+    formData.contractEndDate,
+    workspace?.disabledNativeFields,
+    costCurrency,
+    costScale,
+  ]);
+
+  const costScaleOptions = useMemo(() => {
+    const fromPicklist = picklists?.find(p => p.name === 'application_cost')?.options;
+    if (fromPicklist && fromPicklist.length > 0) return fromPicklist;
+    return buildCostScaleBands(costScale, costCurrency);
+  }, [picklists, costScale, costCurrency]);
+
   const timeAssessment = useMemo(() => {
     const crit = effectiveCriticality;
-    const cost = Number(formData.cost);
+    const cost = effectiveCostTier ? Number(effectiveCostTier) : 0;
     const costCutoff = activeThresholds?.cost ?? 4;
     const critCutoff = activeThresholds?.businessCriticality ?? 4;
-    const isCostHigh = cost >= costCutoff;
+    const isCostHigh = cost > 0 && cost >= costCutoff;
     const isCritHigh = crit >= critCutoff;
     const assessment = getAppTimeAssessment(
       { technicalFit: formData.technicalFit, functionalFit: formData.functionalFit },
@@ -295,7 +366,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
       isCostHigh,
       isCritHigh,
     };
-  }, [formData.technicalFit, formData.functionalFit, formData.cost, effectiveCriticality, activeThresholds]);
+  }, [formData.technicalFit, formData.functionalFit, effectiveCostTier, effectiveCriticality, activeThresholds]);
 
   const previewAppItem = useMemo(() => ({
     id: id || 'preview-app',
@@ -303,8 +374,9 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
     technicalFit: formData.technicalFit,
     functionalFit: formData.functionalFit,
     criticality: effectiveCriticality,
-    cost: formData.cost,
-  }), [id, formData.name, isNew, formData.technicalFit, formData.functionalFit, effectiveCriticality, formData.cost]);
+    cost: effectiveCostTier,
+    annualCost: parsedAnnualCost.value,
+  }), [id, formData.name, isNew, formData.technicalFit, formData.functionalFit, effectiveCriticality, effectiveCostTier, parsedAnnualCost.value]);
 
   const globalApplicationEdit = access.canEditApplication(null);
   const applicationEditIds = access.applicationEdits;
@@ -362,9 +434,24 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
       alert("Invalid ID. Cannot save changes.");
       return;
     }
+    if (annualCostText.trim() !== '' && parsedAnnualCost.error) {
+      alert(parsedAnnualCost.error);
+      return;
+    }
     setLoading(true);
+    const restFormData: Record<string, unknown> = { ...formData };
+    delete restFormData.cost;
+    const costPayload: { annualCost?: number | null; cost?: string | null } = {};
+    if (parsedAnnualCost.value !== null) {
+      costPayload.annualCost = parsedAnnualCost.value;
+      costPayload.cost = costTierForAmount(parsedAnnualCost.value, costScale);
+    } else if (isNew || annualCostTouched) {
+      costPayload.annualCost = null;
+      costPayload.cost = null;
+    }
     const payload = { 
-      ...formData, 
+      ...restFormData,
+      ...costPayload,
       ownerOrgId: formData.ownerOrgId === '' ? null : formData.ownerOrgId,
       lifecycleStartDate: formData.lifecycleStartDate ? new Date(formData.lifecycleStartDate).toISOString() : null,
       lifecycleEndDate: formData.lifecycleEndDate ? new Date(formData.lifecycleEndDate).toISOString() : null,
@@ -457,7 +544,6 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
 
   const strategicPicklists = [
     { label: 'Business Criticality', key: 'criticality', scaleType: 'importance', options: picklists?.find(p => p.name === 'criticality')?.options || [] },
-    { label: 'Cost', key: 'cost', scaleType: 'good-bad', options: picklists?.find(p => p.name === 'application_cost')?.options || [] },
     { label: 'Functional Fit', key: 'functionalFit', scaleType: 'bad-good', options: picklists?.find(p => p.name === 'functional_fit')?.options || [] },
     { label: 'Technical Fit', key: 'technicalFit', scaleType: 'bad-good', options: picklists?.find(p => p.name === 'technical_fit')?.options || [] },
   ];
@@ -781,6 +867,83 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', alignItems: 'start' }}>
                 {/* Sliders Column */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* Numeric Annual Cost input + shortening unit */}
+                  {(() => {
+                    const matchedBand = effectiveCostTier
+                      ? costScaleOptions.find((o: { value: string; label: string; color?: string | null }) => String(o.value) === String(effectiveCostTier))
+                      : null;
+                    return (
+                      <div className="field" style={{ marginBottom: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.55rem', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <label className="label" htmlFor="annual-cost-input" style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: 0 }}>
+                              Annual Cost ({costCurrency})
+                            </label>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--muted-foreground)', fontWeight: 600 }}>
+                              Run / license cost per year (supports shortenings like 250 {costUnits[1].label} or 0,5 {costUnits[2].label})
+                            </span>
+                          </div>
+                          {matchedBand && (
+                            <div style={{ fontSize: '0.75rem', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', background: 'var(--secondary)', padding: '0.2rem 0.55rem', borderRadius: '999px', border: '1px solid var(--border)', flexShrink: 0 }}>
+                              {matchedBand.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: matchedBand.color }} />}
+                              <span>{matchedBand.label}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 110px', gap: '0.5rem', alignItems: 'center' }}>
+                          <input
+                            id="annual-cost-input"
+                            type="text"
+                            inputMode="decimal"
+                            value={annualCostText}
+                            onChange={e => {
+                              setAnnualCostText(e.target.value);
+                              setAnnualCostTouched(true);
+                            }}
+                            placeholder={`e.g. 250`}
+                            style={{ padding: '0.55rem 0.75rem', fontSize: '0.9rem', height: '2.2rem', fontWeight: 600 }}
+                          />
+                          <select
+                            aria-label="Annual cost unit"
+                            value={annualCostUnit}
+                            onChange={e => {
+                              const nextKey = e.target.value as CostUnitKey;
+                              setAnnualCostUnit(nextKey);
+                              setAnnualCostTouched(true);
+                            }}
+                            style={{ height: '2.2rem', padding: '0 0.6rem', fontSize: '0.82rem', fontWeight: 700, borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
+                          >
+                            {costUnits.map(u => (
+                              <option key={u.key} value={u.key}>{u.label}/yr</option>
+                            ))}
+                          </select>
+                        </div>
+                        {annualCostText.trim() !== '' && parsedAnnualCost.error && (
+                          <div style={{ fontSize: '0.72rem', color: '#c92a2a', fontWeight: 600, marginTop: '0.35rem' }}>
+                            {parsedAnnualCost.error}
+                          </div>
+                        )}
+                        {parsedAnnualCost.value !== null && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.35rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'space-between' }}>
+                            <span>
+                              Stored: <strong>{formatShortCost(parsedAnnualCost.value, costCurrency)}/yr</strong> ({formatFullCost(parsedAnnualCost.value, costCurrency)})
+                            </span>
+                            {liveTcoPreview && (
+                              <span>
+                                {liveTcoPreview.title}: <strong>{liveTcoPreview.formattedTotal}</strong> ({liveTcoPreview.durationLabel})
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        {parsedAnnualCost.value === null && !annualCostTouched && formData.cost && matchedBand && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)', marginTop: '0.35rem' }}>
+                            Currently using scale band <strong>{matchedBand.label}</strong> — enter a numeric amount for exact TCO.
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {strategicPicklists.map(item => {
                     const isDisabled = item.key === 'criticality' && isFieldDisabled;
                     const minVal = item.options.length > 0 ? Math.min(...item.options.map((o: any) => Number(o.value) || 1)) : 1;
@@ -867,6 +1030,7 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                       singleApp={previewAppItem}
                       selectedAppId={previewAppItem.id}
                       thresholds={activeThresholds}
+                      costCurrency={costCurrency}
                       aspectRatio="1 / 1"
                       showLegend={true}
                     />
@@ -911,12 +1075,16 @@ export const EditAppPage: React.FC<Props> = ({ timeThresholds: propTimeThreshold
                     </div>
 
                     <div style={{ textAlign: 'center', background: 'var(--card)', padding: '0.5rem 0.2rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700 }}>Cost</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: timeAssessment.isCostHigh ? '#e67700' : 'var(--foreground)' }}>
-                        {formData.cost}/5
+                      <div style={{ fontSize: '0.6rem', color: 'var(--muted-foreground)', textTransform: 'uppercase', fontWeight: 700 }}>Annual Cost</div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 800, color: timeAssessment.isCostHigh ? '#e67700' : 'var(--foreground)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '0 0.15rem' }}>
+                        {parsedAnnualCost.value !== null
+                          ? formatShortCost(parsedAnnualCost.value, costCurrency)
+                          : effectiveCostTier
+                          ? `${effectiveCostTier}/5`
+                          : '—'}
                       </div>
                       <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)' }}>
-                        {timeAssessment.isCostHigh ? 'High' : 'Normal'} (≥{activeThresholds?.cost ?? 4})
+                        {effectiveCostTier ? `${timeAssessment.isCostHigh ? 'High' : 'Normal'} (${effectiveCostTier}/5)` : 'Unset'}
                       </div>
                     </div>
                   </div>

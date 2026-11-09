@@ -1,7 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { Download, Upload, CheckCircle2, XCircle, Loader2, X } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Download, Upload, CheckCircle2, XCircle, Loader2, X, Sparkles, Eye, ChevronDown, ChevronUp } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { orderByParent, prepareImportPayload, toCsv, type ArtifactType } from '../portableRecords';
+import { ExampleCsvPreview, ExampleDataManager, FlatCsvAiImporter } from './OnboardingGuide';
+import { normalizeWorkspaceSettings, type WorkspaceSettings } from '../workspaceSettings';
 
 interface ImportExportProps {
   type: ArtifactType;
@@ -401,6 +404,8 @@ const IMPORT_STEPS = [
 ];
 
 export const ImportExportSettings = ({ onRefresh, apps, strategicGoals, capabilities, organizations, informationObjects, integrations }: { onRefresh: () => void, apps: any[], strategicGoals: any[], capabilities: any[], organizations: any[], informationObjects: any[], integrations: any[] }) => {
+  const queryClient = useQueryClient();
+  const [expandedStepExample, setExpandedStepExample] = useState<ArtifactType | null>(null);
   const dataByKey = { apps, strategicGoals, capabilities, organizations, informationObjects, integrations };
 
   const exportAll = () => {
@@ -412,23 +417,44 @@ export const ImportExportSettings = ({ onRefresh, apps, strategicGoals, capabili
     downloadBlob(zipStored(files), `openea_export_${day}.zip`);
   };
 
+  const launchSetupGuide = async () => {
+    const res = await fetch('/api/workspace', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ onboardingCompleted: false }),
+    });
+    if (res.ok) {
+      const saved = await res.json();
+      queryClient.setQueryData(
+        ['workspace'],
+        normalizeWorkspaceSettings(saved, queryClient.getQueryData<WorkspaceSettings>(['workspace'])),
+      );
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '1rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
         <div>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Data Portability</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', maxWidth: '40rem' }}>
-            The numbered steps are the import order. Export downloads every model at once, as CSV files in one archive.
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Data Portability & Onboarding</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', maxWidth: '42rem' }}>
+            The numbered steps follow the dependency order (every step is optional). You can also map a flat CSV matrix with AI or activate/deactivate seeded example data per concept below.
           </p>
         </div>
-        <button onClick={exportAll} className="secondary" style={{ height: '2.2rem', padding: '0 0.85rem', display: 'flex', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem', flexShrink: 0 }}>
-          <Download size={15} /> Export all
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
+          <button onClick={launchSetupGuide} className="secondary" style={{ height: '2.2rem', padding: '0 0.85rem', display: 'flex', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
+            <Sparkles size={15} /> Launch Setup Guide
+          </button>
+          <button onClick={exportAll} className="secondary" style={{ height: '2.2rem', padding: '0 0.85rem', display: 'flex', gap: '0.4rem', alignItems: 'center', fontSize: '0.85rem' }}>
+            <Download size={15} /> Export all
+          </button>
+        </div>
       </div>
 
       <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }}>
         {IMPORT_STEPS.map((step, index) => {
           const isLast = index === IMPORT_STEPS.length - 1;
+          const isExampleOpen = expandedStepExample === step.type;
           return (
             <li key={step.type} style={{ display: 'grid', gridTemplateColumns: '2.75rem minmax(0, 1fr)', columnGap: '0.85rem' }}>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }} aria-hidden="true">
@@ -452,12 +478,29 @@ export const ImportExportSettings = ({ onRefresh, apps, strategicGoals, capabili
               <div className="card" style={{ padding: '1rem 1.1rem', marginBottom: isLast ? 0 : '0.35rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--brand-focus)', marginBottom: '0.2rem' }}>{step.reason}</div>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--brand-focus)', marginBottom: '0.2rem' }}>
+                      {step.reason} · Optional
+                    </div>
                     <h3 style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.01em', margin: 0 }}>{step.title}</h3>
                     <p style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)', margin: '0.3rem 0 0' }}>{step.description}</p>
                   </div>
-                  <ImportExport type={step.type} onImportSuccess={onRefresh} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedStepExample(isExampleOpen ? null : step.type)}
+                      className="secondary"
+                      style={{ height: '1.8rem', padding: '0 0.6rem', display: 'flex', gap: '0.35rem', alignItems: 'center', fontSize: '0.78rem' }}
+                    >
+                      <Eye size={13} />
+                      {isExampleOpen ? 'Hide Example' : 'Example Data'}
+                      {isExampleOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                    </button>
+                    <ImportExport type={step.type} onImportSuccess={onRefresh} />
+                  </div>
                 </div>
+                {isExampleOpen && (
+                  <ExampleCsvPreview type={step.type} filename={step.file} compact />
+                )}
               </div>
             </li>
           );
@@ -469,6 +512,12 @@ export const ImportExportSettings = ({ onRefresh, apps, strategicGoals, capabili
           <strong style={{ color: 'var(--foreground)' }}>Updating records.</strong> Include the <code>id</code> column to update existing rows. Leave <code>id</code> empty to create new ones. Relation columns such as <code>ownerOrgId</code>, <code>parentId</code>, and <code>capabilityIds</code> use ids from an earlier step. A blank nullable field clears that value.
         </p>
       </div>
+
+      {/* Path 2: AI / LLM-Assisted Flat CSV Matrix Importer */}
+      <FlatCsvAiImporter onRefresh={onRefresh} />
+
+      {/* Feature 3: Seed Example Data per Meta-Model Concept */}
+      <ExampleDataManager onRefresh={onRefresh} />
     </div>
   );
 };

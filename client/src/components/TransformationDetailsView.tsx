@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAccess } from '../access';
+import { DEFAULT_COST_CURRENCY, formatShortCost } from '../cost';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import ReactFlow, {
   Background,
@@ -60,6 +61,7 @@ interface HydratedEntity {
   ownerOrg?: { id: string; name: string; type?: string | null } | null;
   lifecycle?: string | null;
   criticality?: string | null;
+  annualCost?: number | null;
   cost?: string | null;
   functionalFit?: string | null;
   technicalFit?: string | null;
@@ -140,6 +142,11 @@ interface TransformationDetail {
       totalCostBefore: number;
       totalCostAfter: number;
       costDelta: number;
+      annualCostBefore?: number;
+      annualCostAfter?: number;
+      annualCostDelta?: number;
+      hasNumericAnnualCost?: boolean;
+      costCurrency?: string;
       retiredCount: number;
       introducedCount: number;
       consolidatedCount: number;
@@ -1662,14 +1669,29 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
 
             <div className="card" style={{ padding: '0.9rem 1.1rem' }}>
               <div style={{ fontSize: '0.74rem', color: 'var(--muted-foreground)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Relative Cost Sum
+                {metrics.hasNumericAnnualCost ? 'Annual Run Cost' : 'Relative Cost Sum'}
               </div>
-              <div style={{ fontSize: '1.35rem', fontWeight: 700, marginTop: '0.25rem' }}>
-                {metrics.totalCostBefore} → {metrics.totalCostAfter}
-              </div>
-              <div style={{ fontSize: '0.76rem', color: metrics.costDelta <= 0 ? '#10b981' : '#f59e0b', marginTop: '0.15rem' }}>
-                {metrics.costDelta > 0 ? `+${metrics.costDelta}` : metrics.costDelta} cost index delta
-              </div>
+              {metrics.hasNumericAnnualCost ? (
+                <>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700, marginTop: '0.25rem' }}>
+                    {formatShortCost(metrics.annualCostBefore ?? 0, metrics.costCurrency ?? DEFAULT_COST_CURRENCY)} →{' '}
+                    {formatShortCost(metrics.annualCostAfter ?? 0, metrics.costCurrency ?? DEFAULT_COST_CURRENCY)}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: (metrics.annualCostDelta ?? 0) <= 0 ? '#10b981' : '#f59e0b', marginTop: '0.15rem' }}>
+                    {(metrics.annualCostDelta ?? 0) > 0 ? '+' : ''}
+                    {formatShortCost(metrics.annualCostDelta ?? 0, metrics.costCurrency ?? DEFAULT_COST_CURRENCY)}/yr delta
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 700, marginTop: '0.25rem' }}>
+                    {metrics.totalCostBefore} → {metrics.totalCostAfter}
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: metrics.costDelta <= 0 ? '#10b981' : '#f59e0b', marginTop: '0.15rem' }}>
+                    {metrics.costDelta > 0 ? `+${metrics.costDelta}` : metrics.costDelta} cost index delta
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="card" style={{ padding: '0.9rem 1.1rem' }}>
@@ -1704,9 +1726,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                     technicalFit: a.technicalFit || '3',
                     functionalFit: a.functionalFit || '3',
                     criticality: a.criticality || '3',
+                    annualCost: a.annualCost,
                     cost: a.cost || '1',
                   }))}
                   thresholds={timeThresholds}
+                  costCurrency={detail.impact.metrics.costCurrency}
                   onSelectApp={(appId) => {
                     const found = detail.impact.predecessorApps.find((a) => a.id === appId);
                     if (found) {
@@ -1738,9 +1762,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                     technicalFit: a.technicalFit || '3',
                     functionalFit: a.functionalFit || '3',
                     criticality: a.criticality || '3',
+                    annualCost: a.annualCost,
                     cost: a.cost || '1',
                   }))}
                   thresholds={timeThresholds}
+                  costCurrency={detail.impact.metrics.costCurrency}
                   onSelectApp={(appId) => {
                     const found = detail.impact.successorApps.find((a) => a.id === appId);
                     if (found) {
@@ -1995,7 +2021,11 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                           Tech Fit: <strong>{selectedEntityPopup.entity.technicalFit || '3'}</strong> · Func Fit:{' '}
                           <strong>{selectedEntityPopup.entity.functionalFit || '3'}</strong> · Criticality:{' '}
                           <strong>{selectedEntityPopup.entity.criticality || '3'}</strong> · Cost:{' '}
-                          <strong>{selectedEntityPopup.entity.cost || '1'}</strong>
+                          <strong>
+                            {typeof selectedEntityPopup.entity.annualCost === 'number' && Number.isFinite(selectedEntityPopup.entity.annualCost)
+                              ? `${formatShortCost(selectedEntityPopup.entity.annualCost, detail.impact.metrics.costCurrency ?? DEFAULT_COST_CURRENCY)}/yr`
+                              : (selectedEntityPopup.entity.cost || '—')}
+                          </strong>
                         </div>
                       </div>
                     );
@@ -2034,8 +2064,10 @@ export const TransformationDetailsView: React.FC<{ timeThresholds?: TimeThreshol
                       technicalFit: selectedEntityPopup.entity.technicalFit || '3',
                       functionalFit: selectedEntityPopup.entity.functionalFit || '3',
                       criticality: selectedEntityPopup.entity.criticality || '3',
-                      cost: selectedEntityPopup.entity.cost || '1',
+                      cost: selectedEntityPopup.entity.cost,
+                      annualCost: selectedEntityPopup.entity.annualCost,
                     }}
+                    costCurrency={detail.impact.metrics.costCurrency ?? DEFAULT_COST_CURRENCY}
                     thresholds={timeThresholds}
                   />
                 </div>

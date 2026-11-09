@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
+import { DEFAULT_COST_CURRENCY, formatShortCost } from '../cost';
 
 export interface TimeAppItem {
   id: string;
@@ -7,7 +8,8 @@ export interface TimeAppItem {
   technicalFit?: string | number;
   functionalFit?: string | number;
   criticality?: string | number;
-  cost?: string | number;
+  cost?: string | number | null;
+  annualCost?: number | null;
 }
 
 export interface PlottedApp {
@@ -80,6 +82,7 @@ interface TimeMatrixProps {
   onHoverApp?: (appId: string | null) => void;
   onSelectQuadrant?: (quadrant: string | null) => void;
   thresholds?: TimeThresholds;
+  costCurrency?: string;
   aspectRatio?: string;
   showLegend?: boolean;
   className?: string;
@@ -96,6 +99,7 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
   onHoverApp,
   onSelectQuadrant,
   thresholds,
+  costCurrency = DEFAULT_COST_CURRENCY,
   aspectRatio = '1 / 1',
   showLegend = true,
   className,
@@ -136,11 +140,11 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
       const tVal = assessment.techScore;
       const fVal = assessment.funcScore;
       const cVal = hasCrit ? Math.max(1, Math.min(5, crit)) : 3;
-      const costVal = hasCost ? Math.max(1, Math.min(5, cost)) : 1;
+      const costVal = hasCost ? Math.max(1, Math.min(5, cost)) : 0;
 
       const isTechHigh = assessment.isTechHigh;
       const isFuncHigh = assessment.isFuncHigh;
-      const isHighCost = costVal >= costCutoff;
+      const isHighCost = hasCost && costVal >= costCutoff;
       const isMissionCritical = cVal >= critCutoff;
       const quadrant = assessment.value;
       const color = assessment.color;
@@ -393,7 +397,17 @@ export const TimeMatrix: React.FC<TimeMatrixProps> = ({
                       <span>Tech: <strong style={{ color: plot.techScore >= techCutoff ? '#2b8a3e' : '#c92a2a' }}>{plot.techScore}/5</strong></span>
                       <span>Func: <strong style={{ color: plot.funcScore >= funcCutoff ? '#2b8a3e' : '#c92a2a' }}>{plot.funcScore}/5</strong></span>
                       <span>Crit: <strong style={{ color: plot.isMissionCritical ? '#ff6b6b' : '#fff' }}>{plot.crit}/5{plot.isMissionCritical ? ' (Critical)' : ''}</strong></span>
-                      <span>Cost: <strong style={{ color: plot.isHighCost ? '#fd7e14' : '#fff' }}>{plot.cost}/5{plot.isHighCost ? ' (High Cost)' : ''}</strong></span>
+                      <span>
+                        Cost:{' '}
+                        <strong style={{ color: plot.isHighCost ? '#fd7e14' : '#fff' }}>
+                          {typeof plot.app.annualCost === 'number' && Number.isFinite(plot.app.annualCost)
+                            ? `${formatShortCost(plot.app.annualCost, costCurrency)}/yr`
+                            : plot.cost > 0
+                            ? `${plot.cost}/5`
+                            : '—'}
+                          {plot.isHighCost ? ' (High Cost)' : ''}
+                        </strong>
+                      </span>
                     </div>
                   </div>
                 )}

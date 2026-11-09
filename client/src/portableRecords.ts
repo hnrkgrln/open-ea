@@ -4,13 +4,15 @@
 // updatedAt, createdById, and updatedById. Import records the signed-in account.
 // Relation columns carry ids from an earlier import step.
 
+import { parseCostInput } from './cost';
+
 export type ArtifactType = 'applications' | 'strategic-goals' | 'capabilities' | 'organizations' | 'information-objects' | 'integrations';
 
 export const CSV_HEADERS: Record<ArtifactType, string[]> = {
   applications: [
     'id', 'name', 'description', 'owner', 'ownerOrgId', 'lifecycle',
     'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate', 'contractDetails',
-    'vendorName', 'vendorUrl', 'vendorSummary', 'type', 'criticality', 'cost',
+    'vendorName', 'vendorUrl', 'vendorSummary', 'type', 'criticality', 'annualCost', 'cost',
     'functionalFit', 'technicalFit', 'timeRationale', 'metadata', 'references',
     'capabilityIds', 'processedInformationObjectIds',
   ],
@@ -30,7 +32,7 @@ const DATE_FIELDS = new Set(['lifecycleStartDate', 'lifecycleEndDate', 'contract
 const NULLABLE_FIELDS: Record<ArtifactType, string[]> = {
   applications: [
     'ownerOrgId', 'lifecycleStartDate', 'lifecycleEndDate', 'contractStartDate', 'contractEndDate',
-    'contractDetails', 'vendorName', 'vendorUrl', 'vendorSummary', 'timeRationale', 'references',
+    'contractDetails', 'vendorName', 'vendorUrl', 'vendorSummary', 'annualCost', 'cost', 'timeRationale', 'references',
   ],
   'strategic-goals': ['description', 'parentId', 'references'],
   capabilities: ['parentId', 'references'],
@@ -97,6 +99,11 @@ export const prepareImportPayload = (type: ArtifactType, item: Record<string, an
   const { id, ...payload } = item;
   for (const field of NULLABLE_FIELDS[type]) {
     if (!(field in payload)) continue;
+    if (field === 'annualCost') {
+      const parsed = parseCostInput(payload[field], 1);
+      payload[field] = parsed.value;
+      continue;
+    }
     payload[field] = DATE_FIELDS.has(field) ? toIsoDate(payload[field]) : blankToNull(payload[field]);
   }
   for (const field of ID_LIST_FIELDS[type]) {

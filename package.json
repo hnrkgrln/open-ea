@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "reset": "npm --workspace server run reset",
+    "reset-db": "npm --workspace server run reset",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

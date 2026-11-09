@@ -2,6 +2,7 @@ import React from 'react';
 import { Database, Edit2, Layers } from 'lucide-react';
 import { LifecycleBadge } from './LifecycleBadge';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
+import { costTierForAmount, DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, formatShortCost } from '../cost';
 
 export const APPLICATION_SCORE_FIELDS = [
   { id: 'crit', fieldName: 'criticality', label: 'Criticality', scaleType: 'importance', min: 1, max: 5 },
@@ -92,12 +93,14 @@ interface Props {
   rangeFields: { id: string; fieldName: string; label: string; scaleType?: string; min?: number; max?: number }[];
   picklists?: any[];
   timeThresholds?: TimeThresholds;
+  costCurrency?: string;
+  costScale?: readonly number[];
   onOpen: () => void;
   onEdit?: () => void;
   compact?: boolean;
 }
 
-export const ApplicationGridCard = ({ app, capabilities, rangeFields, picklists, timeThresholds = DEFAULT_TIME_THRESHOLDS, onOpen, onEdit, compact = false }: Props) => {
+export const ApplicationGridCard = ({ app, capabilities, rangeFields, picklists, timeThresholds = DEFAULT_TIME_THRESHOLDS, costCurrency = DEFAULT_COST_CURRENCY, costScale = DEFAULT_COST_SCALE, onOpen, onEdit, compact = false }: Props) => {
   const meta = safeJsonParse(app.metadata);
   const { isInherited, inheritedCrit } = inheritedCriticality(app, capabilities);
   const timeInfo = getAppTimeAssessment(app, timeThresholds);
@@ -106,7 +109,16 @@ export const ApplicationGridCard = ({ app, capabilities, rangeFields, picklists,
   const costOptions = picklists?.find((picklist) => picklist.name === 'application_cost')?.options || [];
   const lifecycleColor = picklists?.find((picklist) => picklist.name === 'lifecycle')?.options?.find((option: any) => option.value === app.lifecycle)?.color;
   const typeOption = appTypeOptions.find((option: any) => option.value === app.type);
-  const costOption = costOptions.find((option: any) => String(option.value) === String(app.cost || '1'));
+  const hasNumericAnnual = typeof app.annualCost === 'number' && Number.isFinite(app.annualCost);
+  const effectiveCostTier = hasNumericAnnual
+    ? costTierForAmount(app.annualCost, costScale)
+    : (app.cost ? String(app.cost) : null);
+  const costOption = effectiveCostTier
+    ? costOptions.find((option: any) => String(option.value) === String(effectiveCostTier))
+    : null;
+  const costDisplayText = hasNumericAnnual
+    ? `${formatShortCost(app.annualCost, costCurrency)}/yr`
+    : (costOption?.label || app.cost || '—');
 
   return (
     <div className="card" onClick={onOpen} style={{ cursor: 'pointer', padding: compact ? '0.6rem 0.7rem' : '0.75rem' }}>
@@ -115,15 +127,25 @@ export const ApplicationGridCard = ({ app, capabilities, rangeFields, picklists,
           <div style={{ background: 'var(--accent)', padding: '0.35rem', borderRadius: 'var(--radius)' }}><Database size={16} /></div>
           <div style={{ display: 'flex', gap: '3px' }}>
             {rangeFields.map((def) => {
-              const val = def.fieldName === 'criticality' ? inheritedCrit : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
+              const rawVal =
+                def.fieldName === 'criticality'
+                  ? inheritedCrit
+                  : def.fieldName === 'cost'
+                  ? (effectiveCostTier ?? 0)
+                  : ((app as any)[def.fieldName] || meta[def.fieldName] || def.min);
+              const val = Number(rawVal);
               const isThisInherited = def.fieldName === 'criticality' && isInherited;
+              const dotTitle =
+                def.fieldName === 'cost'
+                  ? `${def.label}: ${costDisplayText}`
+                  : `${def.label}: ${rawVal}${isThisInherited ? ' (Inherited)' : ''}`;
               return (
                 <div
                   key={def.id}
-                  title={`${def.label}: ${val}${isThisInherited ? ' (Inherited)' : ''}`}
+                  title={dotTitle}
                   style={{
                     width: '8px', height: '8px', borderRadius: '50%',
-                    background: getOverlayColor(Number(val), def),
+                    background: val > 0 ? getOverlayColor(val, def) : 'var(--border)',
                     border: isThisInherited ? '1px solid var(--primary)' : 'none'
                   }}
                 />
@@ -174,7 +196,7 @@ export const ApplicationGridCard = ({ app, capabilities, rangeFields, picklists,
           ) : '—'}
         </div>
         <div><strong>Type:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{typeOption?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: typeOption.color }} />} {typeOption?.label || app.type || 'Unspecified'}</span></div>
-        <div><strong>Cost:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{costOption?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: costOption.color }} />} {costOption?.label || app.cost || '1'}</span></div>
+        <div><strong>Cost:</strong> <span style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>{costOption?.color && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: costOption.color }} />} {costDisplayText}</span></div>
       </div>}
     </div>
   );

@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Boxes, Database, FileText, Layers, Lightbulb, Network, Target } from 'lucide-react';
 import { TIME_OPTIONS, getAppTimeAssessment, type TimeThresholds } from '../App';
+import { DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, costTierForAmount, formatShortCost } from '../cost';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
 
 interface Named {
   id: string;
@@ -16,6 +18,7 @@ interface InsightApp extends Named {
   lifecycle?: string | null;
   type?: string | null;
   criticality?: string | null;
+  annualCost?: number | null;
   cost?: string | null;
   functionalFit?: string | null;
   technicalFit?: string | null;
@@ -182,6 +185,9 @@ export const InsightsView = ({
       return res.json();
     },
   });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const costCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
   const costOptions = picklists?.find((picklist) => picklist.name === 'application_cost')?.options ?? [];
 
   const model = useMemo(() => {
@@ -212,6 +218,8 @@ export const InsightsView = ({
       return [{ app, days }];
     }).sort((a, b) => a.days - b.days);
     const costCounts: Record<string, number> = {};
+    let totalAnnualRunCost = 0;
+    let annualCostCount = 0;
     let highCost = 0;
     let lowTech = 0;
     let dataRisk = 0;
@@ -228,10 +236,17 @@ export const InsightsView = ({
       }
     }
     for (const app of active) {
-      const rawCost = (app.cost ?? '').trim();
+      const hasNumericAnnual = typeof app.annualCost === 'number' && Number.isFinite(app.annualCost);
+      if (hasNumericAnnual) {
+        totalAnnualRunCost += app.annualCost!;
+        annualCostCount += 1;
+      }
+      const rawCost = hasNumericAnnual
+        ? (costTierForAmount(app.annualCost, costScale) ?? '')
+        : (app.cost ?? '').trim();
       const costKey = rawCost || 'unset';
       costCounts[costKey] = (costCounts[costKey] ?? 0) + 1;
-      const high = (recordedScore(rawCost) ?? 1) >= costCutoff;
+      const high = (recordedScore(rawCost) ?? 0) >= costCutoff;
       const low = (recordedScore(app.technicalFit) ?? techCutoff) < techCutoff;
       const due = isContractDue(app);
       const sensitiveData = dataRiskIds.has(app.id) || (app.processedInformationObjects ?? []).some(isHighSensitivity);
@@ -284,6 +299,8 @@ export const InsightsView = ({
       attention,
       contracts,
       costCounts,
+      totalAnnualRunCost,
+      annualCostCount,
       highCost,
       lowTech,
       dataRisk,
@@ -307,7 +324,7 @@ export const InsightsView = ({
         }) },
       ],
     };
-  }, [apps, capabilities, informationObjects, integrations, thresholds]);
+  }, [apps, capabilities, informationObjects, integrations, thresholds, costScale]);
 
   const openInventory = (patch: { time?: string[]; lifecycle?: string[]; cost?: string[]; technicalFit?: string[] }) => {
     localStorage.setItem('openea_inventory_filters', JSON.stringify({
@@ -412,7 +429,12 @@ export const InsightsView = ({
         </section>
 
         <section className="card">
-          {cardTitle('Cost', `Applications still in use. ${costCutoff} and above is high cost. Select a level to open that set.`)}
+          {cardTitle(
+            'Cost',
+            model.annualCostCount > 0
+              ? `Recorded run cost: ${formatShortCost(model.totalAnnualRunCost, costCurrency)}/yr (${model.annualCostCount} of ${timeTotal} apps). Band ${costCutoff}+ is high cost.`
+              : `Applications still in use. Band ${costCutoff} and above is high cost. Select a level to open that set.`
+          )}
           <div className="insights-donut">
             <Donut slices={costs} center={timeTotal ? `${highCostPct}%` : '—'} caption="High cost" />
             <ChartLegend

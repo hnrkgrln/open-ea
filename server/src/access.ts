@@ -192,6 +192,16 @@ async function resolveApplicationOrgs(grants: { organizationId: string; level: L
   return resolved;
 }
 
+async function lockedOrOpenPrincipal(): Promise<Principal> {
+  const count = await prisma.user.count();
+  if (count === 0) {
+    usersExist = false;
+    return openPrincipal();
+  }
+  usersExist = true;
+  return lockedPrincipal();
+}
+
 async function loadPrincipal(userId: string, stateId: string): Promise<Principal> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -201,7 +211,7 @@ async function loadPrincipal(userId: string, stateId: string): Promise<Principal
       },
     },
   });
-  if (!user) return lockedPrincipal();
+  if (!user) return lockedOrOpenPrincipal();
   let admin = false;
   const areas = allLevels('none');
   const orgGrants: { organizationId: string; level: Level }[] = [];
@@ -244,12 +254,12 @@ export async function principalFromCookie(cookieHeader: string | undefined, stat
     usersExist = true;
   }
   const sessionId = readSessionId(cookieHeader);
-  if (!sessionId) return lockedPrincipal();
+  if (!sessionId) return lockedOrOpenPrincipal();
   const session = await prisma.session.findUnique({ where: { id: sessionId } });
-  if (!session) return lockedPrincipal();
+  if (!session) return lockedOrOpenPrincipal();
   if (session.expiresAt.getTime() <= Date.now()) {
     await prisma.session.delete({ where: { id: session.id } }).catch(() => undefined);
-    return lockedPrincipal();
+    return lockedOrOpenPrincipal();
   }
   return loadPrincipal(session.userId, stateId);
 }
@@ -476,6 +486,7 @@ function isAdminRoute(method: string, url: string) {
   if (url.startsWith('/picklists') || url.startsWith('/picklist-options')) return method !== 'GET';
   if (url.startsWith('/metadata-definitions')) return method !== 'GET';
   if (url === '/workspace') return method !== 'GET';
+  if (url.startsWith('/example-data') || url === '/csv-flat-import') return true;
   if (url.startsWith('/llm')) {
     if (method === 'GET' && url === '/llm/providers') return false;
     if (method === 'POST' && (url === '/llm/ask' || url === '/llm/application-suggestions' || url === '/llm/application-capability-suggestions')) return false;
@@ -737,6 +748,11 @@ export function registerAccessRoutes(server: FastifyInstance) {
             update: { name: group.name, builtIn: group.builtIn },
           });
         }
+        await tx.workspaceSettings.upsert({
+          where: { id: 'default' },
+          create: { id: 'default', brandName: 'OpenEA', onboardingCompleted: false },
+          update: {},
+        });
         return tx.user.create({
           data: {
             name: request.body.name.trim(),

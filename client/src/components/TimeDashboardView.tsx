@@ -4,6 +4,8 @@ import { Database, ExternalLink, Filter, Layers, Info } from 'lucide-react';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, type TimeThresholds } from '../App';
 import { getAppTimeAssessment } from '../timeAssessment';
 import { TimeMatrix, getTimeCoordinateX, getTimeCoordinateY, type PlottedApp } from './TimeMatrix';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { costTierForAmount, DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, formatShortCost } from '../cost';
 
 interface Application {
   id: string;
@@ -15,7 +17,8 @@ interface Application {
   lifecycle: string;
   type: string;
   criticality: string;
-  cost?: string;
+  annualCost?: number | null;
+  cost?: string | null;
   functionalFit: string;
   technicalFit: string;
   metadata?: string;
@@ -110,6 +113,9 @@ export const TimeDashboardView: React.FC<Props> = ({
     queryKey: ['picklists'],
     queryFn: () => fetch('/api/picklists').then(res => res.json())
   });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const costCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
   const costOptions = useMemo(() => picklists?.find((p: any) => p.name === 'application_cost')?.options || [], [picklists]);
 
   // Measure left column height dynamically to ensure the app list is exactly as tall as the matrix
@@ -193,9 +199,14 @@ export const TimeDashboardView: React.FC<Props> = ({
       const color = assessment.color;
 
       const crit = getAppCriticality(app);
-      const costNum = Number(app.cost);
-      const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
-      const isHighCost = costVal >= costCutoff;
+      const effectiveTier =
+        typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)
+          ? costTierForAmount(app.annualCost, costScale)
+          : app.cost;
+      const costNum = Number(effectiveTier);
+      const hasCost = effectiveTier != null && !isNaN(costNum) && costNum > 0;
+      const costVal = hasCost ? Math.max(1, Math.min(5, costNum)) : 0;
+      const isHighCost = hasCost && costVal >= costCutoff;
       const isMissionCritical = crit >= critCutoff;
       const dotSize = isMissionCritical ? 20 + (crit - critCutoff) * 3 : 11 + (crit - 1) * 2;
 
@@ -238,7 +249,7 @@ export const TimeDashboardView: React.FC<Props> = ({
         isMissionCritical
       };
     });
-  }, [apps, allCapabilities, thresholds]);
+  }, [apps, allCapabilities, thresholds, costScale]);
 
   // Quadrant summary stats
   const quadrantStats = useMemo(() => {
@@ -357,6 +368,7 @@ export const TimeDashboardView: React.FC<Props> = ({
             onHoverApp={setHoveredAppId}
             onSelectQuadrant={setSelectedQuadrant}
             thresholds={thresholds}
+            costCurrency={costCurrency}
             aspectRatio="1 / 1"
             showLegend={true}
           />
@@ -474,15 +486,25 @@ export const TimeDashboardView: React.FC<Props> = ({
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Cost</div>
+                    <div style={{ fontSize: '0.58rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Annual Cost</div>
                     {(() => {
                       const costCutoff = thresholds?.cost ?? 4;
-                      const isHighCost = inspectedPlot.cost >= costCutoff;
-                      const opt = costOptions.find((o: any) => String(o.value) === String(inspectedPlot.cost));
+                      const isHighCost = inspectedPlot.cost > 0 && inspectedPlot.cost >= costCutoff;
+                      const opt = inspectedPlot.cost > 0
+                        ? costOptions.find((o: any) => String(o.value) === String(inspectedPlot.cost))
+                        : null;
+                      const hasNumeric =
+                        typeof inspectedPlot.app.annualCost === 'number' &&
+                        Number.isFinite(inspectedPlot.app.annualCost);
+                      const displayCost = hasNumeric
+                        ? `${formatShortCost(inspectedPlot.app.annualCost!, costCurrency)}/yr`
+                        : inspectedPlot.cost > 0
+                        ? (opt?.label || `${inspectedPlot.cost}/5`)
+                        : '—';
                       return (
                         <div 
                           style={{ 
-                            fontSize: '0.88rem', 
+                            fontSize: '0.84rem', 
                             fontWeight: 800, 
                             color: isHighCost ? '#fd7e14' : (opt?.color || 'var(--foreground)'), 
                             display: 'flex', 
@@ -492,13 +514,15 @@ export const TimeDashboardView: React.FC<Props> = ({
                             textOverflow: 'ellipsis', 
                             whiteSpace: 'nowrap' 
                           }} 
-                          title={opt?.label ? `Cost: ${opt.label} (${isHighCost ? 'High Cost ≥ ' + costCutoff : 'Normal / Low < ' + costCutoff})` : `Cost: ${inspectedPlot.cost}/5`}
+                          title={opt?.label ? `Cost: ${displayCost} (${opt.label}, ${isHighCost ? 'High Cost ≥ ' + costCutoff : 'Normal < ' + costCutoff})` : `Cost: ${displayCost}`}
                         >
                           {opt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color, flexShrink: 0 }} />}
-                          <span>{inspectedPlot.cost}/5</span>
-                          <span style={{ fontSize: '0.62rem', fontWeight: 700, color: isHighCost ? '#fd7e14' : '#2b8a3e' }}>
-                            ({isHighCost ? 'High' : 'Low'})
-                          </span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayCost}</span>
+                          {inspectedPlot.cost > 0 && (
+                            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: isHighCost ? '#fd7e14' : '#2b8a3e', flexShrink: 0 }}>
+                              ({isHighCost ? 'High' : 'Low'})
+                            </span>
+                          )}
                         </div>
                       );
                     })()}
@@ -635,9 +659,15 @@ export const TimeDashboardView: React.FC<Props> = ({
                         Urgent
                       </span>
                     )}
-                    {(() => {
+                    {plot.cost > 0 && (() => {
                       const opt = costOptions.find((o: any) => String(o.value) === String(plot.cost));
                       const isHigh = plot.isHighCost;
+                      const hasNumeric =
+                        typeof plot.app.annualCost === 'number' &&
+                        Number.isFinite(plot.app.annualCost);
+                      const badgeLabel = hasNumeric
+                        ? formatShortCost(plot.app.annualCost!, costCurrency)
+                        : (opt?.label || `${plot.cost}/5`);
                       return (
                         <span 
                           style={{ 
@@ -652,10 +682,10 @@ export const TimeDashboardView: React.FC<Props> = ({
                             alignItems: 'center', 
                             gap: '0.25rem' 
                           }}
-                          title={`Cost: ${opt?.label || `${plot.cost}/5`}${isHigh ? ' (High Cost Alert ≥ ' + (thresholds?.cost ?? 4) + ')' : ''}`}
+                          title={`Cost: ${badgeLabel}${opt?.label && hasNumeric ? ` (${opt.label})` : ''}${isHigh ? ' (High Cost Alert ≥ ' + (thresholds?.cost ?? 4) + ')' : ''}`}
                         >
                           {isHigh ? <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#fd7e14' }} /> : opt?.color && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: opt.color }} />}
-                          ${plot.cost}
+                          {badgeLabel}
                         </span>
                       );
                     })()}

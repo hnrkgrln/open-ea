@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useTransition } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore, useTransition } from 'react';
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useNavigate, useParams, Link, NavLink, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows } from 'lucide-react';
+import { Database, Network, Plus, Boxes, ChevronRight, ChevronDown, ChevronsDown, ChevronsUp, Edit2, LayoutGrid, List, Filter, X, Settings, Map as MapIcon, ShieldAlert, Eye, EyeOff, Trash2, PlusCircle, Download, Layers, LayoutDashboard, Lightbulb, GitCompareArrows, Bookmark, BookmarkCheck } from 'lucide-react';
 import { AppDetailsView } from './components/AppDetailsView';
 import { ApplicationDiagram, getLandscapeSearchMatchedApps, organizationTypeSelected } from './components/ApplicationDiagram';
 import { StrategicGoalsView } from './components/StrategicGoalsView';
@@ -26,6 +26,22 @@ import { PicklistsView } from './components/PicklistsView';
 import { FilterDot, SearchInput, MultiSelect } from './components/FilterControls';
 import { DiagramSearch } from './components/DiagramSearch';
 import { normalizeKeywords, type DiagramNameCatalog } from './diagramSearch';
+import {
+  DIAGRAM_SAVED_FILTERS_KEY,
+  diagramLandscapeName,
+  initialDiagramPin,
+  normalizeStore,
+  paramsWithSnapshot,
+  readSavedFilter,
+  snapshotFromParams,
+  snapshotIsEmpty,
+  snapshotWithDraft,
+  snapshotsEqual,
+  writeSavedFilter,
+  type DiagramFilterSnapshot,
+  type DiagramSavedFilterStore,
+} from './diagramSavedFilters';
+import { landscapeStateHeader, subscribeLandscapeState } from './landscapeState';
 import { ColoredSelect } from './components/ColoredSelect';
 import { TimeDashboardView } from './components/TimeDashboardView';
 import { InsightsView } from './components/InsightsView';
@@ -41,8 +57,10 @@ import { AspectsMenu } from './components/AspectsMenu';
 import { BrandLogo } from './components/BrandLogo';
 import { ApplicationGridCard, applicationRangeFields } from './components/ApplicationGridCard';
 import { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from './timeAssessment';
-import { fetchWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
+import { fetchWorkspaceSettings, normalizeWorkspaceSettings, type WorkspaceSettings } from './workspaceSettings';
+import { costTierForAmount, DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, estimateApplicationTco, formatShortCost } from './cost';
 import { AccessProvider, useAccess, type AccessArea } from './access';
+import { OnboardingGuide } from './components/OnboardingGuide';
 
 export { TIME_OPTIONS, DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, readStoredTimeThresholds } from './timeAssessment';
 export type { TimeThresholds } from './timeAssessment';
@@ -177,7 +195,8 @@ interface Application {
   vendorSummary?: string;
   type: string;
   criticality: string;
-  cost?: string;
+  annualCost?: number | null;
+  cost?: string | null;
   functionalFit: string;
   technicalFit: string;
   timeRationale?: string;
@@ -451,14 +470,12 @@ const AppContent = () => {
       setBrandError('Could not save the brand name.');
       return;
     }
-    const saved = await res.json() as WorkspaceSettings;
-    queryClient.setQueryData(['workspace'], (current: WorkspaceSettings | undefined) => ({
-      brandName: saved.brandName,
-      disabledNativeFields: saved.disabledNativeFields ?? current?.disabledNativeFields ?? [],
-    }));
+    const saved = await res.json();
+    const normalized = normalizeWorkspaceSettings(saved, queryClient.getQueryData(['workspace']));
+    queryClient.setQueryData(['workspace'], normalized);
     brandDirty.current = false;
     setBrandError('');
-    setBrandNameState(saved.brandName);
+    setBrandNameState(normalized.brandName);
   }, [queryClient]);
 
   useEffect(() => {
@@ -585,6 +602,21 @@ const AppContent = () => {
         <div className="loading-logo"><BrandLogo size="splash" label="OpenEA" /></div>
         <div className="loading-text">Architecting your enterprise...</div>
       </div>
+    );
+  }
+
+  const needsOnboarding = !access.required || (access.admin && Boolean(workspace) && !workspace!.onboardingCompleted);
+  if (needsOnboarding) {
+    return (
+      <OnboardingGuide
+        brandName={brandName}
+        onUpdateBrand={setBrandName}
+        onComplete={() => {
+          void queryClient.invalidateQueries({ queryKey: ['workspace'] });
+          handleRefresh();
+        }}
+        onRefresh={handleRefresh}
+      />
     );
   }
 
@@ -728,6 +760,9 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
       return res.json();
     }
   });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const costCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
 
   const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
@@ -800,8 +835,12 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
         ? String(Math.max(Number(app.criticality || 1), getRecursiveMaxCrit(app.capabilities.map(c => c.id))))
         : String(app.criticality || 1);
 
+      const effectiveCostTier =
+        typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)
+          ? costTierForAmount(app.annualCost, costScale)
+          : (app.cost ? String(app.cost) : null);
       const matchCrit = filters.criticality.length === 0 || filters.criticality.includes(inheritedCrit);
-      const matchCost = (filters.cost?.length || 0) === 0 || filters.cost.includes(app.cost || '1');
+      const matchCost = (filters.cost?.length || 0) === 0 || (effectiveCostTier !== null && filters.cost.includes(effectiveCostTier));
       const matchFunc = filters.functionalFit.length === 0 || filters.functionalFit.includes(app.functionalFit);
       const matchTech = filters.technicalFit.length === 0 || filters.technicalFit.includes(app.technicalFit);
       
@@ -825,7 +864,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
 
       return matchSearch && matchOwner && matchOwnerOrg && matchLifecycle && matchType && matchCrit && matchCost && matchFunc && matchTech && matchTime && matchCustom;
     });
-  }, [apps, filters, timeThresholds]);
+  }, [apps, filters, timeThresholds, costScale, allCapabilities]);
 
   const visibleAppIds = useMemo(() => filteredApps.map((app) => app.id), [filteredApps]);
   const selection = useTableSelection(visibleAppIds);
@@ -881,7 +920,7 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
     if (filteredApps.length === 0) return;
     
     // Define headers
-    const headers = ['Name', 'Description', 'Owner', 'Owning Organization', 'Type', 'Lifecycle', 'Lifecycle Start', 'Lifecycle End', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', 'Cost', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities', 'Processed Information', 'Resources'];
+    const headers = ['Name', 'Description', 'Owner', 'Owning Organization', 'Type', 'Lifecycle', 'Lifecycle Start', 'Lifecycle End', 'Contract Start', 'Contract End', 'Contract Details', 'Vendor', 'Vendor Home Page', 'Vendor Summary', 'Criticality', `Annual Cost (${costCurrency})`, 'Cost Scale', 'Estimated TCO', 'Functional Fit', 'Technical Fit', 'TIME Rationale', 'Capabilities', 'Processed Information', 'Resources'];
     const customHeaders = appMetaDefs.map(d => d.label);
     const allHeaders = [...headers, ...customHeaders];
 
@@ -909,7 +948,21 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
           cell(app.vendorUrl),
           cell(app.vendorSummary),
           cell(app.criticality),
+          cell(typeof app.annualCost === 'number' && Number.isFinite(app.annualCost) ? app.annualCost : ''),
           cell(app.cost),
+          cell(
+            estimateApplicationTco({
+              annualCost: app.annualCost,
+              cost: app.cost,
+              lifecycleStartDate: app.lifecycleStartDate,
+              lifecycleEndDate: app.lifecycleEndDate,
+              contractStartDate: app.contractStartDate,
+              contractEndDate: app.contractEndDate,
+              disabledNativeFields: workspace?.disabledNativeFields,
+              currency: costCurrency,
+              costScale,
+            })?.formattedTotal ?? ''
+          ),
           cell(app.functionalFit),
           cell(app.technicalFit),
           cell(app.timeRationale),
@@ -1065,6 +1118,8 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
               rangeFields={allRangeFields}
               picklists={picklists}
               timeThresholds={timeThresholds}
+              costCurrency={costCurrency}
+              costScale={costScale}
               onOpen={() => onSelectApp(app.id)}
               onEdit={access.canEditApplication(app.ownerOrgId) ? () => onEditApp(app) : undefined}
             />
@@ -1133,12 +1188,23 @@ const InventoryView = ({ apps, capabilities: allCapabilities, organizations, onS
                   </td>
                   <td style={{ padding: '0.6rem 1rem', fontSize: '0.75rem' }}>
                     {(() => {
-                      const costVal = String(app.cost || '1');
-                      const opt = costOptions.find((o: any) => String(o.value) === costVal);
+                      const hasNumericAnnual = typeof app.annualCost === 'number' && Number.isFinite(app.annualCost);
+                      const effectiveTier = hasNumericAnnual
+                        ? costTierForAmount(app.annualCost, costScale)
+                        : (app.cost ? String(app.cost) : null);
+                      const opt = effectiveTier ? costOptions.find((o: any) => String(o.value) === effectiveTier) : null;
+                      const labelText = hasNumericAnnual
+                        ? `${formatShortCost(app.annualCost!, costCurrency)}/yr`
+                        : (opt ? opt.label : (effectiveTier ? `${effectiveTier}/5` : '—'));
+                      const tooltipText = hasNumericAnnual && opt?.label
+                        ? `Annual Cost: ${labelText} (${opt.label})`
+                        : opt?.label
+                        ? `Cost Scale: ${opt.label}`
+                        : undefined;
                       return (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }} title={opt?.label ? `Cost: ${opt.label}` : `Cost: ${costVal}/5`}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', whiteSpace: 'nowrap' }} title={tooltipText}>
                           {opt?.color && <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: opt.color, flexShrink: 0 }} />}
-                          <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{opt ? opt.label : `$${costVal}`}</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{labelText}</span>
                         </div>
                       );
                     })()}
@@ -1571,17 +1637,51 @@ const EMPTY_INFORMATION: InformationObject[] = [];
 const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS, informationObjects = EMPTY_INFORMATION, integrations, isVisible, timeThresholds = DEFAULT_TIME_THRESHOLDS }: { apps: Application[], capabilities: Capability[], organizations?: Organization[], informationObjects?: InformationObject[], integrations: any[], isVisible: boolean, timeThresholds?: TimeThresholds }) => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const activeStateId = useSyncExternalStore(subscribeLandscapeState, landscapeStateHeader, () => 'current');
+  const [storedSavedFilters, setStoredSavedFilters] = useLocalStorage<DiagramSavedFilterStore>(DIAGRAM_SAVED_FILTERS_KEY, {});
+  const savedStore = useMemo(() => normalizeStore(storedSavedFilters), [storedSavedFilters]);
+  const embed = searchParams.get('embed') === '1';
+  const mode = (searchParams.get('mode') as string) || 'landscape';
+  const viewKey = `${activeStateId}:${mode}`;
+  const [trackedView, setTrackedView] = useState(viewKey);
+  const [pinned, setPinned] = useState<DiagramFilterSnapshot | null>(() => initialDiagramPin(searchParams, savedStore, activeStateId, mode));
+  const [showFilters, setShowFilters] = useState(() => pinned !== null && !snapshotIsEmpty(pinned));
+  const [searchDraft, setSearchDraft] = useState('');
+
+  // Switching landscape or state starts that view from its saved filter.
+  // A URL that already names filters stays as it is on the first open.
+  if (trackedView !== viewKey) {
+    setTrackedView(viewKey);
+    if (!embed) {
+      const next = readSavedFilter(savedStore, activeStateId, mode) ?? {};
+      if (!snapshotsEqual(snapshotFromParams(searchParams), next)) setPinned(snapshotIsEmpty(next) ? {} : next);
+      if (!snapshotIsEmpty(next)) setShowFilters(true);
+    }
+    if (searchDraft) setSearchDraft('');
+  } else if (pinned && snapshotsEqual(snapshotFromParams(searchParams), pinned)) {
+    setPinned(null);
+  }
+
+  const effectiveParams = useMemo(() => {
+    if (!pinned || snapshotsEqual(snapshotFromParams(searchParams), pinned)) return searchParams;
+    return paramsWithSnapshot(searchParams, mode, pinned);
+  }, [pinned, searchParams, mode]);
+
+  useLayoutEffect(() => {
+    if (!pinned || snapshotsEqual(snapshotFromParams(searchParams), pinned)) return;
+    setSearchParams(paramsWithSnapshot(searchParams, mode, pinned), { replace: true });
+  }, [pinned, searchParams, mode, setSearchParams]);
 
   // Helper to parse comma-separated strings from URL into arrays
   const getParamArray = (key: string) => {
-    const val = searchParams.get(key);
+    const val = effectiveParams.get(key);
     return val ? val.split(',').filter(Boolean) : [];
   };
 
   // Helper to parse custom filters from URL (e.g., custom_field=val1,val2)
   const getCustomParams = () => {
     const custom: Record<string, string[]> = {};
-    searchParams.forEach((val, key) => {
+    effectiveParams.forEach((val, key) => {
       if (key.startsWith('meta_')) {
         custom[key.replace('meta_', '')] = val.split(',').filter(Boolean);
       }
@@ -1590,10 +1690,9 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
   };
 
   const committedSearch = useMemo(
-    () => searchParams.getAll('q').map((term) => term.trim()).filter(Boolean),
-    [searchParams],
+    () => effectiveParams.getAll('q').map((term) => term.trim()).filter(Boolean),
+    [effectiveParams],
   );
-  const [searchDraft, setSearchDraft] = useState('');
   const activeSearch = useMemo(
     () => normalizeKeywords([...committedSearch, searchDraft]),
     [committedSearch, searchDraft],
@@ -1624,10 +1723,10 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     targetAppId: getParamArray('targetApp'),
     payloadId: getParamArray('payload'),
     custom: getCustomParams()
-  }), [searchParams, committedSearch]);
+  }), [effectiveParams, committedSearch]);
 
   const updateFilters = (newFilters: any) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(effectiveParams);
     
     const setOrRemove = (key: string, val: string | string[]) => {
       if (!val || (Array.isArray(val) && val.length === 0)) params.delete(key);
@@ -1682,13 +1781,13 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     setSearchDraft('');
     if (!trimmed) return;
     if (committedSearch.some((term) => term.toLowerCase() === trimmed.toLowerCase())) return;
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(effectiveParams);
     params.append('q', trimmed);
     setSearchParams(params, { replace: true });
   };
 
   const removeSearch = (index: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(effectiveParams);
     params.delete('q');
     committedSearch.forEach((term, termIndex) => {
       if (termIndex !== index) params.append('q', term);
@@ -1696,41 +1795,40 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     setSearchParams(params, { replace: true });
   };
 
-  const embed = searchParams.get('embed') === '1';
-  const mode = (searchParams.get('mode') as any) || 'landscape';
-  const setMode = (m: string) => { const p = new URLSearchParams(searchParams); p.set('mode', m); setSearchParams(p, { replace: true }); };
+  const setMode = (m: string) => { const p = new URLSearchParams(effectiveParams); p.set('mode', m); setSearchParams(p, { replace: true }); };
 
-  const activeOverlay = searchParams.get('overlay') || null;
+  const activeOverlay = effectiveParams.get('overlay') || null;
   const setActiveOverlay = (o: string | null) => { 
-    const p = new URLSearchParams(searchParams); 
+    const p = new URLSearchParams(effectiveParams); 
     if (o) p.set('overlay', o); else p.delete('overlay');
     setSearchParams(p, { replace: true }); 
   };
 
   const activeCustomOverlays = getParamArray('overlays_custom');
 
-  const groupingField = searchParams.get('group') || null;
+  const groupingField = effectiveParams.get('group') || null;
   const setGroupingField = (g: string | null) => {
-    const p = new URLSearchParams(searchParams);
+    const p = new URLSearchParams(effectiveParams);
     if (g) p.set('group', g); else p.delete('group');
     setSearchParams(p, { replace: true });
   };
 
-  // UI state not in URL (optional, can stay in local storage or state)
-  const [showFilters, setShowFilters] = useState(false);
   const [showCriticality, setShowCriticality] = useLocalStorage<boolean>('openea_diagram_show_crit', true);
   const [showApplications, setShowApplications] = useLocalStorage<boolean>('meat_diagram_show_apps', true);
   const [showCapabilities, setShowCapabilities] = useLocalStorage<boolean>('meat_diagram_show_caps', true);
   const [hideOrphanApps, setHideOrphanApps] = useLocalStorage<boolean>('meat_diagram_hide_orphans', true);
 
-  // Auto-show filters if any are active from URL on mount
+  // A shared link that already names filters opens the panel once. Later edits stay closed if the user closed it.
   useEffect(() => {
-    const hasAny = Array.from(searchParams.keys()).some(k => !['mode', 'overlay', 'group', 'overlays_custom'].includes(k));
+    const hasAny = Array.from(searchParams.keys()).some(k => !['mode', 'overlay', 'group', 'overlays_custom', 'embed'].includes(k));
     if (hasAny) setShowFilters(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const { data: picklists } = useQuery<any[]>({ queryKey: ['picklists'], queryFn: async () => { const res = await fetch('/api/picklists'); return res.json(); } });
   const { data: metaDefs } = useQuery<any[]>({ queryKey: ['metadata-definitions'], queryFn: async () => { const res = await fetch('/api/metadata-definitions'); return res.json(); } });
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
 
   const appMetaDefs = useMemo(() => metaDefs?.filter(d => d.entityType === 'Application') || [], [metaDefs]);
 
@@ -1843,8 +1941,12 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
         ? String(Math.max(localCrit, ...app.capabilities.map(c => Number(c.criticality || 1))))
         : String(localCrit);
 
+      const effectiveCostTier =
+        typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)
+          ? costTierForAmount(app.annualCost, costScale)
+          : (app.cost ? String(app.cost) : null);
       const matchCrit = (filters.criticality?.length || 0) === 0 || filters.criticality?.includes(inheritedCrit);
-      const matchCost = (filters.cost?.length || 0) === 0 || filters.cost?.includes(app.cost || '1');
+      const matchCost = (filters.cost?.length || 0) === 0 || (effectiveCostTier !== null && filters.cost?.includes(effectiveCostTier));
       const matchFunc = (filters.functionalFit?.length || 0) === 0 || filters.functionalFit?.includes(app.functionalFit);
       const matchTech = (filters.technicalFit?.length || 0) === 0 || filters.technicalFit?.includes(app.technicalFit);
       
@@ -1925,7 +2027,7 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     });
 
     return { filteredApps: finalFiltered, categoricalFilteredApps: catFiltered };
-  }, [apps, filters, activeSearch, capabilities, integrations, organizations, informationObjects, timeThresholds, mode, showApplications, showCapabilities, hideOrphanApps, groupingField, picklists]);
+  }, [apps, filters, activeSearch, capabilities, integrations, organizations, informationObjects, timeThresholds, costScale, mode, showApplications, showCapabilities, hideOrphanApps, groupingField, picklists]);
 
   const diagramFiltersActive = useMemo(() => {
     const lists = [
@@ -1937,6 +2039,27 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
     const custom = Object.values(filters.custom || {}).some((vals) => vals.length > 0);
     return committedSearch.length > 0 || searchDraft.trim() !== '' || lists.some((vals) => vals.length > 0) || custom;
   }, [filters, committedSearch, searchDraft]);
+
+  const landscapeName = diagramLandscapeName(mode);
+  const savedSnapshot = readSavedFilter(savedStore, activeStateId, mode) ?? {};
+  const hasSavedFilter = !snapshotIsEmpty(savedSnapshot);
+  const pendingSnapshot = snapshotWithDraft(effectiveParams, searchDraft);
+  const savedMatches = searchDraft.trim() === '' && hasSavedFilter && snapshotsEqual(snapshotFromParams(effectiveParams), savedSnapshot);
+  const canSaveFilter = !snapshotIsEmpty(pendingSnapshot) && !snapshotsEqual(pendingSnapshot, savedSnapshot);
+  const saveDiagramFilter = () => {
+    const snapshot = snapshotWithDraft(effectiveParams, searchDraft);
+    setStoredSavedFilters(writeSavedFilter(savedStore, activeStateId, mode, snapshot));
+    const draft = searchDraft.trim();
+    if (draft && !committedSearch.some((term) => term.toLowerCase() === draft.toLowerCase())) {
+      const params = new URLSearchParams(effectiveParams);
+      params.append('q', draft);
+      setSearchDraft('');
+      setSearchParams(params, { replace: true });
+    }
+  };
+  const forgetSavedFilter = () => {
+    setStoredSavedFilters(writeSavedFilter(savedStore, activeStateId, mode, {}));
+  };
 
   const orphanCount = useMemo(() => {
     const appsWithIntegrations = new Set(integrations?.flatMap(i => [i.sourceAppId, i.targetAppId]));
@@ -2047,6 +2170,21 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
               </button>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={saveDiagramFilter}
+            disabled={!canSaveFilter}
+            aria-pressed={savedMatches}
+            aria-label={savedMatches ? `Saved filter for the ${landscapeName} landscape` : `Save filter for the ${landscapeName} landscape`}
+            title={savedMatches
+              ? `The ${landscapeName} landscape opens with these filters.`
+              : `Use these filters whenever the ${landscapeName} landscape opens.`}
+            style={{ height: '2.2rem', padding: '0 0.6rem', fontSize: '0.9rem', border: `1px solid ${savedMatches || canSaveFilter ? 'var(--brand-focus)' : 'var(--border)'}`, background: 'var(--background)', color: savedMatches ? 'var(--brand-focus)' : undefined, opacity: !savedMatches && !canSaveFilter ? 0.55 : 1 }}
+          >
+            {savedMatches ? <BookmarkCheck size={16} style={{ marginRight: '0.4rem' }} /> : <Bookmark size={16} style={{ marginRight: '0.4rem' }} />}
+            {savedMatches ? 'Saved' : 'Save'}
+          </button>
           
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -2121,40 +2259,61 @@ const DiagramsView = ({ apps, capabilities, organizations = EMPTY_ORGANIZATIONS,
               />
             ))}
 
-            <button 
-              onClick={() => {
-                setSearchDraft('');
-                updateFilters({
-                  search: '',
-                  ownerOrgId: [],
-                  orgType: [],
-                  owner: [],
-                  lifecycle: [],
-                  type: [],
-                  capabilityId: [],
-                  criticality: [],
-                  cost: [],
-                  functionalFit: [],
-                  technicalFit: [],
-                  time: [],
-                  infoType: [],
-                  pii: [],
-                  confidentiality: [],
-                  integrity: [],
-                  availability: [],
-                  pattern: [],
-                  frequency: [],
-                  crud: [],
-                  sourceAppId: [],
-                  targetAppId: [],
-                  payloadId: [],
-                  custom: {},
-                });
-              }}
-              style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
-            >
-              <X size={16} style={{ marginRight: '0.5rem' }} /> Clear All
-            </button>
+            <div style={{ gridColumn: '1 / -1', display: 'flex', flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}>
+              {hasSavedFilter && (
+                <button
+                  type="button"
+                  onClick={forgetSavedFilter}
+                  title={`The ${landscapeName} landscape will open without a saved filter.`}
+                  style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
+                >
+                  <Bookmark size={16} style={{ marginRight: '0.5rem' }} /> Forget saved filter
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchDraft('');
+                  updateFilters({
+                    search: '',
+                    ownerOrgId: [],
+                    orgType: [],
+                    owner: [],
+                    lifecycle: [],
+                    type: [],
+                    capabilityId: [],
+                    criticality: [],
+                    cost: [],
+                    functionalFit: [],
+                    technicalFit: [],
+                    time: [],
+                    infoType: [],
+                    pii: [],
+                    confidentiality: [],
+                    integrity: [],
+                    availability: [],
+                    pattern: [],
+                    frequency: [],
+                    crud: [],
+                    sourceAppId: [],
+                    targetAppId: [],
+                    payloadId: [],
+                    custom: {},
+                  });
+                }}
+                title={hasSavedFilter ? `Clear the filters on screen. The ${landscapeName} landscape still opens with the saved filter.` : 'Clear the filters on screen.'}
+                style={{ height: '2.2rem', borderColor: 'transparent', color: 'var(--muted-foreground)', padding: 0, justifyContent: 'flex-start', fontSize: '0.9rem' }}
+              >
+                <X size={16} style={{ marginRight: '0.5rem' }} /> Clear All
+              </button>
+              {hasSavedFilter && (
+                <span style={{ fontSize: '0.8rem', color: 'var(--muted-foreground)' }}>
+                  {savedMatches
+                    ? `The ${landscapeName} landscape opens with these filters.`
+                    : `The ${landscapeName} landscape opens with the saved filter.`}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       )}

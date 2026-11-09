@@ -9,10 +9,13 @@ import { linkApplicationMentions } from './appLinks.js';
 import { buildPortfolioContext } from './llmContext.js';
 import { completeConversation, completeLlm, DEFAULT_SYSTEM_PROMPT, defaultTestPrompt, LlmError, LLM_PROVIDER_IDS, LLM_SETTINGS_ID, questionNeedsPortfolio, toPublicLlmProvider } from './llm.js';
 import { builtinSkill, cleanSkillBody, cleanSkillName, MAX_LLM_SKILLS, MAX_SKILL_BODY, MAX_SKILL_NAME, presentSkills, skillInstructions, type StoredSkill } from './llmSkills.js';
-import { bindActor, createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId, withoutActor } from './landscape.js';
+import { basePrisma, bindActor, createLandscapeState, CURRENT_STATE_ID, deleteLandscapeState, getLandscapeStateSummary, LandscapeStateError, landscapeContext, listLandscapeStates, MERGE_DOMAINS, mergeLandscapeStateIntoCurrent, prisma, refreshStates, renameLandscapeState, resolveStateId, withoutActor } from './landscape.js';
+import { buildCostScaleBands, costTierForAmount, DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, normalizeCostCurrency, parseCostScale, validateCostScale } from './cost.js';
 import { watchDevDatabase } from './devDatabase.js';
 import { applyTransformation, createTransformation, deleteTransformation, getStateDiffPreview, getTransformationDetail, listTransformations, TRANSFORMATION_ACTIONS, TRANSFORMATION_ENTITY_TYPES, TRANSFORMATION_STATUSES, updateTransformation } from './transformations.js';
 import { accessGate, applicationVisibilityWhere, canEditApplication, canSeeApplication, canViewArea, hasGlobalApplicationEdit, organizationOwnershipDenied, presentApplication, presentCapability, presentGoal, presentInformation, presentOrganization, principalFromCookie, registerAccessRoutes, rememberPrincipal, requestPrincipal } from './access.js';
+import { applyExampleDataConcepts, EXAMPLE_CONCEPT_KEYS, getExampleDataStatus, type ExampleConceptKey } from './exampleData.js';
+import { executeFlatCsvImport, FLAT_CSV_ENTITIES, suggestCsvMappings } from './csvAiImport.js';
 
 const server = fastify().withTypeProvider<ZodTypeProvider>();
 
@@ -246,6 +249,104 @@ async function backfillCriticality() {
   console.log('Criticality backfill complete:', allCaps.length, 'capabilities,', apps.length, 'applications');
 }
 
+const WORKSPACE_SETTINGS_ID_BOOT = 'default';
+
+async function readWorkspaceCostConfig() {
+  const row = await prisma.workspaceSettings.findUnique({ where: { id: WORKSPACE_SETTINGS_ID_BOOT } });
+  return {
+    costCurrency: normalizeCostCurrency(row?.costCurrency ?? DEFAULT_COST_CURRENCY),
+    costScale: parseCostScale(row?.costScale ?? DEFAULT_COST_SCALE),
+  };
+}
+
+async function syncCostScalePicklistAndApplications(
+  costCurrency: string,
+  costScale: readonly [number, number, number, number]
+): Promise<void> {
+  const bands = buildCostScaleBands(costScale, costCurrency);
+  const existing = await prisma.picklist.findUnique({
+    where: { name: 'application_cost' },
+    include: { options: true },
+  });
+
+  if (!existing) {
+    await prisma.picklist.create({
+      data: {
+        name: 'application_cost',
+        label: 'Cost Scale',
+        options: {
+          create: bands.map(b => ({
+            value: b.value,
+            label: b.label,
+            description: b.description,
+            color: b.color,
+            order: b.order,
+          })),
+        },
+      },
+    });
+  } else {
+    const byValue = new Map(existing.options.map(o => [o.value, o]));
+    for (const band of bands) {
+      const opt = byValue.get(band.value);
+      if (opt) {
+        await prisma.picklistOption.update({
+          where: { id: opt.id },
+          data: {
+            label: band.label,
+            description: band.description,
+            color: opt.color || band.color,
+            order: band.order,
+          },
+        });
+      } else {
+        await prisma.picklistOption.create({
+          data: {
+            picklistId: existing.id,
+            value: band.value,
+            label: band.label,
+            description: band.description,
+            color: band.color,
+            order: band.order,
+          },
+        });
+      }
+    }
+    const validValues = new Set<string>(bands.map(b => b.value));
+    const staleIds = existing.options.filter(o => !validValues.has(o.value)).map(o => o.id);
+    if (staleIds.length > 0) {
+      await prisma.picklistOption.deleteMany({ where: { id: { in: staleIds } } });
+    }
+  }
+
+  // Re-sync derived cost tiers across all landscape states for apps with numeric annualCost
+  const appsWithNumericCost = await basePrisma.application.findMany({
+    where: { annualCost: { not: null } },
+    select: { id: true, annualCost: true, cost: true },
+  });
+  for (const app of appsWithNumericCost) {
+    const nextCost = costTierForAmount(app.annualCost, costScale);
+    if (nextCost !== app.cost) {
+      await basePrisma.application.update({
+        where: { id: app.id },
+        data: { cost: nextCost },
+      });
+    }
+  }
+}
+
+async function ensureWorkspaceCostScale() {
+  const { costCurrency, costScale } = await readWorkspaceCostConfig();
+  const existing = await prisma.picklist.findUnique({
+    where: { name: 'application_cost' },
+    include: { options: true },
+  });
+  const hasLegacyLabels = existing?.options.some(o => o.label === '1 - Free / Negligible');
+  if (!existing || hasLegacyLabels) {
+    await syncCostScalePicklistAndApplications(costCurrency, costScale);
+  }
+}
+
 // One-time migration to rename Relation Type to Integration Type
 async function migrateMetadata() {
   const relType = await prisma.picklist.findUnique({ where: { name: 'relation_type' } });
@@ -257,7 +358,34 @@ async function migrateMetadata() {
     console.log('Migrated relation_type picklist to integration_type');
   }
 }
+async function ensureWorkspaceOnboardingState() {
+  const [userCount, appCount, capCount, orgCount, row] = await Promise.all([
+    prisma.user.count(),
+    prisma.application.count(),
+    prisma.capability.count(),
+    prisma.organization.count(),
+    prisma.workspaceSettings.findUnique({ where: { id: WORKSPACE_SETTINGS_ID_BOOT } }),
+  ]);
+  const hasPortfolioData = appCount + capCount + orgCount > 0;
+  if (!row) {
+    await prisma.workspaceSettings.create({
+      data: {
+        id: WORKSPACE_SETTINGS_ID_BOOT,
+        brandName: 'OpenEA',
+        onboardingCompleted: userCount > 0 && hasPortfolioData,
+      },
+    });
+  } else if (!row.onboardingCompleted && userCount > 0 && hasPortfolioData) {
+    await prisma.workspaceSettings.update({
+      where: { id: WORKSPACE_SETTINGS_ID_BOOT },
+      data: { onboardingCompleted: true },
+    });
+  }
+}
+
 migrateMetadata().catch(console.error);
+ensureWorkspaceCostScale().catch(console.error);
+ensureWorkspaceOnboardingState().catch(console.error);
 backfillCriticality().catch(console.error);
 backfillProcessing().catch(console.error);
 
@@ -585,7 +713,8 @@ server.post('/applications', {
       vendorSummary: z.string().max(1000).optional().nullable(),
       type: z.string().optional(),
       criticality: z.string().optional(),
-      cost: z.string().optional(),
+      annualCost: z.number().min(0).max(1e12).optional().nullable(),
+      cost: z.string().optional().nullable(),
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
       timeRationale: z.string().max(2000).optional().nullable(),
@@ -604,6 +733,14 @@ server.post('/applications', {
   }
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
   if (data.timeRationale !== undefined) data.timeRationale = normalizeTimeRationale(data.timeRationale);
+  if (data.annualCost !== undefined) {
+    if (typeof data.annualCost === 'number') {
+      const { costScale } = await readWorkspaceCostConfig();
+      data.cost = costTierForAmount(data.annualCost, costScale);
+    } else if (data.annualCost === null && request.body.cost === undefined) {
+      data.cost = null;
+    }
+  }
   applyStoredVendor(data);
 
   // Filter for only existing capability IDs to prevent Prisma crash (P2025)
@@ -671,7 +808,8 @@ server.put('/applications/:id', {
       vendorSummary: z.string().max(1000).optional().nullable(),
       type: z.string().optional(),
       criticality: z.string().optional(),
-      cost: z.string().optional(),
+      annualCost: z.number().min(0).max(1e12).optional().nullable(),
+      cost: z.string().optional().nullable(),
       functionalFit: z.string().optional(),
       technicalFit: z.string().optional(),
       timeRationale: z.string().max(2000).optional().nullable(),
@@ -697,6 +835,14 @@ server.put('/applications/:id', {
   }
   const { capabilityIds, processedInformationObjectIds, ...data } = request.body;
   if (data.timeRationale !== undefined) data.timeRationale = normalizeTimeRationale(data.timeRationale);
+  if (data.annualCost !== undefined) {
+    if (typeof data.annualCost === 'number') {
+      const { costScale } = await readWorkspaceCostConfig();
+      data.cost = costTierForAmount(data.annualCost, costScale);
+    } else if (data.annualCost === null && request.body.cost === undefined) {
+      data.cost = null;
+    }
+  }
   applyStoredVendor(data);
 
   let validIds: string[] = [];
@@ -1743,10 +1889,21 @@ function parseDisabledNativeFields(raw: unknown): string[] {
   return [...new Set(values.filter((id): id is string => typeof id === 'string' && allowed.has(id)))];
 }
 
-function workspaceResponse(row: { brandName: string; disabledNativeFields?: string | null } | null) {
+function workspaceResponse(
+  row: {
+    brandName: string;
+    disabledNativeFields?: string | null;
+    costCurrency?: string | null;
+    costScale?: string | null;
+    onboardingCompleted?: boolean | null;
+  } | null
+) {
   return {
     brandName: row?.brandName?.trim() || DEFAULT_BRAND_NAME,
     disabledNativeFields: parseDisabledNativeFields(row?.disabledNativeFields),
+    costCurrency: normalizeCostCurrency(row?.costCurrency ?? DEFAULT_COST_CURRENCY),
+    costScale: parseCostScale(row?.costScale ?? DEFAULT_COST_SCALE),
+    onboardingCompleted: Boolean(row?.onboardingCompleted),
   };
 }
 
@@ -1760,28 +1917,70 @@ server.put('/workspace', {
     body: z.object({
       brandName: z.string().trim().min(1).max(80).optional(),
       disabledNativeFields: z.array(z.string()).max(64).optional(),
-    }).refine((body) => body.brandName !== undefined || body.disabledNativeFields !== undefined, {
-      message: 'Nothing to update',
-    }),
+      costCurrency: z.string().trim().min(2).max(6).optional(),
+      costScale: z.array(z.number().positive().max(1e13)).length(4).optional(),
+      onboardingCompleted: z.boolean().optional(),
+    }).refine(
+      (body) =>
+        body.brandName !== undefined ||
+        body.disabledNativeFields !== undefined ||
+        body.costCurrency !== undefined ||
+        body.costScale !== undefined ||
+        body.onboardingCompleted !== undefined,
+      {
+        message: 'Nothing to update',
+      }
+    ),
   },
-}, async (request) => {
+}, async (request, reply) => {
   const brandName = request.body.brandName?.trim();
   const disabledNativeFields = request.body.disabledNativeFields === undefined
     ? undefined
     : JSON.stringify(parseDisabledNativeFields(request.body.disabledNativeFields));
+  const onboardingCompleted = request.body.onboardingCompleted;
+
+  let validatedScale: [number, number, number, number] | undefined;
+  if (request.body.costScale !== undefined) {
+    const parsed = validateCostScale(request.body.costScale);
+    if (!parsed) {
+      return reply.status(400).send({
+        error: 'Cost scale must contain 4 strictly increasing positive thresholds.',
+      });
+    }
+    validatedScale = parsed;
+  }
+
+  const normalizedCurrency = request.body.costCurrency !== undefined
+    ? normalizeCostCurrency(request.body.costCurrency)
+    : undefined;
+  const serializedScale = validatedScale !== undefined
+    ? JSON.stringify(validatedScale)
+    : undefined;
+
   const row = await prisma.workspaceSettings.upsert({
     where: { id: WORKSPACE_SETTINGS_ID },
     create: {
       id: WORKSPACE_SETTINGS_ID,
       brandName: brandName || DEFAULT_BRAND_NAME,
       ...(disabledNativeFields !== undefined ? { disabledNativeFields } : {}),
+      ...(normalizedCurrency !== undefined ? { costCurrency: normalizedCurrency } : {}),
+      ...(serializedScale !== undefined ? { costScale: serializedScale } : {}),
+      ...(onboardingCompleted !== undefined ? { onboardingCompleted } : {}),
     },
     update: {
       ...(brandName ? { brandName } : {}),
       ...(disabledNativeFields !== undefined ? { disabledNativeFields } : {}),
+      ...(normalizedCurrency !== undefined ? { costCurrency: normalizedCurrency } : {}),
+      ...(serializedScale !== undefined ? { costScale: serializedScale } : {}),
+      ...(onboardingCompleted !== undefined ? { onboardingCompleted } : {}),
     },
   });
-  return workspaceResponse(row);
+
+  const formatted = workspaceResponse(row);
+  if (normalizedCurrency !== undefined || serializedScale !== undefined) {
+    await syncCostScalePicklistAndApplications(formatted.costCurrency, formatted.costScale);
+  }
+  return formatted;
 });
 
 // LLM providers. API keys stay in the database and are never returned.
@@ -2167,6 +2366,84 @@ server.post('/llm/providers/:id/test', {
   } catch (err) {
     return sendLlmError(reply, err);
   }
+});
+
+// Example Seed Data per Meta-Model Concept
+server.get('/example-data/status', async () => {
+  return getExampleDataStatus(prisma);
+});
+
+server.post('/example-data/apply', {
+  schema: {
+    body: z.object({
+      concepts: z.record(z.enum(EXAMPLE_CONCEPT_KEYS), z.boolean()),
+    }),
+  },
+}, async (request) => {
+  const { costScale } = await readWorkspaceCostConfig();
+  const result = await applyExampleDataConcepts(
+    prisma,
+    request.body.concepts as Partial<Record<ExampleConceptKey, boolean>>,
+    costScale,
+  );
+  await backfillCriticality();
+  await backfillProcessing();
+  return result;
+});
+
+// AI/LLM Flat Matrix CSV Mapping & Multi-Object Import
+server.post('/llm/csv-mapping-suggestions', {
+  schema: {
+    body: z.object({
+      headers: z.array(z.string().min(1).max(200)).min(1).max(120),
+      sampleRows: z.array(z.record(z.string(), z.string())).max(20).default([]),
+      useHeuristicsOnly: z.boolean().optional(),
+    }),
+  },
+}, async (request, reply) => {
+  const provider = request.body.useHeuristicsOnly
+    ? null
+    : await prisma.llmProvider.findFirst({ where: { isActive: true }, orderBy: { updatedAt: 'desc' } });
+  try {
+    const result = await suggestCsvMappings(prisma, provider, {
+      headers: request.body.headers,
+      sampleRows: request.body.sampleRows,
+    });
+    return {
+      ...result,
+      providerName: provider?.name,
+      model: provider?.model,
+    };
+  } catch (err) {
+    return sendLlmError(reply, err);
+  }
+});
+
+server.post('/csv-flat-import', {
+  schema: {
+    body: z.object({
+      rows: z.array(z.record(z.string(), z.string())).min(1).max(5000),
+      mappings: z.array(z.object({
+        column: z.string(),
+        targetEntity: z.enum(FLAT_CSV_ENTITIES),
+        targetField: z.string(),
+        separator: z.string().default(''),
+        confidence: z.enum(['high', 'medium', 'low']).default('high'),
+        assumption: z.string().default(''),
+      })).min(1).max(120),
+    }),
+  },
+}, async (request) => {
+  const { costScale } = await readWorkspaceCostConfig();
+  const summary = await executeFlatCsvImport(
+    prisma,
+    request.body.rows,
+    request.body.mappings,
+    costScale,
+  );
+  await backfillCriticality();
+  await backfillProcessing();
+  return summary;
 });
 
 // Unified Search API

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers, FileSignature, Building2 } from 'lucide-react';
+import { Edit2, Database, Boxes, ArrowRight, ArrowLeft, Calendar, User, Tag, Info, Network, Share2, ChevronLeft, ShieldCheck, ArrowUpRight, Activity, FileText, Layers, FileSignature, Building2, Coins } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAccess } from '../access';
@@ -12,6 +12,14 @@ import { TimeMatrix } from './TimeMatrix';
 import { applicationVendor } from './ApplicationSuggestions';
 import { nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
 import { fetchWorkspaceSettings } from '../workspaceSettings';
+import {
+  costTierForAmount,
+  DEFAULT_COST_CURRENCY,
+  DEFAULT_COST_SCALE,
+  estimateApplicationTco,
+  formatFullCost,
+  formatShortCost,
+} from '../cost';
 import { fetchRecord, recordIsMissing, retryRecordQuery } from '../fetchRecord';
 import { MissingRecord } from './MissingRecord';
 import { AttributeHint } from './AttributeHint';
@@ -75,6 +83,16 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
     };
   }, [app]);
 
+  const costCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
+  const effectiveCostTier = useMemo(() => {
+    if (!app) return null;
+    if (typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)) {
+      return costTierForAmount(app.annualCost, costScale);
+    }
+    return app.cost ?? null;
+  }, [app, costScale]);
+
   // TIME quadrant comes from the shared assessment. Criticality and cost only change the wording.
   const timeAssessment = useMemo(() => {
     const crit = Number(effectiveCriticality);
@@ -91,6 +109,8 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
         techScore: 0,
         funcScore: 0,
         critScore: hasCrit ? crit : 0,
+        costScore: 0,
+        isCostHigh: false,
         xPct: 50,
         yPct: 50,
         dotSize: 14,
@@ -100,9 +120,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
     const cVal = hasCrit ? Math.max(1, Math.min(5, crit)) : 3;
     const critCutoff = thresholds?.businessCriticality ?? 4;
     const costCutoff = thresholds?.cost ?? 4;
-    const costNum = Number(app?.cost);
-    const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
-    const isCostHigh = costVal >= costCutoff;
+    const costNum = Number(effectiveCostTier);
+    const hasCostScore = effectiveCostTier !== null && !isNaN(costNum) && costNum > 0;
+    const costVal = hasCostScore ? Math.max(1, Math.min(5, costNum)) : 0;
+    const isCostHigh = hasCostScore && costVal >= costCutoff;
     const missionCritical = cVal >= critCutoff;
 
     const story = {
@@ -144,7 +165,22 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
       costScore: costVal,
       isCostHigh,
     };
-  }, [app, effectiveCriticality, thresholds]);
+  }, [app, effectiveCriticality, effectiveCostTier, thresholds]);
+
+  const tcoEstimate = useMemo(() => {
+    if (!app) return null;
+    return estimateApplicationTco({
+      annualCost: app.annualCost,
+      cost: effectiveCostTier,
+      lifecycleStartDate: app.lifecycleStartDate,
+      lifecycleEndDate: app.lifecycleEndDate,
+      contractStartDate: app.contractStartDate,
+      contractEndDate: app.contractEndDate,
+      disabledNativeFields: workspace?.disabledNativeFields,
+      currency: costCurrency,
+      costScale,
+    });
+  }, [app, effectiveCostTier, workspace?.disabledNativeFields, costCurrency, costScale]);
 
   const showField = (id: NativeFieldId) => nativeFieldEnabled(workspace?.disabledNativeFields, id);
 
@@ -242,8 +278,10 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                           technicalFit: app.technicalFit,
                           functionalFit: app.functionalFit,
                           criticality: effectiveCriticality,
-                          cost: app.cost
+                          cost: effectiveCostTier ?? undefined,
+                          annualCost: app.annualCost,
                         }}
+                        costCurrency={costCurrency}
                         thresholds={thresholds}
                         aspectRatio="1 / 1"
                         showLegend={true}
@@ -333,8 +371,8 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                             inherited: isInherited 
                           },
                           { 
-                            label: 'Cost', 
-                            val: app.cost, 
+                            label: 'Annual Cost', 
+                            val: effectiveCostTier, 
                             key: 'application_cost', 
                             score: timeAssessment.costScore,
                             cutoff: thresholds?.cost ?? 4,
@@ -342,14 +380,25 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                             inherited: false 
                           }
                         ].map(item => {
-                          const info = getPicklistInfo(item.key, item.val);
-                          const statusColor = item.key === 'application_cost'
-                            ? (item.isHigh ? '#fd7e14' : '#2b8a3e')
+                          const isCostDriver = item.key === 'application_cost';
+                          const hasNumericAnnual = isCostDriver && typeof app.annualCost === 'number' && Number.isFinite(app.annualCost);
+                          const info = item.val ? getPicklistInfo(item.key, item.val) : { label: 'Not set', color: 'var(--muted-foreground)' };
+                          const primaryText = hasNumericAnnual
+                            ? `${formatShortCost(app.annualCost, costCurrency)}/yr`
+                            : (item.val ? (info.label || `${item.score ?? 1}/5`) : 'Not set');
+                          const primaryTooltip = hasNumericAnnual
+                            ? `${formatFullCost(app.annualCost, costCurrency)}/yr (${info.label})`
+                            : undefined;
+                          const rightBadge = hasNumericAnnual
+                            ? info.label
+                            : (item.score && item.score > 0 ? `${item.score}/5` : '—');
+                          const statusColor = isCostDriver
+                            ? (!item.val ? 'var(--muted-foreground)' : (item.isHigh ? '#fd7e14' : '#2b8a3e'))
                             : item.key === 'criticality'
                             ? (item.isHigh ? '#c92a2a' : 'var(--muted-foreground)')
                             : (item.isHigh ? '#2b8a3e' : '#c92a2a');
-                          const statusLabel = item.key === 'application_cost'
-                            ? (item.isHigh ? 'High Cost' : 'Normal')
+                          const statusLabel = isCostDriver
+                            ? (!item.val ? 'Unset' : (item.isHigh ? 'High Cost' : 'Normal'))
                             : item.key === 'criticality'
                             ? (item.isHigh ? 'Urgent' : 'Standard')
                             : (item.isHigh ? 'High' : 'Low');
@@ -359,7 +408,7 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                               padding: '0.85rem 1rem', 
                               background: 'var(--secondary)', 
                               borderRadius: '10px', 
-                              border: item.key === 'application_cost' && item.isHigh ? '1.5px solid #fd7e14' : '1px solid var(--border)', 
+                              border: isCostDriver && item.isHigh ? '1.5px solid #fd7e14' : '1px solid var(--border)', 
                               display: 'flex', 
                               flexDirection: 'column', 
                               justifyContent: 'space-between',
@@ -381,20 +430,20 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                                 </div>
                               </div>
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div style={{ fontSize: '0.92rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.4rem' }}>
+                                <div title={primaryTooltip} style={{ fontSize: '0.92rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden' }}>
                                   {info.color && <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: info.color, flexShrink: 0 }} />}
                                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {info.label || `${item.score ?? 1}/5`}
+                                    {primaryText}
                                   </span>
                                 </div>
-                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--foreground)', opacity: 0.8, flexShrink: 0, marginLeft: '0.35rem' }}>
-                                  {item.score ?? 1}/5
+                                <span style={{ fontSize: '0.76rem', fontWeight: 800, color: 'var(--muted-foreground)', flexShrink: 0 }}>
+                                  {rightBadge}
                                 </span>
                               </div>
 
                               <div style={{ width: '100%', height: '5px', borderRadius: '3px', background: 'var(--border)', overflow: 'hidden', marginTop: '0.2rem' }}>
-                                <div style={{ width: `${(Math.max(1, item.score ?? 1) / 5) * 100}%`, height: '100%', background: info.color || 'var(--primary)', borderRadius: '3px' }} />
+                                <div style={{ width: `${((item.score && item.score > 0 ? item.score : 0) / 5) * 100}%`, height: '100%', background: info.color || 'var(--primary)', borderRadius: '3px' }} />
                               </div>
                             </div>
                           );
@@ -647,6 +696,53 @@ export const AppDetailsView = ({ appId, onBack, onRefresh, thresholds: propThres
                       {showField('contractDetails') && app.contractDetails && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--muted-foreground)', marginTop: '0.25rem', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
                           {app.contractDetails}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  )}
+                  {tcoEstimate && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', paddingTop: '0.25rem', borderTop: '1px solid var(--border)' }}>
+                    <div style={{ background: 'var(--accent)', padding: '0.4rem', borderRadius: '8px', marginTop: '0.1rem' }}><Coins size={16} /></div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--muted-foreground)', textTransform: 'uppercase' }}>
+                        {tcoEstimate.title}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.45rem', flexWrap: 'wrap' }}>
+                        <span
+                          title={tcoEstimate.formattedFullTotal}
+                          style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--foreground)', letterSpacing: '-0.01em' }}
+                        >
+                          {tcoEstimate.formattedTotal}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                          ({tcoEstimate.formattedAnnualRate} × {tcoEstimate.durationLabel})
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--muted-foreground)' }}>
+                        {tcoEstimate.basisLabel} • {tcoEstimate.startDate} to {tcoEstimate.endDate}
+                      </div>
+                      {tcoEstimate.remaining && (
+                        <div
+                          title={tcoEstimate.remaining.formattedFullTotal}
+                          style={{ fontSize: '0.72rem', color: 'var(--foreground)', opacity: 0.85, marginTop: '0.15rem' }}
+                        >
+                          <span style={{ fontWeight: 700 }}>Remaining:</span> {tcoEstimate.remaining.formattedTotal}{' '}
+                          <span style={{ color: 'var(--muted-foreground)' }}>({tcoEstimate.remaining.durationLabel} left)</span>
+                        </div>
+                      )}
+                      {tcoEstimate.contractCommitment && (
+                        <div
+                          title={tcoEstimate.contractCommitment.formattedFullTotal}
+                          style={{ fontSize: '0.72rem', color: 'var(--foreground)', opacity: 0.85 }}
+                        >
+                          <span style={{ fontWeight: 700 }}>Contract term:</span> {tcoEstimate.contractCommitment.formattedTotal}{' '}
+                          <span style={{ color: 'var(--muted-foreground)' }}>({tcoEstimate.contractCommitment.durationLabel})</span>
+                        </div>
+                      )}
+                      {tcoEstimate.isRange && (
+                        <div style={{ fontSize: '0.66rem', color: 'var(--muted-foreground)', fontStyle: 'italic', marginTop: '0.1rem' }}>
+                          Estimated from cost scale band
                         </div>
                       )}
                     </div>

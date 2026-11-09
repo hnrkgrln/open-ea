@@ -12,7 +12,19 @@ import { AiProvidersSettings } from './AiProvidersSettings';
 import { AiSystemPromptSettings } from './AiSystemPromptSettings';
 import { AiSkillsSettings } from './AiSkillsSettings';
 import { isLockedNativeField, nativeFieldEnabled, type NativeFieldId } from '../nativeFields';
-import { fetchWorkspaceSettings, parseDisabledNativeFields, type WorkspaceSettings } from '../workspaceSettings';
+import { fetchWorkspaceSettings, normalizeWorkspaceSettings, type WorkspaceSettings } from '../workspaceSettings';
+import {
+  buildCostScaleBands,
+  COMMON_COST_CURRENCIES,
+  decomposeCostForEditor,
+  DEFAULT_COST_CURRENCY,
+  DEFAULT_COST_SCALE,
+  getCostUnits,
+  normalizeCostCurrency,
+  parseCostInput,
+  validateCostScale,
+  type CostUnitKey,
+} from '../cost';
 import { useAccess } from '../access';
 import { AccessBootstrap, GroupsSettings, UsersSettings } from './AccessSettings';
 import { SignInSettings } from './SignInSettings';
@@ -182,6 +194,261 @@ function ArtifactPicklistCard({ picklist, onChanged, heading }: { picklist: Pick
   );
 }
 
+function ApplicationCostScaleCard({
+  workspace,
+  onSaved,
+}: {
+  workspace: WorkspaceSettings | undefined;
+  onSaved: (next: WorkspaceSettings) => void;
+}) {
+  const savedCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const savedScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
+
+  const [currencyInput, setCurrencyInput] = useState(savedCurrency);
+  const [cutoffs, setCutoffs] = useState<Array<{ text: string; unitKey: CostUnitKey }>>(() =>
+    savedScale.map(val => decomposeCostForEditor(val, savedCurrency))
+  );
+  const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [savedNotice, setSavedNotice] = useState(false);
+
+  useEffect(() => {
+    setCurrencyInput(savedCurrency);
+    setCutoffs(savedScale.map(val => decomposeCostForEditor(val, savedCurrency)));
+  }, [savedCurrency, savedScale]);
+
+  const activeCurrency = normalizeCostCurrency(currencyInput);
+  const units = useMemo(() => getCostUnits(activeCurrency), [activeCurrency]);
+
+  const parsedCutoffs = useMemo(() => {
+    return cutoffs.map(item => {
+      const unit = units.find(u => u.key === item.unitKey) ?? units[1];
+      return parseCostInput(item.text, unit.multiplier);
+    });
+  }, [cutoffs, units]);
+
+  const previewScale = useMemo(() => {
+    const nums = parsedCutoffs.map(p => p.value ?? NaN);
+    return validateCostScale(nums);
+  }, [parsedCutoffs]);
+
+  const previewBands = useMemo(
+    () => buildCostScaleBands(previewScale ?? savedScale, activeCurrency),
+    [previewScale, savedScale, activeCurrency]
+  );
+
+  const isDirty = useMemo(() => {
+    if (activeCurrency !== savedCurrency) return true;
+    if (!previewScale) return true;
+    return previewScale.some((v, idx) => v !== savedScale[idx]);
+  }, [activeCurrency, savedCurrency, previewScale, savedScale]);
+
+  const handleSave = async () => {
+    setErrorMsg('');
+    setSavedNotice(false);
+    const firstErr = parsedCutoffs.find(p => p.error);
+    if (firstErr?.error) {
+      setErrorMsg(firstErr.error);
+      return;
+    }
+    if (!previewScale) {
+      setErrorMsg('Enter 4 strictly increasing positive thresholds (Band 1 < Band 2 < Band 3 < Band 4).');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/workspace', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          costCurrency: activeCurrency,
+          costScale: previewScale,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || 'Could not save cost scale settings.');
+      }
+      const saved = await res.json();
+      onSaved(normalizeWorkspaceSettings(saved, workspace));
+      setSavedNotice(true);
+      window.setTimeout(() => setSavedNotice(false), 2500);
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : 'Could not save cost scale settings.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResetDefaults = () => {
+    const defCur = activeCurrency || DEFAULT_COST_CURRENCY;
+    setCutoffs(DEFAULT_COST_SCALE.map(val => decomposeCostForEditor(val, defCur)));
+    setErrorMsg('');
+  };
+
+  return (
+    <section className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.25rem' }}>
+            Numeric field & assessment scale
+          </div>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>Annual Cost & Currency Scale</h3>
+          <p style={{ margin: '0.3rem 0 0', fontSize: '0.8rem', color: 'var(--muted-foreground)', lineHeight: 1.45 }}>
+            Applications record numeric annual cost in your workspace currency (used to estimate lifetime TCO) and map automatically onto these 5 cost scale bands.
+          </p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            type="button"
+            className="secondary"
+            onClick={handleResetDefaults}
+            style={{ height: '2rem', padding: '0 0.75rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <RotateCcw size={12} /> Default Scale
+          </button>
+          <button
+            type="button"
+            className="primary"
+            disabled={saving || !isDirty}
+            onClick={handleSave}
+            style={{ height: '2rem', padding: '0 0.9rem', fontSize: '0.78rem', fontWeight: 800 }}
+          >
+            {saving ? 'Saving...' : 'Save Scale'}
+          </button>
+        </div>
+      </div>
+
+      {/* Currency selection */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--muted-foreground)' }}>Currency:</span>
+        <div style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+          {COMMON_COST_CURRENCIES.map(code => {
+            const active = activeCurrency === code;
+            return (
+              <button
+                key={code}
+                type="button"
+                onClick={() => setCurrencyInput(code)}
+                style={{
+                  height: '1.75rem',
+                  padding: '0 0.6rem',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  border: active ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  background: active ? 'var(--primary)' : 'var(--background)',
+                  color: active ? 'var(--primary-foreground)' : 'var(--foreground)',
+                  cursor: 'pointer',
+                }}
+              >
+                {code}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          aria-label="Custom currency code"
+          value={currencyInput}
+          maxLength={6}
+          onChange={e => setCurrencyInput(e.target.value.toUpperCase())}
+          placeholder="Code"
+          style={{ width: '4.5rem', height: '1.75rem', padding: '0 0.45rem', fontSize: '0.76rem', fontWeight: 700, textTransform: 'uppercase' }}
+        />
+        <span style={{ fontSize: '0.72rem', color: 'var(--muted-foreground)' }}>
+          Shortenings: {units.map(u => u.label).join(' · ')}
+        </span>
+      </div>
+
+      {/* 4 Threshold Cutoffs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(185px, 1fr))', gap: '0.75rem' }}>
+        {cutoffs.map((cutoff, idx) => (
+          <div key={idx} style={{ background: 'var(--background)', padding: '0.65rem 0.75rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+              Band {idx + 1} → {idx + 2} Upper Limit
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 78px', gap: '0.35rem' }}>
+              <input
+                type="text"
+                inputMode="decimal"
+                aria-label={`Cost threshold ${idx + 1}`}
+                value={cutoff.text}
+                onChange={e => {
+                  const val = e.target.value;
+                  setCutoffs(prev => prev.map((c, i) => (i === idx ? { ...c, text: val } : c)));
+                }}
+                style={{ height: '1.9rem', padding: '0 0.55rem', fontSize: '0.82rem', fontWeight: 700 }}
+              />
+              <select
+                aria-label={`Cost threshold ${idx + 1} unit`}
+                value={cutoff.unitKey}
+                onChange={e => {
+                  const nextKey = e.target.value as CostUnitKey;
+                  setCutoffs(prev => prev.map((c, i) => (i === idx ? { ...c, unitKey: nextKey } : c)));
+                }}
+                style={{ height: '1.9rem', padding: '0 0.35rem', fontSize: '0.75rem', fontWeight: 700, borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
+              >
+                {units.map(u => (
+                  <option key={u.key} value={u.key}>{u.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {errorMsg && (
+        <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#c92a2a' }}>{errorMsg}</div>
+      )}
+      {savedNotice && !errorMsg && (
+        <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#2b8a3e' }}>
+          Saved currency and updated cost scale bands across applications.
+        </div>
+      )}
+
+      {/* 5-Band Preview Bar */}
+      <div style={{ padding: '0.9rem 1rem', background: 'var(--background)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: '0.45rem' }}>
+          {previewBands.map(band => (
+            <div key={band.value} style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: 0 }}>
+              <div
+                style={{
+                  height: '32px',
+                  background: band.color,
+                  borderRadius: '6px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid rgba(0,0,0,0.1)',
+                }}
+                title={`${band.label} (${band.description})`}
+              >
+                <span style={{ fontSize: '0.7rem', fontWeight: 900, color: 'white', textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                  {band.value}
+                </span>
+              </div>
+              <span
+                title={band.label}
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  color: 'var(--foreground)',
+                  textAlign: 'center',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {band.label}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const FIELD_TYPE_LABELS: Record<string, string> = {
   string: 'Text',
   textarea: 'Long text',
@@ -196,6 +463,7 @@ const FIELD_TYPE_LABELS: Record<string, string> = {
 type ArtifactField =
   | { kind: 'builtin'; id: NativeFieldId; section: string; label: string; typeLabel: string; detail: string; locked?: boolean; lockedTitle?: string }
   | { kind: 'picklist'; section: string; name: string; label: string }
+  | { kind: 'cost-scale'; section: string }
   | { kind: 'custom-range'; section: string; entityType: string }
   | { kind: 'custom-other'; section: string; entityType: string }
   | { kind: 'custom'; section: string; entityType: string; skipFieldNames?: string[] };
@@ -216,7 +484,7 @@ const APPLICATION_FIELDS: ArtifactField[] = [
   { kind: 'builtin', id: 'contractEnd', section: 'Basic information', label: 'Contract End Date', typeLabel: 'Date', detail: 'End of the current contract.' },
   { kind: 'builtin', id: 'contractDetails', section: 'Basic information', label: 'Contract Details / Notes (Optional)', typeLabel: 'Long text', detail: 'Agreement id, renewal terms, or other contract notes.' },
   { kind: 'picklist', section: 'Strategic assessment', name: 'criticality', label: 'Business Criticality' },
-  { kind: 'picklist', section: 'Strategic assessment', name: 'application_cost', label: 'Cost' },
+  { kind: 'cost-scale', section: 'Strategic assessment' },
   { kind: 'picklist', section: 'Strategic assessment', name: 'functional_fit', label: 'Functional Fit' },
   { kind: 'picklist', section: 'Strategic assessment', name: 'technical_fit', label: 'Technical Fit' },
   { kind: 'custom-range', section: 'Strategic assessment', entityType: 'Application' },
@@ -376,6 +644,8 @@ function buildArtifactSections(
   onDeleteMeta: (id: string) => void,
   disabledNativeFields: readonly string[],
   onToggleNativeField: (id: NativeFieldId, enabled: boolean) => void,
+  workspace: WorkspaceSettings | undefined,
+  onCostScaleSaved: (next: WorkspaceSettings) => void,
 ) {
   const byName = new Map(picklists.map((picklist) => [picklist.name, picklist]));
   const sections: { title: string; nodes: React.ReactNode[] }[] = [];
@@ -396,7 +666,15 @@ function buildArtifactSections(
   };
 
   for (const field of fields) {
-    if (field.kind === 'picklist') {
+    if (field.kind === 'cost-scale') {
+      push(field.section, (
+        <ApplicationCostScaleCard
+          key={`${field.section}-cost-scale`}
+          workspace={workspace}
+          onSaved={onCostScaleSaved}
+        />
+      ));
+    } else if (field.kind === 'picklist') {
       const picklist = byName.get(field.name);
       push(field.section, picklist ? (
         <ArtifactPicklistCard key={`${field.section}-${picklist.id}`} picklist={picklist} heading={field.label} onChanged={onPicklistsChanged} />
@@ -611,10 +889,9 @@ export const PicklistsView = ({
     const current = workspace?.disabledNativeFields ?? [];
     const next = enabled ? current.filter((item) => item !== id) : [...new Set([...current, id])];
     const previous = queryClient.getQueryData<WorkspaceSettings>(['workspace']);
-    queryClient.setQueryData<WorkspaceSettings>(['workspace'], (existing) => ({
-      brandName: existing?.brandName ?? 'OpenEA',
-      disabledNativeFields: next,
-    }));
+    queryClient.setQueryData<WorkspaceSettings>(['workspace'], (existing) =>
+      normalizeWorkspaceSettings({ disabledNativeFields: next }, existing)
+    );
     try {
       const res = await fetch('/api/workspace', {
         method: 'PUT',
@@ -622,14 +899,20 @@ export const PicklistsView = ({
         body: JSON.stringify({ disabledNativeFields: next }),
       });
       if (!res.ok) throw new Error('Could not save field visibility');
-      const saved = await res.json() as { brandName?: string; disabledNativeFields?: unknown };
-      queryClient.setQueryData<WorkspaceSettings>(['workspace'], (existing) => ({
-        brandName: typeof saved.brandName === 'string' ? saved.brandName : existing?.brandName ?? 'OpenEA',
-        disabledNativeFields: parseDisabledNativeFields(saved.disabledNativeFields),
-      }));
+      const saved = await res.json();
+      queryClient.setQueryData<WorkspaceSettings>(['workspace'], (existing) =>
+        normalizeWorkspaceSettings(saved, existing)
+      );
     } catch {
       queryClient.setQueryData(['workspace'], previous);
     }
+  };
+  const handleCostScaleSaved = (nextWorkspace: WorkspaceSettings) => {
+    queryClient.setQueryData<WorkspaceSettings>(['workspace'], nextWorkspace);
+    refreshPicklists();
+    queryClient.invalidateQueries({ queryKey: ['applications'] });
+    queryClient.invalidateQueries({ queryKey: ['application'] });
+    onRefresh();
   };
   const artifactSections = buildArtifactSections(
     ARTIFACT_FIELDS[selectedArtifact.id] ?? [],
@@ -641,6 +924,8 @@ export const PicklistsView = ({
     handleDeleteMeta,
     disabledNativeFields,
     toggleNativeField,
+    workspace,
+    handleCostScaleSaved,
   );
 
   return (

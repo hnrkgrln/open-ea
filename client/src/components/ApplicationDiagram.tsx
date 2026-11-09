@@ -24,6 +24,9 @@ import { getFontEmbedCSS, toCanvas } from 'html-to-image';
 import { Database, Boxes, Layers, Lock, Unlock, Maximize, Minimize, Map as MapIcon, ChevronDown, ChevronLeft, ChevronRight, Download, Loader2, FilterX, WrapText, Frame, ExternalLink, X } from 'lucide-react';
 import { DEFAULT_TIME_THRESHOLDS, getAppTimeAssessment, type TimeThresholds } from '../timeAssessment';
 import { TimeMatrix } from './TimeMatrix';
+import { useQuery } from '@tanstack/react-query';
+import { fetchWorkspaceSettings } from '../workspaceSettings';
+import { costTierForAmount, DEFAULT_COST_CURRENCY, DEFAULT_COST_SCALE, formatShortCost } from '../cost';
 import { BoxLabel, revealWidth, useDiagramReveal } from '../diagramLabel';
 import { intersectAppLandscapeResults, intersectHierarchyResults, normalizeKeywords } from '../diagramSearch';
 import { LandscapeArt, NetworkArt } from './DiagramArt';
@@ -175,7 +178,8 @@ interface Application {
   type: string;
   metadata?: string;
   criticality: string;
-  cost?: string;
+  annualCost?: number | null;
+  cost?: string | null;
   functionalFit: string;
   technicalFit: string;
   capabilities?: { id: string; name: string; criticality: string }[];
@@ -1175,6 +1179,9 @@ const DiagramInner = ({
 }: Props) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const { data: workspace } = useQuery({ queryKey: ['workspace'], queryFn: fetchWorkspaceSettings });
+  const costCurrency = workspace?.costCurrency ?? DEFAULT_COST_CURRENCY;
+  const costScale = workspace?.costScale ?? DEFAULT_COST_SCALE;
   useDiagramReveal(setNodes);
   const { setViewport, getNodes, getViewport } = useReactFlow();
   const store = useStoreApi();
@@ -1566,6 +1573,9 @@ const DiagramInner = ({
     };
 
     const getAppScore = (app: Application, fieldName: string, def?: MetadataDefinition) => {
+      if (fieldName === 'cost' && typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)) {
+        return Number(costTierForAmount(app.annualCost, costScale) ?? 1);
+      }
       const localVal = Number((app as any)[fieldName] || safeJsonParse(app.metadata)[fieldName] || (def ? def.min : 1));
       
       if (fieldName === 'criticality' && app.capabilities && app.capabilities.length > 0) {
@@ -1582,8 +1592,11 @@ const DiagramInner = ({
         return String(getAppScore(app, 'criticality', appCritDef));
       }
       if (field === 'cost') {
-        const def = metaDefs.find(d => d.fieldName === 'cost' && d.entityType === 'Application');
-        return String(getAppScore(app, 'cost', def));
+        if (typeof app.annualCost === 'number' && Number.isFinite(app.annualCost)) {
+          return costTierForAmount(app.annualCost, costScale) || 'Unspecified';
+        }
+        if (app.cost) return String(app.cost);
+        return 'Unspecified';
       }
       if (field === 'functionalFit') {
         const def = metaDefs.find(d => d.fieldName === 'functionalFit' && d.entityType === 'Application');
@@ -2410,7 +2423,7 @@ const DiagramInner = ({
 
       publishDiagram(allFinalNodes, []);
     }
-  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, searchTermKey, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, reflowZoom, filterFrame]);
+  }, [apps, filteredApps, categoricalFilteredApps, integrations, capabilities, organizationKey, metaDefs, picklists, mode, activeOverlay, activeCustomOverlays, showApplications, showCapabilities, hideOrphanApps, showCriticality, searchTermKey, setNodes, setEdges, appOverlayDef, critDef, appCritDef, filters, groupingField, isDark, getCustomLabels, viewportWidth, timeThresholds, costScale, reflowZoom, filterFrame]);
   const currentFitKey = `${layoutMetrics.count}-${layoutMetrics.span}-${viewportWidth}-${viewportHeight}-${mode}-${searchTermKey}-${groupingField || ''}-${reflowZoom}`;
 
   useEffect(() => {
@@ -2852,11 +2865,19 @@ const DiagramInner = ({
           const techScore = assessment?.techScore ?? (Number(app.technicalFit) || 0);
           const funcScore = assessment?.funcScore ?? (Number(app.functionalFit) || 0);
           const crit = getEffectiveAppCrit(app);
-          const costNum = Number(app.cost);
-          const costVal = !isNaN(costNum) && costNum > 0 ? Math.max(1, Math.min(5, costNum)) : 1;
+          const hasNumericAnnual = typeof app.annualCost === 'number' && Number.isFinite(app.annualCost);
+          const effectiveTier = hasNumericAnnual
+            ? costTierForAmount(app.annualCost, costScale)
+            : (app.cost ? String(app.cost) : null);
+          const costNum = Number(effectiveTier);
+          const hasCost = effectiveTier !== null && !isNaN(costNum) && costNum > 0;
+          const costVal = hasCost ? Math.max(1, Math.min(5, costNum)) : 0;
           const costCutoff = timeThresholds?.cost ?? 4;
-          const isHighCost = costVal >= costCutoff;
-          const costOpt = costOptions.find(o => String(o.value) === String(costVal));
+          const isHighCost = hasCost && costVal >= costCutoff;
+          const costOpt = hasCost ? costOptions.find(o => String(o.value) === String(costVal)) : undefined;
+          const costDisplay = hasNumericAnnual
+            ? `${formatShortCost(app.annualCost!, costCurrency)}/yr`
+            : (hasCost ? (costOpt?.label || `${costVal}/5`) : '—');
           const appIntegrations = integrations.filter(i => i.sourceAppId === app.id || i.targetAppId === app.id);
 
           return (
@@ -3003,21 +3024,22 @@ const DiagramInner = ({
                         </div>
                       </div>
                       <div>
-                        <div style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Cost</div>
+                        <div style={{ fontSize: '0.62rem', color: 'var(--muted-foreground)', fontWeight: 700, textTransform: 'uppercase' }}>Annual Cost</div>
                         <div
                           style={{
-                            fontSize: '0.95rem',
+                            fontSize: '0.92rem',
                             fontWeight: 800,
                             color: isHighCost ? '#fd7e14' : (costOpt?.color || 'var(--foreground)'),
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.3rem',
+                            flexWrap: 'wrap',
                           }}
                         >
                           {costOpt?.color && <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: costOpt.color, flexShrink: 0 }} />}
-                          <span>{costVal}/5</span>
-                          {costOpt?.label && (
-                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>
+                          <span>{costDisplay}</span>
+                          {hasNumericAnnual && costOpt?.label && (
+                            <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--muted-foreground)' }}>
                               ({costOpt.label})
                             </span>
                           )}

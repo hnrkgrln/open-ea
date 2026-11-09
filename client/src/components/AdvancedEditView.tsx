@@ -675,6 +675,8 @@ export function AdvancedEditView({
     information: Array.isArray(information) ? information : [],
     goals: Array.isArray(goals) ? goals : [],
     thresholds: thresholds || readStoredTimeThresholds(),
+    costCurrency: workspace?.costCurrency,
+    costScale: workspace?.costScale,
   }), [kind, picklists, metaDefs, workspace, applications, capabilities, organizations, information, goals, thresholds]);
 
   const stickyLeft = selection ? '2.5rem' : 0;
